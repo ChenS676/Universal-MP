@@ -8,10 +8,19 @@ import scipy.sparse as ssp
 import torch
 import torch.nn.functional as F
 import time
+import random 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from matplotlib import pyplot as plt
-import random
 
+def set_random_seeds(random_seed=0):
+    r"""Sets the seed for generating random numbers."""
+    torch.manual_seed(random_seed)
+    torch.cuda.manual_seed_all(random_seed)
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
+    np.random.seed(random_seed)
+    random.seed(random_seed)
+    
 
 def save_to_csv(file_path,
                 model_name,
