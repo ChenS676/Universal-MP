@@ -52,6 +52,7 @@ def get_dataset(root, name: str, use_valedges_as_input=False, year=-1):
             # double the edge weight. temporary fix like this to avoid too dense graph.
             if name == "ogbl-collab":
                 data.edge_weight = data.edge_weight/2
+        
         if 'edge' in split_edge['train']:
             key = 'edge'
         else:
