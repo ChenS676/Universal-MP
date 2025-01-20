@@ -1,0 +1,1400 @@
+import math
+from typing import List, Tuple
+import warnings
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+import torch_sparse
+from torch import Tensor
+from torch_sparse import SparseTensor, matmul
+
+import scipy.sparse as ssp
+from scipy.sparse.csgraph import shortest_path
+from torch_geometric.data import Data
+
+from torch_geometric.utils import k_hop_subgraph as pyg_k_hop_subgraph, to_edge_index
+
+import torchhd
+
+MINIMUM_SIGNATURE_DIM=64
+
+class NodeLabel(torch.nn.Module):
+    
+    def init(self, dim: int=1024, signature_sampling="torchhd", prop_type="prop_only",
+                 minimum_degree_onehot: int=-1):
+        super().init()
+        self.dim = dim
+        self.signature_sampling = signature_sampling
+        # This parameter controls how the neighbors of nodes 
+        # in the graph will be processed
+        self.prop_type = prop_type
+        self.cached_two_hop_adj = None
+        # The minimum degree of a node to apply one-hot encoding, 
+        # if the degree is less than this value, the node will be
+        # encoded as "0"
+        self.minimum_degree_onehot = minimum_degree_onehot
+
+    
+    def forward(self, edges: Tensor, adj_t: SparseTensor, node_weight: Tensor=None, cache_mode=None, adj2: SparseTensor=None):
+        # if self.training and (cache_mode is not None):
+        #     raise ValueError("Cannot use cache during training")
+        if cache_mode is not None:
+            if self.prop_type == "prop_only":
+                return self.propagation_only_cache(edges, adj_t, node_weight, cache_mode)
+            elif self.prop_type == "combine":
+                return self.propagation_combine_cache(edges, adj_t, node_weight, cache_mode)
+            elif self.prop_type == "precompute":
+                return self.propagation_prop_only_cache(edges, adj_t, node_weight, cache_mode)
+            else:
+                raise NotImplementedError()
+        else:
+            if self.prop_type == "prop_only":
+                return self.propagation_only(edges, adj_t, node_weight, adj2=adj2)
+            elif self.prop_type == "exact":
+                return self.propagation(edges, adj_t, node_weight)
+            elif self.prop_type == "combine":
+                return self.propagation_combine(edges, adj_t, node_weight)
+
+    
+    def get_random_node_vectors(self, adj_t: SparseTensor, node_weight) -> Tensor:
+        '''
+        Embedding generation
+        '''
+        num_nodes = adj_t.size(0)
+        device = adj_t.device()
+        
+        # Either create embeddings for vertices whose degree exceeds the 
+        # specified threshold, or create them for all vertices 
+        # (if the threshold is not set or = 0)
+        if self.minimum_degree_onehot > 0:
+            # Calculate degree of each node
+            degree = adj_t.sum(dim=1)
+            nodes_to_one_hot = degree >= self.minimum_degree_onehot
+            # Count the number of nodes that are subject to one-hot encoding
+            one_hot_dim = nodes_to_one_hot.sum()
+            # warnings.warn(f"number of nodes to one-hot: {one_hot_dim}", UserWarning)
+            # If the number of such nodes is too large, the method causes an error
+            if one_hot_dim + MINIMUM_SIGNATURE_DIM > self.dim:
+                raise ValueError(f"There are {int(one_hot_dim)} nodes with degree higher than {self.minimum_degree_onehot}, select a higher threshold to choose fewer nodes as hub")
+            
+            embedding = torch.zeros(num_nodes, self.dim, device=device)
+            if one_hot_dim > 0:
+                one_hot_embedding = F.one_hot(torch.arange(0, one_hot_dim)).float().to(device)
+                embedding[nodes_to_one_hot,:one_hot_dim] = one_hot_embedding
+        else:
+            embedding = torch.zeros(num_nodes, self.dim, device=device)
+            nodes_to_one_hot = torch.zeros(num_nodes, dtype=torch.bool, device=device)
+            one_hot_dim = 0
+        
+        # It is necessary to change the dimension of the new vectors, 
+        # since some vertices may be excluded
+        rand_dim = self.dim - one_hot_dim
+
+        if self.signature_sampling == "torchhd":
+            scale = math.sqrt(1 / rand_dim)
+            # Generates arbitrary embeddings with values {-1, 1}
+            node_vectors = torchhd.random(num_nodes - one_hot_dim, rand_dim, device=device)
+            node_vectors.mul_(scale)  # make them unit vectors
+        elif self.signature_sampling == "gaussian":
+            # First, the tensor is initialized with random values with 
+            # a normal distribution, and then it normalizes each 
+            # embedding so that its length is equal to 1
+            node_vectors = F.normalize(torch.nn.init.normal_(torch.empty((num_nodes - one_hot_dim, rand_dim), dtype=torch.float32, device=device)))
+        elif self.signature_sampling == "onehot":
+            embedding = torch.zeros(num_nodes, num_nodes, device=device)
+            node_vectors = F.one_hot(torch.arange(0, num_nodes)).float().to(device)
+
+        # For nodes that were not selected for one-hot encoding, 
+        # the generated random vectors are assigned
+        embedding[~nodes_to_one_hot, one_hot_dim:] = node_vectors
+
+        if node_weight is not None:
+            node_weight = node_weight.unsqueeze(1) # Note: not sqrt here because it can cause problem for MLP when output is negative
+                                                        # thus, it requires the MLP to approximate one more sqrt?
+            embedding.mul_(node_weight)
+        return embedding
+
+    
+    def propagation(self, edges: Tensor, adj_t: SparseTensor, node_weight=None):
+        '''
+        The same as propagation_only, only calculations are added for the 2-hop 
+        adjacency matrix
+        '''
+        # get the 2-hop subgraph of the target edges
+        adj_t, edges, subset = subgraph(edges, adj_t)
+        node_weight = node_weight[subset] if node_weight is not None else None
+        x = self.get_random_node_vectors(adj_t, node_weight=node_weight)
+
+        one_hop_adj, two_hop_adj = get_two_hop_adj(adj_t)
+        subset = edges.view(-1) # flatten the target nodes [row, col]
+
+        # size: [(2 x num_target_edges(row,col)) , total_num_nodes_in_2_hop_subgraph ]
+        one_hop_adj = one_hop_adj[subset]
+        two_hop_adj = two_hop_adj[subset]
+
+        ##### no cache for testing, because the adj_t may change when use_val_as_input is True #####
+        # if self.training: # training always requires compute especially for target input mask
+        #     one_hop_adj, two_hop_adj = self.get_two_hop_adj(adj_t)
+        # else: # testing
+        #     if self.cached_two_hop_adj is None:
+        #         # caching
+        #         one_hop_adj, two_hop_adj = self.get_two_hop_adj(adj_t)
+        #         self.cached_two_hop_adj = two_hop_adj
+        #     else:
+        #         # load cache
+        #         one_hop_adj = adj_t.fill_value_(1.0)
+        #         two_hop_adj = self.cached_two_hop_adj
+            
+
+        degree_one_hop = one_hop_adj.sum(dim=1)
+        degree_one_hop = degree_one_hop.view(2, edges.size(1))
+        degree_two_hop = two_hop_adj.sum(dim=1)
+        degree_two_hop = degree_two_hop.view(2, edges.size(1))
+
+        one_hop_x = matmul(one_hop_adj, x) # size: [(2 x num_target_edges(row,col)) , dim]
+        two_hop_x = matmul(two_hop_adj, x)
+
+        one_hop_x = one_hop_x.view(2, edges.size(1), -1)
+        two_hop_x = two_hop_x.view(2, edges.size(1), -1)
+
+        count_1_1 = dot_product(one_hop_x[0,:,:], one_hop_x[1,:,:])
+        count_1_2 = dot_product(one_hop_x[0,:,:] , two_hop_x[1,:,:]) + dot_product(two_hop_x[0,:,:] , one_hop_x[1,:,:])
+        count_2_2 = dot_product(two_hop_x[0,:,:] , two_hop_x[1,:,:])
+
+        count_1_inf = degree_one_hop[0,:] + degree_one_hop[1,:] - 2 * count_1_1 - count_1_2
+        count_2_inf = degree_two_hop[0,:] + degree_two_hop[1,:] - 2 * count_2_2 - count_1_2
+
+        # count_1_1 = dot_product(one_hop_x[edges[0]] , one_hop_x[edges[1]])
+        # count_1_2 = dot_product(one_hop_x[edges[0]] , two_hop_x[edges[1]]) + dot_product(two_hop_x[edges[0]] , one_hop_x[edges[1]])
+        # count_2_2 = dot_product(two_hop_x[edges[0]] , two_hop_x[edges[1]])
+
+        # count_1_inf = degree_one_hop[edges[0]] + degree_one_hop[edges[1]] - 2 * count_1_1 - count_1_2
+        # count_2_inf = degree_two_hop[edges[0]] + degree_two_hop[edges[1]] - 2 * count_2_2 - count_1_2
+        return count_1_1, count_1_2, count_2_2, count_1_inf, count_2_inf
+    
+    
+    def propagation_combine(self, edges: Tensor, adj_t: SparseTensor, node_weight=None):
+        '''
+        The same as propagation_combine_cache, only there is no saving to the cache and 
+        we work with a 2-hop subgraph
+        '''
+        # get the 2-hop subgraph of the target edges
+        adj_t, edges, subset = subgraph(edges, adj_t)
+        node_weight = node_weight[subset] if node_weight is not None else None
+        x = self.get_random_node_vectors(adj_t, node_weight=node_weight)
+
+        one_hop_adj, two_hop_adj = get_two_hop_adj(adj_t)
+        subset = edges.view(-1) # flatten the target nodes [row, col]
+
+        # size: [(2 x num_target_edges(row,col)) , total_num_nodes_in_2_hop_subgraph ]
+        # one_hop_adj = one_hop_adj[subset] # not subsetting adj because two-iter propagation needs all nodes embedding
+        # two_hop_adj = two_hop_adj[subset] # comment out since we want to subset two_hop_adj by subset_unique
+
+        degree_one_hop_subgraph_nodes = one_hop_adj.sum(dim=1)
+        degree_one_hop = degree_one_hop_subgraph_nodes[subset]
+        degree_one_hop = degree_one_hop.view(2, edges.size(1))
+        degree_two_hop = two_hop_adj[subset].sum(dim=1)
+        degree_two_hop = degree_two_hop.view(2, edges.size(1))
+
+        degree_u = degree_one_hop[0,:]
+        degree_v = degree_one_hop[1,:]
+        degree_u_2 = degree_two_hop[0,:]
+        degree_v_2 = degree_two_hop[1,:]
+
+
+        subset_unique, inverse_indices = torch.unique(subset, return_inverse=True)
+        one_hop_x_subgraph_nodes = matmul(one_hop_adj, x)
+        two_iter_x = matmul(one_hop_adj[subset_unique], one_hop_x_subgraph_nodes)[inverse_indices]
+        ## TODO: verify if matmul(one_hop_adj[subset], one_hop_x_subgraph_nodes)
+        ##                 matmul(one_hop_adj, one_hop_x_subgraph_nodes) [subset] are the same
+        one_hop_x = one_hop_x_subgraph_nodes[subset]
+        # two_hop_x = matmul(two_hop_adj_subset, x) # size: [(2 x num_target_edges(row,col)) , dim]
+        two_hop_x = matmul(two_hop_adj[subset_unique], x)[inverse_indices]
+
+        one_hop_x = one_hop_x.view(2, edges.size(1), -1)
+        two_hop_x = two_hop_x.view(2, edges.size(1), -1)
+        two_iter_x = two_iter_x.view(2, edges.size(1), -1)
+
+        count_1_1 = dot_product(one_hop_x[0,:,:], one_hop_x[1,:,:])
+        count_1_2 = dot_product(one_hop_x[0,:,:] , two_hop_x[1,:,:])
+        count_2_1 = dot_product(two_hop_x[0,:,:] , one_hop_x[1,:,:])
+        count_2_2 = dot_product(two_hop_x[0,:,:] , two_hop_x[1,:,:])
+
+        count_1_inf = degree_u + degree_v - 2 * count_1_1 - count_1_2 - count_2_1
+        count_2_inf = degree_u_2 + degree_v_2 - 2 * count_2_2 - count_1_2 - count_2_1
+
+        # combine part
+        comb_count_1_2 = dot_product(one_hop_x[0,:,:] , two_iter_x[1,:,:])
+        comb_count_2_1 = dot_product(two_iter_x[0,:,:] , one_hop_x[1,:,:])
+        comb_count_2_2 = dot_product((two_iter_x[0,:,:] - degree_u.view(-1,1)*x[edges[0]]), # two-iter contains self return nodes, thus exclude them
+                                     (two_iter_x[1,:,:] - degree_v.view(-1,1)*x[edges[1]]))
+        # count those 1 step and 2 step away from the target nodes. thus they form triangles
+        comb_count_self_1_2 = dot_product(one_hop_x[0,:,:] , two_iter_x[0,:,:])
+        comb_count_self_2_1 = dot_product(one_hop_x[1,:,:] , two_iter_x[1,:,:])
+
+        return count_1_1, count_1_2, count_2_1, count_2_2, count_1_inf, count_2_inf, \
+                comb_count_1_2, comb_count_2_1, comb_count_2_2, comb_count_self_1_2, comb_count_self_2_1,\
+                degree_u, degree_v, degree_u_2, degree_v_2
+                
+    
+    def propagation_combine_cache(self, edges: Tensor, adj_t: SparseTensor, node_weight=None, cache_mode=None):
+        '''
+        Everything is the same as propagation_only_cache, only 
+        we still calculate the results for 2-hop (the adjacency matrix, 
+        save it to the cache and calculate additional scalar products)
+        '''
+        if cache_mode == 'build':
+            # get the 2-hop subgraph of the target edges
+            x = self.get_random_node_vectors(adj_t, node_weight=node_weight)
+
+            one_hop_adj, two_hop_adj = get_two_hop_adj(adj_t)
+
+            degree_one_hop = one_hop_adj.sum(dim=1)
+            degree_two_hop = two_hop_adj.sum(dim=1)
+
+            one_hop_x = matmul(one_hop_adj, x)
+            # two_hop_x are "direct" two-step relationships derived from 
+            # the adjacency matrix for two-step relationships
+            two_hop_x = matmul(two_hop_adj, x)
+            # two_iter_x are indirect two—step connections obtained 
+            # through two one-step passes (in fact, it is a vector for 
+            # nodes that can be reached in two steps through other nodes)
+            two_iter_x = matmul(one_hop_adj, one_hop_x)
+
+            # caching
+            self.cached_x = x
+            self.cached_degree_one_hop = degree_one_hop
+            self.cached_degree_two_hop = degree_two_hop
+
+            self.cached_one_hop_x = one_hop_x
+            self.cached_two_hop_x = two_hop_x
+            self.cached_two_iter_x = two_iter_x
+            return
+        if cache_mode == 'delete':
+            del self.cached_x
+            del self.cached_degree_one_hop
+            del self.cached_degree_two_hop
+            del self.cached_one_hop_x
+            del self.cached_two_hop_x
+            del self.cached_two_iter_x
+            return
+        if cache_mode == 'use':
+            # loading
+            x = self.cached_x
+            degree_one_hop = self.cached_degree_one_hop
+            degree_two_hop = self.cached_degree_two_hop
+
+            one_hop_x = self.cached_one_hop_x
+            two_hop_x = self.cached_two_hop_x
+            two_iter_x = self.cached_two_iter_x
+
+        count_1_1 = dot_product(one_hop_x[edges[0]] , one_hop_x[edges[1]])
+        count_1_2 = dot_product(one_hop_x[edges[0]] , two_hop_x[edges[1]])
+        count_2_1 = dot_product(two_hop_x[edges[0]] , one_hop_x[edges[1]])
+        count_2_2 = dot_product(two_hop_x[edges[0]] , two_hop_x[edges[1]])
+
+        count_1_inf = degree_one_hop[edges[0]] + degree_one_hop[edges[1]] - 2 * count_1_1 - count_1_2 - count_2_1
+        count_2_inf = degree_two_hop[edges[0]] + degree_two_hop[edges[1]] - 2 * count_2_2 - count_1_2 - count_2_1
+
+
+        comb_count_1_2 = dot_product(one_hop_x[edges[0]] , two_iter_x[edges[1]])
+        comb_count_2_1 = dot_product(two_iter_x[edges[0]] , one_hop_x[edges[1]])
+        comb_count_2_2 = dot_product((two_iter_x[edges[0]]-degree_one_hop[edges[0]].view(-1,1)*x[edges[0]]),\
+                                     (two_iter_x[edges[1]]-degree_one_hop[edges[1]].view(-1,1)*x[edges[1]]))
+
+
+        comb_count_self_1_2 = dot_product(one_hop_x[edges[0]] , two_iter_x[edges[0]])
+        comb_count_self_2_1 = dot_product(one_hop_x[edges[1]] , two_iter_x[edges[1]])
+
+        degree_u = degree_one_hop[edges[0]]
+        degree_v = degree_one_hop[edges[1]]
+        degree_u_2 = degree_two_hop[edges[0]]
+        degree_v_2 = degree_two_hop[edges[1]]
+
+        return count_1_1, count_1_2, count_2_1, count_2_2, count_1_inf, count_2_inf, \
+                comb_count_1_2, comb_count_2_1, comb_count_2_2, comb_count_self_1_2, comb_count_self_2_1,\
+                degree_u, degree_v, degree_u_2, degree_v_2
+
+    
+    def propagation_only(self, edges: Tensor, adj_t: SparseTensor, node_weight=None, adj2: SparseTensor=None):
+        '''
+        Almost everything is the same as in propagation_only_cache, but 
+        there is no saving in cash and we work with a 2-hop subgraph
+        '''
+        # a 2-hop subgraph is extracted for the given edges
+        adj_t, new_edges, subset_nodes = subgraph(edges, adj_t, 2)
+        node_weight = node_weight[subset_nodes] if node_weight is not None else None
+        x = self.get_random_node_vectors(adj_t, node_weight=node_weight)
+        subset = new_edges.view(-1) # flatten the target nodes [row, col]
+
+        # remove values from adj_t
+        # adj_t = adj_t.set_value(None)
+
+        # Find unique nodes in the edges (subset_unique) and indexes that allow us 
+        # to restore the original order of the edges in the new data 
+        # (inverse_indices)
+        subset_unique, inverse_indices = torch.unique(subset, return_inverse=True)
+        
+        one_hop_x_subgraph_nodes = matmul(adj_t, x)
+        one_hop_x = one_hop_x_subgraph_nodes[subset]
+        # Indexes are restored using inverse_indices to return them to the original 
+        # edge order
+        two_hop_x = matmul(adj_t[subset_unique], one_hop_x_subgraph_nodes)[inverse_indices]
+        
+        degree_one_hop = adj_t.sum(dim=1)
+
+        one_hop_x = one_hop_x.view(2, new_edges.size(1), -1)
+        two_hop_x = two_hop_x.view(2, new_edges.size(1), -1)
+
+        count_1_1 = dot_product(one_hop_x[0,:,:], one_hop_x[1,:,:])
+        count_1_2 = dot_product(one_hop_x[0,:,:], two_hop_x[1,:,:])
+        count_2_1 = dot_product(two_hop_x[0,:,:] , one_hop_x[1,:,:])
+        
+        # Adjust the 2-hop representations by removing the influence of the 
+        # 1-hop neighbors
+        count_2_2 = dot_product((two_hop_x[0,:,:]-degree_one_hop[new_edges[0]].view(-1,1)*x[new_edges[0]]) , (two_hop_x[1,:,:]-degree_one_hop[new_edges[1]].view(-1,1)*x[new_edges[1]]))
+        
+        count_self_1_2 = dot_product(one_hop_x[0,:,:] , two_hop_x[0,:,:])
+        count_self_2_1 = dot_product(one_hop_x[1,:,:] , two_hop_x[1,:,:])
+        degree_u = degree_one_hop[new_edges[0]]
+        degree_v = degree_one_hop[new_edges[1]]
+        if adj2 is None:
+            return count_1_1, count_1_2, count_2_1, count_2_2, count_self_1_2, count_self_2_1, degree_u, degree_v
+        else:
+            raise NotImplementedError()
+            # adj2 = adj2[subset_nodes, subset_nodes] # under the new node id
+            # adj2 = adj2[subset_unique] # select those unique
+
+            # combine above steps
+            x = self.get_random_node_vectors(adj2, node_weight=None)
+            adj2_new = adj2[subset_nodes[subset_unique], subset_nodes]
+
+    
+    def propagation_prop_only_cache(self, edges: Tensor, adj_t: SparseTensor, node_weight=None, cache_mode=None):
+        '''
+        Almost everything is the same as in propagation_only_cache, 
+        but with minor changes
+        '''
+        if cache_mode == 'build':
+            # get the 2-hop subgraph of the target edges
+            x = self.get_random_node_vectors(adj_t, node_weight=node_weight)
+
+            degree_one_hop = adj_t.sum(dim=1)
+
+            one_hop_x = matmul(adj_t, x)
+            two_iter_x = matmul(adj_t, one_hop_x)
+            
+            # This adjustment removes the influence of the 1-hop neighbors' 
+            # degrees on the 2-hop representations by subtracting the 
+            # product of the degree and the node’s own feature vector. 
+            # This normalization ensures that the 2-hop representations 
+            # are less biased by the number of direct neighbors and 
+            # better capture the influence of higher-order connections, 
+            # leading to more balanced and meaningful feature 
+            # representations for the nodes.
+            two_iter_x = two_iter_x - degree_one_hop.view(-1,1)*x
+
+            # caching
+            self.cached_degree_one_hop = degree_one_hop
+
+            self.cached_one_hop_x = one_hop_x
+            self.cached_two_iter_x = two_iter_x
+            return
+        if cache_mode == 'delete':
+            del self.cached_degree_one_hop
+            del self.cached_one_hop_x
+            del self.cached_two_iter_x
+            return
+        if cache_mode == 'use':
+            # loading
+            degree_one_hop = self.cached_degree_one_hop
+
+            one_hop_x = self.cached_one_hop_x
+            two_iter_x = self.cached_two_iter_x
+        count_1_1 = dot_product(one_hop_x[edges[0]] , one_hop_x[edges[1]])
+
+
+        count_1_2_only = dot_product(one_hop_x[edges[0]] , two_iter_x[edges[1]])
+        count_2_1_only = dot_product(two_iter_x[edges[0]] , one_hop_x[edges[1]])
+        # Does not adjust the value for count_2_2_only based on 
+        # selected values (for example, to determine the number of 
+        # selected values). This makes the calculations somewhat simpler 
+        # and less accurate compared to the second function. Compared 
+        # to count_2_2
+        count_2_2_only = dot_product((two_iter_x[edges[0]]),\
+                                     (two_iter_x[edges[1]]))
+
+
+        count_self_1_2 = dot_product(one_hop_x[edges[0]] , two_iter_x[edges[0]])
+        count_self_2_1 = dot_product(one_hop_x[edges[1]] , two_iter_x[edges[1]])
+
+        degree_u = degree_one_hop[edges[0]]
+        degree_v = degree_one_hop[edges[1]]
+        return count_1_1, count_1_2_only, count_2_1_only, count_2_2_only, count_self_1_2, count_self_2_1, degree_u, degree_v
+    
+    
+    def propagation_only_cache(self, edges: Tensor, adj_t: SparseTensor, node_weight=None, cache_mode=None):
+        '''
+        Calculations of scalar products to estimate the connection 
+        between nodes through their neighbors at different levels 
+        (1-hop, 2-hop) and degrees of nodes for 1-hop
+        '''
+        if cache_mode == 'build':
+            # Create embeddings, representations and save them in cache
+            
+            # Authors: get the 2-hop subgraph of the target edges
+            # I think here should be: get the 1-hop subgraph of the target edges
+            x = self.get_random_node_vectors(adj_t, node_weight=node_weight)
+
+            degree_one_hop = adj_t.sum(dim=1)
+
+            # Get representations for 1-hop and 2-hop
+            one_hop_x = matmul(adj_t, x)
+            two_iter_x = matmul(adj_t, one_hop_x)
+
+            # caching
+            self.cached_x = x
+            self.cached_degree_one_hop = degree_one_hop
+
+            self.cached_one_hop_x = one_hop_x
+            self.cached_two_iter_x = two_iter_x
+            return
+        
+        if cache_mode == 'delete':
+            # deleting the cache
+            del self.cached_x
+            del self.cached_degree_one_hop
+            del self.cached_one_hop_x
+            del self.cached_two_iter_x
+            return
+        
+        if cache_mode == 'use':
+            # loading data from the cache
+            x = self.cached_x
+            degree_one_hop = self.cached_degree_one_hop
+
+            one_hop_x = self.cached_one_hop_x
+            two_iter_x = self.cached_two_iter_x
+        
+        # Scalar product calculations to evaluate the connection between 
+        # nodes through their neighbors at different levels (1-hop, 2-hop)
+        count_1_1 = dot_product(one_hop_x[edges[0]] , one_hop_x[edges[1]])
+        count_1_2 = dot_product(one_hop_x[edges[0]] , two_iter_x[edges[1]])
+        count_2_1 = dot_product(two_iter_x[edges[0]] , one_hop_x[edges[1]])
+        count_2_2 = dot_product(two_iter_x[edges[0]]-degree_one_hop[edges[0]].view(-1,1)*x[edges[0]],\
+                                two_iter_x[edges[1]]-degree_one_hop[edges[1]].view(-1,1)*x[edges[1]])
+
+        count_self_1_2 = dot_product(one_hop_x[edges[0]] , two_iter_x[edges[0]])
+        count_self_2_1 = dot_product(one_hop_x[edges[1]] , two_iter_x[edges[1]])
+
+        degree_u = degree_one_hop[edges[0]]
+        degree_v = degree_one_hop[edges[1]]
+        return count_1_1, count_1_2, count_2_1, count_2_2, count_self_1_2, count_self_2_1, degree_u, degree_v
+
+
+def subgraph(edges: Tensor, adj_t: SparseTensor, k: int=2):
+    '''
+    The function creates a subgraph from nodes located at a distance of k-hops 
+    from nodes from edges. Based on this subgraph, a new adjacency matrix, 
+    new sets of edges and vertices are created
+    '''
+    row,col = edges
+    nodes = torch.cat((row,col),dim=-1)
+    edge_index,_ = to_edge_index(adj_t)
+    
+    # the pyg_k_hop_subgraph function extracts a subgraph consisting of nodes that are 
+    # at most k hops (steps) away from the source nodes
+    subset, new_edge_index, inv, edge_mask = pyg_k_hop_subgraph(nodes, k, edge_index=edge_index, 
+                                                                num_nodes=adj_t.size(0), relabel_nodes=True)
+    # subset[inv] = nodes. The new node id is based on subset's order.
+    # inv means the new idx (in subset) of the old nodes in nodes
+    new_adj_t = SparseTensor(row=new_edge_index[0], col=new_edge_index[1], 
+                                sparse_sizes=(subset.size(0), subset.size(0)))
+    new_edges = inv.view(2,-1)
+    return new_adj_t, new_edges, subset
+
+
+def get_two_hop_adj(adj_t):
+    '''
+    Returns adjacency matrices for 1-hop and 2-hop
+    '''
+    # adj_t = adj_t.fill_value_(1.0) # no need to fill value because of subgraph op
+    one_and_two_hop_adj = adj_t @ adj_t
+    adj_t_with_self_loop = adj_t.fill_diag(1)
+    # So that the 2-hop matrix does not contain duplicate elements 
+    # from the 1-hop matrix, we remove them
+    two_hop_adj = spmdiff_(one_and_two_hop_adj, adj_t_with_self_loop)
+    return adj_t, two_hop_adj
+
+
+def dotproduct_naive(tensor1, tensor2):
+    '''
+    A naive approach for calculating the scalar product
+    '''
+    return (tensor1 * tensor2).sum(dim=-1)
+
+
+def dotproduct_bmm(tensor1, tensor2):
+    '''
+    Performs the scalar product of two tensors using batch 
+    matrix multiplication
+    '''
+    return torch.bmm(tensor1.unsqueeze(1), tensor2.unsqueeze(2)).view(-1)
+
+dot_product = dotproduct_naive
+
+
+def sparsesample(adj: SparseTensor, deg: int) -> SparseTensor:
+    '''
+    Authors: sampling elements from a adjacency matrix
+    
+    My: The function selects a set of nodes with a degree 
+    greater than 0, and then based on them creates a reduced 
+    version of the sparse adjacency matrix to reduce 
+    computational costs
+    
+    The implementation is almost the same as sparsesample2, 
+    only there is still a threshold
+    '''
+    rowptr, col, _ = adj.csr()
+    rowcount = adj.storage.rowcount()
+    mask = rowcount > 0
+    rowcount = rowcount[mask]
+    rowptr = rowptr[:-1][mask]
+
+    rand = torch.rand((rowcount.size(0), deg), device=col.device)
+    rand.mul_(rowcount.to(rand.dtype).reshape(-1, 1))
+    rand = rand.to(torch.float32) # Error: torch.long
+    rand.add_(rowptr.reshape(-1, 1))
+
+    samplecol = col[rand]
+
+    samplerow = torch.arange(adj.size(0), device=adj.device())[mask]
+
+    ret = SparseTensor(row=samplerow.reshape(-1, 1).expand(-1, deg).flatten(),
+                       col=samplecol.flatten(),
+                       sparse_sizes=adj.sparse_sizes()).to_device(
+                           adj.device()).coalesce().fill_value_(1.0)
+    #print(ret.storage.value())
+    return ret
+
+
+def sparsesample2(adj: SparseTensor, deg: int) -> SparseTensor:
+    '''
+    deg: the degree indicating how many random neighbors to select for each row.
+    
+    another implementation for sampling elements from a adjacency matrix
+    
+    The function creates a new, smaller adjacency matrix by selecting nodes with 
+    a degree greater than the specified threshold (deg). For these nodes, 
+    it randomly samples a subset of edges such that the total number of edges 
+    does not exceed deg. Nodes with a degree less than or equal to deg 
+    retain all of their edges. This process reduces the size of the adjacency 
+    matrix while preserving the graph's structure, making it more computationally 
+    efficient by limiting the number of edges considered.
+    '''
+    rowptr, col, _ = adj.csr()
+    # the number of edges coming from each vertex
+    rowcount = adj.storage.rowcount()
+    
+    mask = rowcount > deg
+    rowcount = rowcount[mask]
+    rowptr = rowptr[:-1][mask]
+
+    # Randomly select no more than deg edges for vertices of degree > deg
+    rand = torch.rand((rowcount.size(0), deg), device=col.device)
+    rand.mul_(rowcount.to(rand.dtype).reshape(-1, 1))
+    rand = rand.to(torch.long)
+    rand.add_(rowptr.reshape(-1, 1))
+
+    samplecol = col[rand].flatten()
+
+    samplerow = torch.arange(adj.size(0), device=adj.device())[mask].reshape(
+        -1, 1).expand(-1, deg).flatten()
+
+
+    mask = torch.logical_not(mask)
+    nosamplerow, nosamplecol = adj[mask].coo()[:2]
+    nosamplerow = torch.arange(adj.size(0),
+                               device=adj.device())[mask][nosamplerow]
+
+    # Combining randomly selected edges with edges whose vertex degree is < deg
+    ret = SparseTensor(
+        row=torch.cat((samplerow, nosamplerow)),
+        col=torch.cat((samplecol, nosamplecol)),
+        sparse_sizes=adj.sparse_sizes()).to_device(
+            adj.device()).fill_value_(1.0).coalesce()  #.fill_value_(1)
+    #assert (ret.sum(dim=-1) == torch.clip(adj.sum(dim=-1), 0, deg)).all()
+    return ret
+
+
+def sparsesample_reweight(adj: SparseTensor, deg: int) -> SparseTensor:
+    '''
+    another implementation for sampling elements from a adjacency matrix. It will also scale the sampled elements.
+    
+    Everything is the same as in sparsesample2, but for randomly selected edges 
+    whose vertex degrees are greater than deg, the weights are scaled by multiplying 
+    by 1/deg
+    '''
+    rowptr, col, _ = adj.csr()
+    rowcount = adj.storage.rowcount()
+    mask = rowcount > deg
+
+    rowcount = rowcount[mask]
+    rowptr = rowptr[:-1][mask]
+
+    rand = torch.rand((rowcount.size(0), deg), device=col.device)
+    rand.mul_(rowcount.to(rand.dtype).reshape(-1, 1))
+    rand = rand.to(torch.long)
+    rand.add_(rowptr.reshape(-1, 1))
+
+    samplecol = col[rand].flatten()
+
+    samplerow = torch.arange(adj.size(0), device=adj.device())[mask].reshape(
+        -1, 1).expand(-1, deg).flatten()
+    
+    samplevalue = (rowcount * (1/deg)).reshape(-1, 1).expand(-1, deg).flatten()
+    
+    mask = torch.logical_not(mask)
+    nosamplerow, nosamplecol = adj[mask].coo()[:2]
+    nosamplerow = torch.arange(adj.size(0),
+                               device=adj.device())[mask][nosamplerow]
+
+    ret = SparseTensor(row=torch.cat((samplerow, nosamplerow)),
+                       col=torch.cat((samplecol, nosamplecol)),
+                       value=torch.cat((samplevalue,
+                                        torch.ones_like(nosamplerow))),
+                       sparse_sizes=adj.sparse_sizes()).to_device(
+                           adj.device()).coalesce()  #.fill_value_(1)
+    #assert (ret.sum(dim=-1) == torch.clip(adj.sum(dim=-1), 0, deg)).all()
+    return ret
+
+
+def elem2spm(element: Tensor, sizes: List[int], val: Tensor=None) -> SparseTensor:
+    # Convert adjacency matrix to a 1-d vector
+    col = torch.bitwise_and(element, 0xffffffff)
+    row = torch.bitwise_right_shift(element, 32)
+    if val is None:
+        sp_tensor =  SparseTensor(row=row, col=col, sparse_sizes=sizes).to_device(
+            element.device).fill_value_(1.0)
+    else:
+        sp_tensor =  SparseTensor(row=row, col=col, value=val, sparse_sizes=sizes).to_device(
+            element.device)
+    
+    return sp_tensor
+
+
+def spm2elem(spm: SparseTensor) -> Tensor:
+    # Convert 1-d vector to an adjacency matrix
+    sizes = spm.sizes()
+    '''
+    spm.storage.row(): returns row indexes for nonzero elements in a sparse matrix
+    spm.storage.col(): returns col indexes for nonzero elements in a sparse matrix
+    
+    Shifts row indexes 32 bits to the left and adds column indexes to the shifted row indexes, 
+    creating a unique identifier for each cell in the matrix.
+    
+    This combination of row and column indexes allows you to represent two-dimensional indexes 
+    as a single value (for example, for storage in a single tensor).
+    '''
+    elem = torch.bitwise_left_shift(spm.storage.row(),
+                                    32).add_(spm.storage.col())
+    
+    val = spm.storage.value()
+    #elem = spm.storage.row()*sizes[-1] + spm.storage.col()
+    #assert torch.all(torch.diff(elem) > 0)
+    return elem, val
+
+
+def spmoverlap_(adj1: SparseTensor, adj2: SparseTensor) -> SparseTensor:
+    '''
+    Compute the overlap of neighbors (rows in adj). 
+    The returned matrix is similar to the hadamard product of adj1 and adj2
+    '''
+    assert adj1.sizes() == adj2.sizes()
+    element1, val1 = spm2elem(adj1)
+    element2, val2 = spm2elem(adj2)
+
+
+    # Since it is easier to work with a smaller list of elements, 
+    # we swap them if the condition is met
+    if element2.shape[0] > element1.shape[0]:
+        element1, element2 = element2, element1
+
+    # Looking for overlapping elements
+    idx = torch.searchsorted(element1[:-1], element2)
+    mask = (element1[idx] == element2)
+    retelem = element2[mask]
+    '''
+    nnz1 = adj1.nnz()
+    element = torch.cat((adj1.storage.row(), adj2.storage.row()), dim=-1)
+    element.bitwise_left_shift_(32)
+    element[:nnz1] += adj1.storage.col()
+    element[nnz1:] += adj2.storage.col()
+    
+    element = torch.sort(element, dim=-1)[0]
+    mask = (element[1:] == element[:-1])
+    retelem = element[:-1][mask]
+    '''
+
+    return elem2spm(retelem, adj1.sizes())
+
+
+def spmnotoverlap_(adj1: SparseTensor,
+                   adj2: SparseTensor) -> Tuple[SparseTensor, SparseTensor]:
+    '''
+    Return elements in adj1 but not in adj2 and in adj2 but not adj1
+    '''
+    # assert adj1.sizes() == adj2.sizes()
+
+    #Identifiers and their values in the consistency matrix
+    element1, val1 = spm2elem(adj1)
+    element2, val2 = spm2elem(adj2)
+
+    if element1.shape[0] == 0:
+        retelem1 = element1
+        retelem2 = element2
+    else:
+        # The torch.searchsorted function searches for where elements from one tensor should be inserted into 
+        # another sorted tensor in order to keep it sorted.
+        idx = torch.searchsorted(element1[:-1], element2)
+        matchedmask = (element1[idx] == element2)
+        # This is a mask for elements that do not match the elements of element 2
+        maskelem1 = torch.ones_like(element1, dtype=torch.bool)
+        maskelem1[idx[matchedmask]] = 0
+        retelem1 = element1[maskelem1]
+        retelem2 = element2[torch.logical_not(matchedmask)]
+    return elem2spm(retelem1, adj1.sizes()), elem2spm(retelem2, adj2.sizes())
+
+
+def spmdiff_(adj1: SparseTensor,
+                   adj2: SparseTensor, keep_val=False) -> Tuple[SparseTensor, SparseTensor]:
+    '''
+    Wrong: return elements in adj1 but not in adj2 and in adj2 but not adj1
+    
+    In fact, it is almost the same as the "spmnotoverlap_" function, 
+    only here the elements of the first matrix are returned, 
+    which are not in the second matrix
+    '''
+    # assert adj1.sizes() == adj2.sizes()
+
+    
+    element1, val1 = spm2elem(adj1)
+    element2, val2 = spm2elem(adj2)
+
+    if element1.shape[0] == 0:
+        retelem1 = element1
+        retelem2 = element2
+    else:
+        idx = torch.searchsorted(element1[:-1], element2)
+        matchedmask = (element1[idx] == element2)
+
+        maskelem1 = torch.ones_like(element1, dtype=torch.bool)
+        maskelem1[idx[matchedmask]] = 0
+        retelem1 = element1[maskelem1]
+    
+    if keep_val and val1 is not None:
+        retval1 = val1[maskelem1]
+        return elem2spm(retelem1, adj1.sizes(), retval1)
+    else:
+        return elem2spm(retelem1, adj1.sizes())
+    
+
+def spmoverlap_notoverlap_(
+        adj1: SparseTensor,
+        adj2: SparseTensor) -> Tuple[SparseTensor, SparseTensor, SparseTensor]:
+    '''
+    return elements in adj1 but not in adj2 and in adj2 but not adj1
+    '''
+    # assert adj1.sizes() == adj2.sizes()
+    element1, val1 = spm2elem(adj1)
+    element2, val2 = spm2elem(adj2)
+    
+    # If there are no edges in the first adjacency matrix, 
+    # then the intersection and differences will simply be empty or equal to the 
+    # first edges, depending on the case.
+    if element1.shape[0] == 0:
+        retoverlap = element1
+        retelem1 = element1
+        retelem2 = element2
+    else:
+        # We are looking for a set of matching edges and different ones
+        idx = torch.searchsorted(element1[:-1], element2)
+        matchedmask = (element1[idx] == element2)
+
+        maskelem1 = torch.ones_like(element1, dtype=torch.bool)
+        maskelem1[idx[matchedmask]] = 0
+        retelem1 = element1[maskelem1]
+
+
+        retoverlap = element2[matchedmask]
+        retelem2 = element2[torch.logical_not(matchedmask)]
+    sizes = adj1.sizes()
+           # 1. Edges that are present in both matrices
+           # 2. Edges that are present only in first matrix
+           # 3. Edges that are present only in second matrix
+    return elem2spm(retoverlap, sizes), \
+           elem2spm(retelem1, sizes), \
+           elem2spm(retelem2, sizes)
+
+
+def adjoverlap(adj1: SparseTensor,
+               adj2: SparseTensor,
+               calresadj: bool = False,
+               cnsampledeg: int = -1,
+               ressampledeg: int = -1):
+    '''
+    returned sparse matrix shaped as [tarei.size(0), num_nodes]
+    where each row represent the corresponding target edge,
+    and each column represent whether that target edge has such a neighbor.
+    
+    In fact, the function does everything the same as "spmoverlap_notoverlap_", but 
+    under certain conditions you can add scaling for weights using 
+    "sparsesample_reweight"
+    '''
+    # a wrapper for functions above.
+    if calresadj:
+        adjoverlap, adjres1, adjres2 = spmoverlap_notoverlap_(adj1, adj2)
+        if cnsampledeg > 0:
+            adjoverlap = sparsesample_reweight(adjoverlap, cnsampledeg)
+        if ressampledeg > 0:
+            adjres1 = sparsesample_reweight(adjres1, ressampledeg)
+            adjres2 = sparsesample_reweight(adjres2, ressampledeg)
+        return adjoverlap, adjres1, adjres2
+    else:
+        adjoverlap = spmoverlap_(adj1, adj2)
+        if cnsampledeg > 0:
+            adjoverlap = sparsesample_reweight(adjoverlap, cnsampledeg)
+    return adjoverlap
+
+
+def de_plus_finder(adj, edges, cached_adj2_return=None, cached_adj2=None):
+    '''
+    The function performs an analysis of neighbors and distances in the graph, 
+    calculating various intersections and differences between nodes of the graph based 
+    on their adjacency matrix. 
+    
+    It finds information about neighbors at different distance levels 
+    (1-hop, 2-hop, and so on) for the given edges.
+    '''
+    # if mask_target:
+    #     undirected_edges = torch.cat((edges, edges.flip(0)), dim=-1)
+    #     target_adj = SparseTensor.from_edge_index(undirected_edges, sparse_sizes=adj.sizes())
+    #     adj = spmdiff_(adj, target_adj)
+    
+    # Calculating intersections for the 1st distance (1-hop)
+    l_1_1, l_1_not1, l_not1_1 = adjoverlap(adj[edges[0]], adj[edges[1]], calresadj=True) # not 1 == (dist=0) U dist(>=2)
+    
+    if cached_adj2_return is None:
+        adj = adj.to(dtype=torch.float64)
+        adj2_walks = adj @ adj
+        adj2_return  = spmdiff_(adj2_walks, adj)
+        print('HERE: ')
+    else:
+        adj2_return = cached_adj2_return
+
+    # Calculating intersections for the 2nd distance (2-hop)
+    print(adj2_return)
+    print(edges)
+    l_2_not2, l_not2_2 = spmnotoverlap_(adj2_return[edges[0]], adj2_return[edges[1]]) 
+    # not 2 == (dist=1) U dist(>2)
+    # not include dist=0 because adj2_return will return with dist=0
+
+    if cached_adj2 is None:
+        adj2 = spmdiff_(adj2_return, SparseTensor.eye(adj.size(0), adj.size(1)).to(adj.device()))
+    else:
+        adj2 = cached_adj2
+    l_2_2 = adjoverlap(adj2[edges[0]], adj2[edges[1]])
+
+    # Calculation of intersections and differences for different combinations (1-hop and 2-hop)
+    l_1_2, l_1_not2, l_not1_2 = adjoverlap(adj[edges[0]], adj2[edges[1]], calresadj=True) # not also includes dist=0
+    l_2_1, l_2_not1, l_not2_1 = adjoverlap(adj2[edges[0]], adj[edges[1]], calresadj=True)
+
+    l_1_0inf = adjoverlap(l_1_not1, l_1_not2)
+    l_0inf_1 = adjoverlap(l_not1_1, l_not2_1)
+
+    l_0_0 = SparseTensor.from_edge_index(
+        torch.stack([torch.arange(edges.size(1)).repeat_interleave(2).to(edges.device), edges.t().reshape(-1)]),
+        sparse_sizes=(edges.size(1), adj.size(1)))
+    l_1_inf = spmdiff_(l_1_0inf, l_0_0)
+    l_inf_1 = spmdiff_(l_0inf_1, l_0_0)
+
+    l_2_inf = adjoverlap(l_2_not2, l_2_not1)
+    l_inf_2 = adjoverlap(l_not2_2, l_not1_2)
+
+    return (l_0_0, l_1_1, l_1_2, l_2_1, l_1_inf, l_inf_1, l_2_2, l_2_inf, l_inf_2), (adj2_return, adj2)
+
+
+def isSymmetric(mat):
+    '''
+    Checking that the matrix is symmetric with respect to the main diagonal
+    '''
+    N = mat.shape[0]
+    for i in range(N):
+        for j in range(N):
+            if (mat[i][j] != mat[j][i]):
+                return False
+    return True
+
+
+def check_all(pred, real):
+    '''
+    Performs an element-by-element comparison between two matrices
+    '''
+    pred = pred.to_dense().numpy()
+    real = real.to_dense().numpy()
+    assert (pred == real).all()
+
+
+def neighbors(fringe, A, outgoing=True):
+    # Find all 1-hop neighbors of nodes in fringe from graph A, 
+    # where A is a scipy csr adjacency matrix.
+    # If outgoing=True, find neighbors with outgoing edges;
+    # otherwise, find neighbors with incoming edges (you should
+    # provide a csc matrix in this case).
+    if outgoing:
+        res = set(A[list(fringe)].indices)
+    else:
+        res = set(A[:, list(fringe)].indices)
+
+    return res
+
+
+def k_hop_subgraph(src, dst, num_hops, A):
+    '''
+    Extract the k-hop enclosing subgraph around link (src, dst) from A. 
+    
+    Three objects are returned: the nodes list, the subgraph, and the 'dists' distance list
+    '''
+    nodes = [src, dst]
+    dists = [0, 0]
+    visited = set([src, dst])
+    fringe = set([src, dst])
+    for dist in range(1, num_hops+1):
+        fringe = neighbors(fringe, A)
+        # Removes nodes that have already been visited to avoid repeated crawling
+        fringe = fringe - visited
+        visited = visited.union(fringe)
+        if len(fringe) == 0:
+            # If there are no more new nodes
+            break
+        nodes = nodes + list(fringe)
+        dists = dists + [dist] * len(fringe)
+    subgraph = A[nodes, :][:, nodes]
+
+    # Remove target link between the subgraph.
+    subgraph[0, 1] = 0
+    subgraph[1, 0] = 0
+
+    return nodes, subgraph, dists
+
+
+def construct_pyg_graph(node_ids, adj, dists, node_label='drnl'):
+    '''
+    Construct a pytorch_geometric graph from a scipy csr adjacency matrix.
+    '''
+    u, v, r = ssp.find(adj)
+    num_nodes = adj.shape[0]
+    
+    node_ids = torch.LongTensor(node_ids)
+    u, v = torch.LongTensor(u), torch.LongTensor(v)
+    r = torch.LongTensor(r)
+    edge_index = torch.stack([u, v], 0)
+    edge_weight = r.to(torch.float)
+    
+    if node_label == 'drnl':  # DRNL
+        z = drnl_node_labeling(adj, 0, 1)
+    elif node_label == 'drnl_plus':  # DRNL
+        z = drnl_node_labeling_plus(adj, 0, 1)
+    elif node_label == 'hop':  # mininum distance to src and dst
+        z = torch.tensor(dists)
+    elif node_label == 'zo':  # zero-one labeling trick
+        # 1 if the distance is 0, that is, the node coincides 
+        # with src or dst.
+        
+        # 0, if the distance is greater than 0, that is, the node does 
+        # not match src or dst.
+        z = (torch.tensor(dists)==0).to(torch.long)
+    elif node_label == 'de':  # distance encoding
+        z = de_node_labeling(adj, 0, 1)
+    elif node_label == 'de+':
+        z = de_plus_node_labeling(adj, 0, 1)
+    elif node_label == 'degree':  # this is technically not a valid labeling trick
+        z = torch.tensor(adj.sum(axis=0)).squeeze(0)
+        z[z>100] = 100  # limit the maximum label to 100
+    else:
+        z = torch.zeros(len(dists), dtype=torch.long)
+    data = Data(x=None, edge_index=edge_index, edge_weight=edge_weight, z=z, 
+                    node_id=node_ids, num_nodes=num_nodes)
+    return data
+
+
+def drnl_node_labeling(adj, src, dst):
+    '''
+    Double Radius Node Labeling (DRNL) is a method that assigns labels to graph 
+    nodes based on their distances to two given central nodes (src, dst)
+    
+    Nodes src and dst get a label "1", and the other nodes get labels depending 
+    on their distance src and dst and their mutual positions in the graph.
+    '''
+    src, dst = (dst, src) if src > dst else (src, dst)
+
+    # Exclude the target nodes from the adjacency matrices
+    idx = list(range(src)) + list(range(src + 1, adj.shape[0]))
+    adj_wo_src = adj[idx, :][:, idx]
+
+    idx = list(range(dst)) + list(range(dst + 1, adj.shape[0]))
+    adj_wo_dst = adj[idx, :][:, idx]
+
+    # Calculate the minimum distances to the src and dst nodes in their adjacency matrices
+    dist2src = shortest_path(adj_wo_dst, directed=False, unweighted=True, indices=src)
+    dist2src = np.insert(dist2src, dst, 0, axis=0)
+    dist2src = torch.from_numpy(dist2src)
+
+    dist2dst = shortest_path(adj_wo_src, directed=False, unweighted=True, indices=dst-1)
+    dist2dst = np.insert(dist2dst, src, 0, axis=0)
+    dist2dst = torch.from_numpy(dist2dst)
+
+    dist = dist2src + dist2dst
+    dist_over_2, dist_mod_2 = dist // 2, dist % 2
+
+    z = 1 + torch.min(dist2src, dist2dst)
+    z += dist_over_2 * (dist_over_2 + dist_mod_2 - 1)
+    z[src] = 1.
+    z[dst] = 1.
+    z[torch.isnan(z)] = 0.
+
+    return z.to(torch.long)
+
+
+def drnl_node_labeling_plus(adj, src, dst):
+    '''
+    The same DRNL, but taking into account that nodes that are unreachable 
+    from one of the central nodes can create problems, as their labels become NaN 
+    (Not a Number) after calculating the distances. 
+    For example, if we have a sparse graph or a node is further away than k-hop
+    '''
+    MAX_Z = 1000 # Don't used, I don't know why??
+    
+    # Double Radius Node Labeling (DRNL) plus.
+    src, dst = (dst, src) if src > dst else (src, dst)
+
+    idx = list(range(src)) + list(range(src + 1, adj.shape[0]))
+    adj_wo_src = adj[idx, :][:, idx]
+
+    idx = list(range(dst)) + list(range(dst + 1, adj.shape[0]))
+    adj_wo_dst = adj[idx, :][:, idx]
+
+    dist2src = shortest_path(adj_wo_dst, directed=False, unweighted=True, indices=src)
+    dist2src = np.insert(dist2src, dst, 0, axis=0)
+    dist2src = torch.from_numpy(dist2src)
+
+    dist2dst = shortest_path(adj_wo_src, directed=False, unweighted=True, indices=dst-1)
+    dist2dst = np.insert(dist2dst, src, 0, axis=0)
+    dist2dst = torch.from_numpy(dist2dst)
+
+    dist = dist2src + dist2dst
+    dist_over_2, dist_mod_2 = dist // 2, dist % 2
+
+    z = 1 + torch.min(dist2src, dist2dst)
+    z += dist_over_2 * (dist_over_2 + dist_mod_2 - 1)
+    z[src] = 1.
+    z[dst] = 1.
+    
+    # If a node is unreachable from one of the central nodes, the label value 
+    # becomes negative and is related to the distance to the other central node
+    dist2both_fill = torch.nan_to_num(dist2src,posinf=0) + torch.nan_to_num(dist2dst,posinf=0)
+    z[torch.isnan(z)] =  - dist2both_fill[torch.isnan(z)] # last z to denote those 0s to distance to one of the end nodes
+
+    return z.to(torch.long)
+
+
+def de_node_labeling(adj, src, dst, max_dist=3):
+    # Distance Encoding. See "Li et. al., Distance Encoding: Design Provably More 
+    # Powerful Neural Networks for Graph Representation Learning."
+    src, dst = (dst, src) if src > dst else (src, dst)
+
+    dist = shortest_path(adj, directed=False, unweighted=True, indices=[src, dst])
+    dist = torch.from_numpy(dist)
+
+    # Limiting too long distances, ensuring the stability of further calculations
+    dist[dist > max_dist] = max_dist
+    # If the distance cannot be calculated (for example, if the nodes are not 
+    # connected in the graph and the path does not exist), then max_dist + 1 is set
+    # for such values. This can be useful for marking "unreachable" nodes.
+    dist[torch.isnan(dist)] = max_dist + 1
+
+    return dist.to(torch.long).t()
+
+
+def de_plus_node_labeling(adj, src, dst, max_dist=100):
+    # Distance Encoding Plus. When computing distance to src, temporarily mask dst;
+    # when computing distance to dst, temporarily mask src. Essentially the same as DRNL.
+    '''
+    In fact, this is a combination of DLL, and it is from it that the calculation 
+    of distances to key nodes is used, providing more information about the connections. 
+    Then, as in the usual Distance Encoding, the distances are marked
+    '''
+    src, dst = (dst, src) if src > dst else (src, dst)
+
+    idx = list(range(src)) + list(range(src + 1, adj.shape[0]))
+    adj_wo_src = adj[idx, :][:, idx]
+
+    idx = list(range(dst)) + list(range(dst + 1, adj.shape[0]))
+    adj_wo_dst = adj[idx, :][:, idx]
+
+    dist2src = shortest_path(adj_wo_dst, directed=False, unweighted=True, indices=src)
+    dist2src = np.insert(dist2src, dst, 0, axis=0)
+    dist2src = torch.from_numpy(dist2src)
+
+    dist2dst = shortest_path(adj_wo_src, directed=False, unweighted=True, indices=dst-1)
+    dist2dst = np.insert(dist2dst, src, 0, axis=0)
+    dist2dst = torch.from_numpy(dist2dst)
+
+    dist = torch.cat([dist2src.view(-1, 1), dist2dst.view(-1, 1)], 1)
+    dist[dist > max_dist] = max_dist
+    dist[torch.isnan(dist)] = max_dist + 1
+
+    return dist.to(torch.long)
+
+
+def seal_extractor(src, dst, num_hops, A:SparseTensor, node_label='drnl'):
+    '''
+    Creates a k-hop graph and transforms it into a Pytorch Geometric object
+    '''
+    # SparseTensor to ssp.csr
+    A = A.to_scipy(layout='csr')
+    nodes, subgraph, dists = k_hop_subgraph(src, dst, num_hops, A)
+    data = construct_pyg_graph(nodes, subgraph, dists, node_label)
+    return data
+
+if __name__ == "__main__":
+    adj1 = SparseTensor.from_edge_index(
+        torch.LongTensor([[0, 0, 1, 2, 3], 
+                          [0, 1, 1, 2, 3]]))
+    adj2 = SparseTensor.from_edge_index(
+        torch.LongTensor([[0, 3, 1, 2, 3], 
+                          [0, 1, 1, 2, 3]]))
+    adj3 = SparseTensor.from_edge_index(
+        torch.LongTensor([[0, 1, 2, 2, 2, 2, 3, 3, 3], 
+                          [1, 0, 2, 3, 4, 5, 4, 5, 6]]))
+    print(spmnotoverlap_(adj1, adj2))
+    print(spmoverlap_(adj1, adj2))
+    # contain two upper functions
+    print(spmoverlap_notoverlap_(adj1, adj2))
+    print(sparsesample2(adj3, 2))
+    print(sparsesample_reweight(adj3, 2))
+    print('-'*100)
+    print("test de_plus_finder")
+    "https://www.researchgate.net/figure/a-A-graph-with-six-nodes-and-seven-edges-b-A-adjacency-matrix-D-degree-matrix_fig3_339763754"
+    adj = SparseTensor.from_dense(
+        torch.LongTensor(
+            [[0,1,0,0,0,1],
+             [1,0,1,0,0,1],
+             [0,1,0,1,1,0],
+             [0,0,1,0,1,0],
+             [0,0,1,1,0,0],
+             [1,1,0,0,0,0]]
+            ))
+    print(adj)
+    edges = torch.LongTensor([[0,2],[1,3]])
+    print(f"edges: {edges}")
+    (_, l_1_1, l_1_2, l_2_1, l_1_inf, l_inf_1, l_2_2, l_2_inf, l_inf_2), (adj2_return, adj2) = de_plus_finder(adj, edges)
+    print(f"l_1_1: {l_1_1}")
+    print(f"l_1_2: {l_1_2}")
+    print(f"l_2_1: {l_2_1}")
+    print(f"l_1_inf: {l_1_inf}")
+    print(f"l_inf_1: {l_inf_1}")
+    print(f"l_2_2: {l_2_2}")
+    print(f"l_2_inf: {l_2_inf}")
+    print(f"l_inf_2: {l_inf_2}")
+    
+    l_1_1_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[0,1],
+             [5,4]]
+        ), sparse_sizes=(2,6))
+    l_1_2_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[1],
+             [1]]
+        ), sparse_sizes=(2,6))
+    l_2_1_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[0],
+             [2]]
+        ), sparse_sizes=(2,6))
+    l_1_inf_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[],
+             []]
+        ), sparse_sizes=(2,6))
+    l_inf_1_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[],
+             []]
+        ), sparse_sizes=(2,6))
+    l_2_2_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[],
+             []]
+        ), sparse_sizes=(2,6))
+    l_2_inf_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[1,1],
+             [0,5]]
+        ), sparse_sizes=(2,6))
+    l_inf_2_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[0,0],
+             [3,4]]
+        ), sparse_sizes=(2,6))
+    check_all(l_1_1, l_1_1_true)
+    check_all(l_1_2, l_1_2_true)
+    check_all(l_2_1, l_2_1_true)
+    check_all(l_1_inf, l_1_inf_true)
+    check_all(l_inf_1, l_inf_1_true)
+    check_all(l_2_2, l_2_2_true)
+    check_all(l_2_inf, l_2_inf_true)
+    check_all(l_inf_2, l_inf_2_true)
+
+    print('-'*100)
+    
+    # Don't work (authors make some mistake)
+    # print("remove target edges")
+    # (_,l_1_1, l_1_2, l_2_1, l_1_inf, l_inf_1, l_2_2, l_2_inf, l_inf_2), (_, _) = de_plus_finder(adj, edges)
+    # print(f"l_1_1: {l_1_1}")
+    # print(f"l_1_2: {l_1_2}")
+    # print(f"l_2_1: {l_2_1}")
+    # print(f"l_1_inf: {l_1_inf}")
+    # print(f"l_inf_1: {l_inf_1}")
+    # print(f"l_2_2: {l_2_2}")
+    # print(f"l_2_inf: {l_2_inf}")
+    # print(f"l_inf_2: {l_inf_2}")
+    # l_1_1_true = SparseTensor.from_edge_index(
+    #     torch.LongTensor(
+    #         [[0,1],
+    #          [5,4]]
+    #     ), sparse_sizes=(2,6))
+    # l_1_2_true = SparseTensor.from_edge_index(
+    #     torch.LongTensor(
+    #         [[],
+    #          []]
+    #     ), sparse_sizes=(2,6))
+    # l_2_1_true = SparseTensor.from_edge_index(
+    #     torch.LongTensor(
+    #         [[],
+    #          []]
+    #     ), sparse_sizes=(2,6))
+    # l_1_inf_true = SparseTensor.from_edge_index(
+    #     torch.LongTensor(
+    #         [[1],
+    #          [1]]
+    #     ), sparse_sizes=(2,6))
+    # l_inf_1_true = SparseTensor.from_edge_index(
+    #     torch.LongTensor(
+    #         [[0],
+    #          [2]]
+    #     ), sparse_sizes=(2,6))
+    # l_2_2_true = SparseTensor.from_edge_index(
+    #     torch.LongTensor(
+    #         [[],
+    #          []]
+    #     ), sparse_sizes=(2,6))
+    # l_2_inf_true = SparseTensor.from_edge_index(
+    #     torch.LongTensor(
+    #         [[1],
+    #          [5]]
+    #     ), sparse_sizes=(2,6))
+    # l_inf_2_true = SparseTensor.from_edge_index(
+    #     torch.LongTensor(
+    #         [[0],
+    #          [4]]
+    #     ), sparse_sizes=(2,6))
+    # check_all(l_1_1, l_1_1_true)
+    # check_all(l_1_2, l_1_2_true)
+    # check_all(l_2_1, l_2_1_true)
+    # check_all(l_1_inf, l_1_inf_true)
+    # check_all(l_inf_1, l_inf_1_true)
+    # check_all(l_2_2, l_2_2_true)
+    # check_all(l_2_inf, l_2_inf_true)
+    # check_all(l_inf_2, l_inf_2_true)
+
+    print('-'*100)
+    "https://www.researchgate.net/figure/The-graph-shown-in-a-has-its-adjacency-matrix-in-b-A-connection-between-two-nodes-is_fig6_291821895"
+    adj = SparseTensor.from_dense(
+        torch.LongTensor(
+            [[0,0,1,1,0,0,0,0,1,0],
+             [0,0,0,0,0,1,0,0,0,1],
+             [1,0,0,0,0,1,1,1,0,0],
+             [1,0,0,0,1,0,1,0,1,0],
+             [0,0,0,1,0,0,0,0,0,1],
+             [0,1,1,0,0,0,0,0,0,0],
+             [0,0,1,1,0,0,0,1,1,0],
+             [0,0,1,0,0,0,1,0,0,1],
+             [1,0,0,1,0,0,1,0,0,0],
+             [0,1,0,0,1,0,0,1,0,0]]
+            ))
+    print(adj)
+    assert isSymmetric(adj.to_dense().numpy())
+    edges = torch.LongTensor([[0,2],[1,3]])
+    print(f"edges: {edges}")
+    (_,l_1_1, l_1_2, l_2_1, l_1_inf, l_inf_1, l_2_2, l_2_inf, l_inf_2), (_, _) = de_plus_finder(adj, edges)
+    print(f"l_1_1: {l_1_1}")
+    print(f"l_1_2: {l_1_2}")
+    print(f"l_2_1: {l_2_1}")
+    print(f"l_1_inf: {l_1_inf}")
+    print(f"l_inf_1: {l_inf_1}")
+    print(f"l_2_2: {l_2_2}")
+    print(f"l_2_inf: {l_2_inf}")
+    print(f"l_inf_2: {l_inf_2}")
+    l_1_1_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[1,1],
+             [0,6]]
+        ), sparse_sizes=(2,10))
+    l_1_2_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[0,1],
+             [2,7]]
+        ), sparse_sizes=(2,10))
+    l_2_1_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[0,1],
+             [5,8]]
+        ), sparse_sizes=(2,10))
+    l_1_inf_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[0,0,1],
+             [3,8,5]]
+        ), sparse_sizes=(2,10))
+    l_inf_1_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[0,1],
+             [9,4]]
+        ), sparse_sizes=(2,10))
+    l_2_2_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[0,0,1],
+             [4,7,9]]
+        ), sparse_sizes=(2,10))
+    l_2_inf_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[0,1],
+             [6,1]]
+        ), sparse_sizes=(2,10))
+
+    l_inf_2_true = SparseTensor.from_edge_index(
+        torch.LongTensor(
+            [[],
+             []]
+        ), sparse_sizes=(2,10))
+    check_all(l_1_1, l_1_1_true)
+    check_all(l_1_2, l_1_2_true)
+    check_all(l_2_1, l_2_1_true)
+    check_all(l_1_inf, l_1_inf_true)
+    check_all(l_inf_1, l_inf_1_true)
+    check_all(l_2_2, l_2_2_true)
+    check_all(l_2_inf, l_2_inf_true)
+    check_all(l_inf_2, l_inf_2_true)
