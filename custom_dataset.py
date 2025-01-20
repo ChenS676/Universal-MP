@@ -62,7 +62,6 @@ class SyntheticRegularTilling(InMemoryDataset):
 
 
 
-
 class SyntheticDataset(InMemoryDataset):
     def __init__(
         self,

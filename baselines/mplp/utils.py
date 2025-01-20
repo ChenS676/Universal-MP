@@ -92,6 +92,7 @@ def get_dataset(root, name: str, use_valedges_as_input=False, year=-1):
         'Computers': (datasets.Amazon, {'name':'Computers'}),
         'Photo': (datasets.Amazon, {'name':'Photo'}),
         'PolBlogs': (datasets.PolBlogs, {}),
+        
         'musae-twitch':(SNAPDataset, {'name':'musae-twitch'}),
         'musae-github':(SNAPDataset, {'name':'musae-github'}),
         'musae-facebook':(SNAPDataset, {'name':'musae-facebook'}),
@@ -105,6 +106,7 @@ def get_dataset(root, name: str, use_valedges_as_input=False, year=-1):
         'regulartilling-HEXAGONAL':(SyntheticRegularTilling, {'name':'HEXAGONAL'}),
         'regularTilling-SQUARE_GRID':(SyntheticRegularTilling, {'name':'SQUARE_GRID'}),
         
+        # TODO docment resource
         'syn-TRIANGULAR':(SyntheticDataset, {'name':'TRIANGULAR'}),
         'syn-GRID':(SyntheticDataset, {'name':'GRID'}),
         
@@ -156,6 +158,7 @@ def randomsplit(data, val_ratio: float=0.10, test_ratio: float=0.2):
         ei = ei[:, ei[0]<ei[1]]
         return ei
 
+    # double check and doc the resources
     transform = RandomLinkSplit(
         num_val=val_ratio,  
         num_test=test_ratio, 
@@ -221,7 +224,6 @@ def plot_coo_matrix(m: coo_matrix, name: str):
     ax.set_yticks([])
     fig.savefig(name)
     return ax
-
 
 
 def construct_sparse_adj(edge_index, num_node) -> coo_matrix:
@@ -354,7 +356,6 @@ def initial_embedding(data, hidden_channels, device):
     embedding= torch.nn.Embedding(data.num_nodes, hidden_channels).to(device)
     torch.nn.init.xavier_uniform_(embedding.weight)
     return embedding
-
 
 
 def create_input(data):
