@@ -20,9 +20,9 @@ def main(opt):
 
     print(f"[i] Generating embeddings for dataset: {dataset_name}")
     if dataset_name in ['ogbl-collab', 'ogbl-ddi', 'ogbl-ppa']:
-        data, split_edge = my_get_dataset('/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-German/Universal-MP/GRAND_LP/pos_enc_genereation/dataset', opt, dataset_name)
+        data, split_edge = my_get_dataset('../data', opt, dataset_name)
     else:
-        dataset = get_dataset(opt, '/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-German/Universal-MP/GRAND_LP/pos_enc_genereation/dataset')
+        dataset = get_dataset(opt, '../data')
         data = dataset.data
     
     device = torch.device(f"cuda:{opt['gpu']}" if torch.cuda.is_available() else 'cpu')
@@ -96,7 +96,8 @@ def main(opt):
       opt['dataset'], opt['embedding_dim'], opt['walk_length'], opt['context_size'], opt['walks_per_node'], opt['epochs']
     )
 
-    save_path = osp.join("/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-German/Universal-MP/GRAND_LP/pos_enc_genereation/dataset/pos_encodings")
+    import IPython; IPython.embed()
+    save_path = osp.join("../data/pos_encodings")
 
     # Создаем директорию, если её нет
     os.makedirs(save_path, exist_ok=True)
