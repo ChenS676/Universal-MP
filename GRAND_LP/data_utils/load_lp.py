@@ -47,7 +47,7 @@ def randomsplit(dataset, val_ratio: float=0.10, test_ratio: float=0.2):
     split_edge['test']['edge_neg'] = removerepeated(data.test_neg_edge_index).t()
     return split_edge
 
-def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool, load=None):
+def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=False, load=None):
     if name in ["Cora", "Citeseer", "Pubmed"]:
         dataset = Planetoid(root="dataset", name=name)
         split_edge = randomsplit(dataset)
@@ -73,6 +73,9 @@ def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool, lo
                     sparse_sizes=(data.num_nodes, data.num_nodes))
     data.adj_t = data.adj_t.to_symmetric().coalesce()
     data.max_x = -1
+    # if name == "ogbl-collab":
+    #     data.edge_weight = data.edge_weight/2
+        
     if name == "ogbl-ppa":
         data.x = torch.argmax(data.x, dim=-1).unsqueeze(-1).float()
         data.max_x = torch.max(data.x).item()

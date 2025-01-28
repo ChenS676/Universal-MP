@@ -52,4 +52,13 @@ class GNN(BaseGNN):
     if self.opt['augment']:
       z = torch.split(z, x.shape[1] // 2, dim=1)[0]
     
+    # # Activation.
+    # z = F.relu(z)
+
+    # if self.opt['fc_out']:
+    #   z = self.fc(z)
+    #   z = F.relu(z)
+
+    # # Dropout.
+    # z = F.dropout(z, self.opt['dropout'], training=self.training)
     return z

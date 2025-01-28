@@ -1,9 +1,6 @@
 """
 functions to generate a graph from the input graph and features
 """
-import os, sys
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -13,12 +10,12 @@ from torch_scatter import scatter
 from torch_geometric.transforms.two_hop import TwoHop
 from torch_geometric.utils import add_self_loops, to_undirected, to_dense_adj, dense_to_sparse
 from torch_geometric.transforms import GDC
-from utils.utils import get_rw_adj, get_full_adjacency, ROOT_DIR
+from utils import get_rw_adj, get_full_adjacency, ROOT_DIR
 from pykeops.torch import LazyTensor
 import os
 import pickle
-from metrics.distances_kNN import apply_dist_KNN, apply_dist_threshold, get_distances, apply_feat_KNN
-from metrics.hyperbolic_distances import hyperbolize
+from distances_kNN import apply_dist_KNN, apply_dist_threshold, get_distances, apply_feat_KNN
+from hyperbolic_distances import hyperbolize
 
 ### for custom GDC
 import torch
@@ -29,6 +26,7 @@ from torch_geometric.utils import add_self_loops, is_undirected, to_dense_adj, \
   dense_to_sparse, to_undirected
 from torch_sparse import coalesce
 from torch_scatter import scatter_add
+
 
 def jit(**kwargs):
   def decorator(func):
@@ -81,7 +79,6 @@ def apply_gdc(data, opt, type="combined"):
     data.num_nodes = data.num_nodes[0]
 
   if type == 'combined':
-    # What is it? #TODO: Understand
     data = gdc(data)
   elif type == 'pos_encoding':
     if opt['pos_enc_orientation'] == "row":  # encode row of S_hat
@@ -244,7 +241,7 @@ def apply_edge_sampling(x, pos_encoding, model, opt):
   edge_sampling(model, z, opt)
 
 
-def apply_beltrami(data, opt, data_dir=f'{ROOT_DIR}/dataset'):
+def apply_beltrami(data, opt, data_dir=f'{ROOT_DIR}/data'):
   pos_enc_dir = os.path.join(f"{data_dir}", "pos_encodings")
   # generate new positional encodings
   # do encodings already exist on disk?
@@ -380,8 +377,7 @@ class GDCWrapper(GDC):
         num_nodes=N)
 
     edge_index, edge_weight = coalesce(edge_index, edge_weight, N, N)
-    
-    # TODO: Check diffusion_matrix_exact, diffusion_matrix_approx
+
     if self.exact:
       edge_index, edge_weight = self.transition_matrix(
         edge_index, edge_weight, N, self.normalization_in)
