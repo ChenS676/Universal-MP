@@ -14,6 +14,7 @@ class GNN(BaseGNN):
     self.f = set_function(opt)
     block = set_block(opt)
     time_tensor = torch.tensor([0, self.T]).to(device)
+    
     self.odeblock = block(self.f, self.regularization_fns, opt, data, device, t=time_tensor).to(device)
 
   def forward(self, x, pos_encoding=None):

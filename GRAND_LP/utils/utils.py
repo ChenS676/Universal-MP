@@ -17,7 +17,32 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 class MaxNFEException(Exception): pass
 
+class PermIterator:
+    '''
+    Iterator of a permutation
+    '''
+    def __init__(self, device, size, bs, training=True) -> None:
+        self.bs = bs
+        self.training = training
+        self.idx = torch.randperm(
+            size, device=device) if training else torch.arange(size,
+                                                               device=device)
 
+    def __len__(self):
+        return (self.idx.shape[0] + (self.bs - 1) *
+                (not self.training)) // self.bs
+
+    def __iter__(self):
+        self.ptr = 0
+        return self
+
+    def __next__(self):
+        if self.ptr + self.bs * self.training > self.idx.shape[0]:
+            raise StopIteration
+        ret = self.idx[self.ptr:self.ptr + self.bs]
+        self.ptr += self.bs
+        return ret
+      
 def rms_norm(tensor):
   return tensor.pow(2).mean().sqrt()
 

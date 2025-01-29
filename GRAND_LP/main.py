@@ -19,7 +19,9 @@ from models.trainer import Trainer_GRAND
 from torch_geometric.nn import Node2Vec
 # I copied the best parameters for the rest of the data sets from ogbn-arxiv
                       #'hidden_dim': 80 CORA
+
 from best_params import best_params_dict
+
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -214,8 +216,6 @@ if __name__=='__main__':
     parser.add_argument('--rewire_KNN_epoch', type=int, default=5, help="frequency of epochs to rewire")
     parser.add_argument('--rewire_KNN_k', type=int, default=64, help="target degree for KNN rewire")
     parser.add_argument('--rewire_KNN_sym', action='store_true', help='make KNN symmetric')
-    parser.add_argument('--KNN_online', action='store_true', help='perform rewiring online')
-    parser.add_argument('--KNN_online_reps', type=int, default=4, help="how many online KNN its")
     parser.add_argument('--KNN_space', type=str, default="pos_distance", help="Z,P,QKZ,QKp")
     # beltrami args
     parser.add_argument('--beltrami', action='store_true', help='perform diffusion beltrami style')
