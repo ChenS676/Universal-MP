@@ -63,7 +63,7 @@ def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool, lo
         edge_index = data.edge_index
         data.num_nodes = data.x.shape[0]
     else:
-        dataset = PygLinkPropPredDataset(root="dataset", name=name)
+        dataset = PygLinkPropPredDataset(root="dataset", name=f'ogbl-{name}')
         split_edge = dataset.get_edge_split()
         data = dataset[0]
         edge_index = data.edge_index

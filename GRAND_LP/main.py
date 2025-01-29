@@ -15,7 +15,7 @@ from models.GNN_KNN_early import GNNKNNEarly
 from models.GNN import GNN
 from models.GNN_early import GNNEarly
 from models.GCN import GCN
-from models.trainer import Trainer_GRAND
+from GRAND_LP.models.trainer_refine import Trainer_GRAND
 from torch_geometric.nn import Node2Vec
 from best_params import best_params_dict
 # I copied the best parameters for the rest of the data sets from ogbn-arxiv
