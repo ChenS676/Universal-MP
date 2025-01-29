@@ -47,7 +47,6 @@ class Trainer_GRAND:
 
         pos_encoding = self.pos_encoding.to(self.model.device) if self.pos_encoding is not None else None
         
-        
         pos_train_edge = self.splits['train']['pos_edge_label_index'].to(self.data.x.device)
         neg_train_edge = self.splits['train']['neg_edge_label_index'].to(self.data.x.device)
         
@@ -57,7 +56,7 @@ class Trainer_GRAND:
         with tqdm(data_loader, desc="Training Progress", unit="batch") as pbar:
             for perm in pbar:
                 self.optimizer.zero_grad()
-
+                
                 if self.opt['gcn']:
                     h = self.model(self.data.x, self.data.adj_t.to_torch_sparse_coo_tensor())
                 else:
@@ -122,9 +121,9 @@ class Trainer_GRAND:
         with tqdm(data_loader, desc="Training Progress", unit="batch") as pbar:
             for perm in pbar:
                 self.optimizer.zero_grad()
-
+                
                 if self.opt['gcn']:
-                    h = self.model(self.data.x, self.data.adj_t.to_torch_sparse_coo_tensor())
+                    h = self.model(self.data.x, self.data.edge_index)
                 else:
                     h = self.model(self.data.x, pos_encoding)
                 

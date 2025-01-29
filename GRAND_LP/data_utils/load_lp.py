@@ -63,7 +63,6 @@ def get_grand_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bo
         split_edge = randomsplit(dataset)
         data = dataset[0]
         data.edge_index = to_undirected(split_edge["train"]["edge"].t())
-        edge_index = data.edge_index
         data.num_nodes = data.x.shape[0]
         opt['use_lcc'] = True
     elif name in ["Computers", "Photo"]:
@@ -71,30 +70,30 @@ def get_grand_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bo
         split_edge = randomsplit(dataset)
         data = dataset[0]
         data.edge_index = to_undirected(split_edge["train"]["edge"].t())
-        edge_index = data.edge_index
         data.num_nodes = data.x.shape[0]
         opt['use_lcc'] = True
     elif name in ['ppa', 'ddi', 'collab', 'citation2', 'vessel']:
         dataset = PygLinkPropPredDataset(name=f'ogbl-{name}')
         data = dataset[0]
         split_edge = dataset.get_edge_split()
-        edge_index = data.edge_index
         opt['use_lcc'] = False
 
     # FOR ALL GRAPHS SMALLER THAN 5000 MUST LCC
     # FOR ALL DONT USE LCC
-    if opt['use_lcc']:
-        data, lcc, _ = use_lcc(data)
-        dataset.data = data
-        print(data.x.shape, data.edge_index.shape)
-        lcc = get_largest_connected_component(dataset)
-        data.x = data.x[lcc]
-        row, col = dataset.data.edge_index.numpy()
-        edges = [[i, j] for i, j in zip(row, col) if i in lcc and j in lcc]
-        data.edge_index = torch.tensor(remap_edges(edges, get_node_mapper(lcc)))
-        print(data.x.shape, data.edge_index.shape)
-          
-          
+    # if opt['use_lcc']:
+    #     data, lcc, _ = use_lcc(data)
+    #     dataset._data = data
+    #     print(data.x.shape, data.edge_index.shape)
+    #     lcc = get_largest_connected_component(dataset)
+    #     data.x = data.x[lcc]
+    #     row, col = dataset._data.edge_index.numpy()
+    #     edges = [[i, j] for i, j in zip(row, col) if i in lcc and j in lcc]
+    #     data.edge_index = torch.tensor(remap_edges(edges, get_node_mapper(lcc)))
+    #     print(data.x.shape, data.edge_index.shape)
+    #     data.num_nodes = data.x.shape[0]
+    
+    # unified for all datasets 
+    edge_index = data.edge_index
     # copy from get_dataset
     if 'edge_weight' in data: 
         data.edge_weight = data.edge_weight.view(-1).to(torch.float)
@@ -103,16 +102,15 @@ def get_grand_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bo
         data.edge_weight = None 
         print(f"{name}: edge_weight not found")
     
-    print(data.num_nodes, edge_index.max())
-    data.adj_t = SparseTensor.from_edge_index(edge_index, 
-                    sparse_sizes=(data.num_nodes, data.num_nodes))
+    print(data.num_nodes, data.edge_index.max())
+    data.adj_t = SparseTensor.from_edge_index(edge_index, sparse_sizes=(data.num_nodes, data.num_nodes))
     data.adj_t = data.adj_t.to_symmetric().coalesce()
     data.max_x = -1
 
     # REPORT update it into appendix first
     print(f"is symmetric {is_symmetric(data.adj_t)}")
     print(f"is undirected {is_undirected(data.edge_index)}")
-
+    
     print(data.x)
     
     if name == "ogbl-collab":
