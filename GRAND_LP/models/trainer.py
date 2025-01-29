@@ -121,7 +121,6 @@ class Trainer_GRAND:
         with tqdm(data_loader, desc="Training Progress", unit="batch") as pbar:
             for perm in pbar:
                 self.optimizer.zero_grad()
-                
                 if self.opt['gcn']:
                     h = self.model(self.data.x, self.data.edge_index)
                 else:
@@ -275,8 +274,8 @@ class Trainer_GRAND:
         
         if self.opt['dataset'].startswith('ogbl-'):
             evaluator = Evaluator(name=self.opt['dataset'])
-        else:
-            evaluator = Evaluator(name='ogbl-collab')
+        else: # keep the same as ncnc
+            evaluator = Evaluator(name='ogbl-ppa')
         
         if self.opt['gcn']:
             h = self.model(self.data.x, self.data.adj_t.to_torch_sparse_coo_tensor())
@@ -369,21 +368,14 @@ class Trainer_GRAND:
         except Exception as e:
             print(f"Failed to save results: {e}")
 
-    def train(self):
+    def train(self): # Cora, Citeseer, Pubmed, Computer, Photo
         print(f"Starting training for {self.epochs} epochs...")
         for epoch in range(1, self.epochs + 1):
             start_time = time.time()
-
-            # if self.opt['dataset'].startswith('ogbl-'):
-            #     loss = self.train_epoch_OGB()
-            # else:
             loss = self.train_epoch()
             
             print(f"Epoch {epoch}, Loss: {loss:.4f}")
             if epoch % 5 == 0:
-                # if self.opt['dataset'].startswith('ogbl-'):
-                #     results = self.test_epoch_OGB()
-                # else:
                 results = self.test_epoch()
 
                 self.log_results(results, epoch)

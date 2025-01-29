@@ -244,7 +244,7 @@ def apply_edge_sampling(x, pos_encoding, model, opt):
   edge_sampling(model, z, opt)
 
 
-def apply_beltrami(data, opt, data_dir=f'{ROOT_DIR}/dataset'):
+def apply_beltrami(data, opt, data_dir=f'{ROOT_DIR}/data'):
   pos_enc_dir = os.path.join(f"{data_dir}", "pos_encodings")
   # generate new positional encodings
   # do encodings already exist on disk?

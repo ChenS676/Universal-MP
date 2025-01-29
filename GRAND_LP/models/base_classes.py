@@ -167,6 +167,7 @@ class LinkPredictor(torch.nn.Module):
 
     def forward(self, x_i, x_j):
         x = x_i * x_j
+
         for lin in self.lins[:-1]:
             x = lin(x)
             x = F.relu(x)
