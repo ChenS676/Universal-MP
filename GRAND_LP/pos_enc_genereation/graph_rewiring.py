@@ -106,6 +106,7 @@ def make_symmetric(data):
 
 
 def dirichlet_energy(edge_index, edge_weight, n, X):
+  #TODO what is this_
   if edge_weight is None:
     edge_weight = torch.ones(edge_index.size(1),
                              device=edge_index.device)

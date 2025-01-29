@@ -83,16 +83,16 @@ def get_grand_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bo
 
     # FOR ALL GRAPHS SMALLER THAN 5000 MUST LCC
     # FOR ALL DONT USE LCC
-    if opt['use_lcc']:
-        data, lcc, _ = use_lcc(data)
-        dataset.data = data
-        print(data.x.shape, data.edge_index.shape)
-        lcc = get_largest_connected_component(dataset)
-        data.x = data.x[lcc]
-        row, col = dataset.data.edge_index.numpy()
-        edges = [[i, j] for i, j in zip(row, col) if i in lcc and j in lcc]
-        data.edge_index = torch.tensor(remap_edges(edges, get_node_mapper(lcc)))
-        print(data.x.shape, data.edge_index.shape)
+    # if opt['use_lcc']:
+    #     data, lcc, _ = use_lcc(data)
+    #     dataset.data = data
+    #     print(data.x.shape, data.edge_index.shape)
+    #     lcc = get_largest_connected_component(dataset)
+    #     data.x = data.x[lcc]
+    #     row, col = dataset.data.edge_index.numpy()
+    #     edges = [[i, j] for i, j in zip(row, col) if i in lcc and j in lcc]
+    #     data.edge_index = torch.tensor(remap_edges(edges, get_node_mapper(lcc)))
+    #     print(data.x.shape, data.edge_index.shape)
           
           
     # copy from get_dataset
