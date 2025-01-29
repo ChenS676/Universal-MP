@@ -1,27 +1,58 @@
-# python deepwalk_embeddings.py --dataset Citeseer --embedding_dim 64 --walk_length 100
-# python deepwalk_embeddings.py --dataset Citeseer --embedding_dim 128 --walk_length 20
-# python deepwalk_embeddings.py --dataset Citeseer --embedding_dim 256 --walk_length 20
+pythondeepwalk_embeddings.py--datasetCiteseer--embedding_dim64--walk_length20--epochs50
+pythondeepwalk_embeddings.py--datasetCoauthorCS--embedding_dim64--walk_length100--epochs40
+pythondeepwalk_embeddings.py--datasetogbl-collab--embedding_dim64--walk_length80--epochs10
+pythondeepwalk_embeddings.py--datasetogbl-ddi--embedding_dim64--walk_length80--epochs10
 
-# python deepwalk_embeddings.py --dataset CoauthorCS --embedding_dim 64 --walk_length 100
-# python deepwalk_embeddings.py --dataset CoauthorCS --embedding_dim 128 --walk_length 100
-# python deepwalk_embeddings.py --dataset CoauthorCS --embedding_dim 256 --walk_length 60
 
-# python deepwalk_embeddings.py --dataset Computers --embedding_dim 64 --walk_length 100
-# python deepwalk_embeddings.py --dataset Computers --embedding_dim 128 --walk_length 100
-# python deepwalk_embeddings.py --dataset Computers --embedding_dim 256 --walk_length 40
+pythondeepwalk_embeddings.py--datasetogbl-ppa--embedding_dim64--walk_length80--epochs10
+pythondeepwalk_embeddings.py--datasetogbl-vessel--embedding_dim64--walk_length80--epochs10
+pythondeepwalk_embeddings.py--datasetogbl-citation2--embedding_dim64--walk_length80--epochs10
 
-python deepwalk_embeddings.py --dataset Cora --embedding_dim 64 --walk_length 80
-python deepwalk_embeddings.py --dataset Cora --embedding_dim 128 --walk_length 40
-python deepwalk_embeddings.py --dataset Cora --embedding_dim 256 --walk_length 40
 
-python deepwalk_embeddings.py --dataset Photo --embedding_dim 64 --walk_length 40
-python deepwalk_embeddings.py --dataset Photo --embedding_dim 128 --walk_length 100
-python deepwalk_embeddings.py --dataset Photo --embedding_dim 256 --walk_length 40
+pythondeepwalk_embeddings.py--datasetCiteseer--embedding_dim128--walk_length20
+pythondeepwalk_embeddings.py--datasetCiteseer--embedding_dim256--walk_length20
 
-python deepwalk_embeddings.py --dataset Pubmed --embedding_dim 64 --walk_length 100
-python deepwalk_embeddings.py --dataset Pubmed --embedding_dim 128 --walk_length 40
-python deepwalk_embeddings.py --dataset Pubmed --embedding_dim 256 --walk_length 60
 
-# python deepwalk_embeddings.py --dataset ogbn-arxiv --embedding_dim 64 --walk_length 80
-# python deepwalk_embeddings.py --dataset ogbn-arxiv --embedding_dim 128 --walk_length 40
-# python deepwalk_embeddings.py --dataset ogbn-arxiv --embedding_dim 256 --walk_length 40
+pythondeepwalk_embeddings.py--datasetCoauthorCS--embedding_dim128--walk_length100
+pythondeepwalk_embeddings.py--datasetCoauthorCS--embedding_dim256--walk_length60
+
+pythondeepwalk_embeddings.py--datasetComputers--embedding_dim64--walk_length100
+pythondeepwalk_embeddings.py--datasetComputers--embedding_dim128--walk_length100
+pythondeepwalk_embeddings.py--datasetComputers--embedding_dim256--walk_length40
+
+pythondeepwalk_embeddings.py--datasetogbl-vessel--embedding_dim64--walk_length80
+pythondeepwalk_embeddings.py--datasetogbl-vessel--embedding_dim128--walk_length40
+pythondeepwalk_embeddings.py--datasetogbl-vessel--embedding_dim256--walk_length40
+
+
+pythondeepwalk_embeddings.py--datasetogbl-collab--embedding_dim64--walk_length80
+pythondeepwalk_embeddings.py--datasetogbl-collab--embedding_dim128--walk_length40
+pythondeepwalk_embeddings.py--datasetogbl-collab--embedding_dim256--walk_length40
+
+pythondeepwalk_embeddings.py--datasetogbl-citation2--embedding_dim64--walk_length80
+pythondeepwalk_embeddings.py--datasetogbl-citation2--embedding_dim128--walk_length40
+pythondeepwalk_embeddings.py--datasetogbl-citation2--embedding_dim256--walk_length40
+
+pythondeepwalk_embeddings.py--datasetogbl-ddi--embedding_dim64--walk_length80
+pythondeepwalk_embeddings.py--datasetogbl-ddi--embedding_dim128--walk_length40
+pythondeepwalk_embeddings.py--datasetogbl-ddi--embedding_dim256--walk_length40
+
+pythondeepwalk_embeddings.py--datasetogbl-ppa--embedding_dim64--walk_length80--epochs10
+pythondeepwalk_embeddings.py--datasetogbl-ppa--embedding_dim128--walk_length40
+pythondeepwalk_embeddings.py--datasetogbl-ppa--embedding_dim256--walk_length40
+
+pythondeepwalk_embeddings.py--datasetCora--embedding_dim64--walk_length80
+pythondeepwalk_embeddings.py--datasetCora--embedding_dim128--walk_length40
+pythondeepwalk_embeddings.py--datasetCora--embedding_dim256--walk_length40
+
+pythondeepwalk_embeddings.py--datasetPhoto--embedding_dim64--walk_length40
+pythondeepwalk_embeddings.py--datasetPhoto--embedding_dim128--walk_length100
+pythondeepwalk_embeddings.py--datasetPhoto--embedding_dim256--walk_length40
+
+pythondeepwalk_embeddings.py--datasetPubmed--embedding_dim64--walk_length100
+pythondeepwalk_embeddings.py--datasetPubmed--embedding_dim128--walk_length40
+pythondeepwalk_embeddings.py--datasetPubmed--embedding_dim256--walk_length60
+
+pythondeepwalk_embeddings.py--datasetogbn-arxiv--embedding_dim64--walk_length80
+pythondeepwalk_embeddings.py--datasetogbn-arxiv--embedding_dim128--walk_length40
+pythondeepwalk_embeddings.py--datasetogbn-arxiv--embedding_dim256--walk_length40

@@ -19,7 +19,7 @@ def main(opt):
     dataset_name = opt['dataset']
 
     print(f"[i] Generating embeddings for dataset: {dataset_name}")
-    if dataset_name in ['ogbl-collab', 'ogbl-ddi', 'ogbl-ppa']:
+    if dataset_name in ['ogbl-collab', 'ogbl-ddi', 'ogbl-ppa', 'ogbl-vessel', 'ogbl-citation2']:
         data, split_edge = my_get_dataset('../data', opt, dataset_name)
     else:
         dataset = get_dataset(opt, '../data')
@@ -49,7 +49,7 @@ def main(opt):
     def test():
         model.eval()
         z = model()
-        if dataset_name in ['ogbl-collab', 'ogbl-ddi']:
+        if dataset_name in ['ogbl-collab', 'ogbl-ddi', 'ogbl-ppa', 'ogbl-vessel', 'ogbl-citation2']:
             pos_test_edge = split_edge['test']['edge']
             neg_test_edge = split_edge['test']['edge_neg']
 
@@ -92,11 +92,13 @@ def main(opt):
     print(f"[i] Final accuracy is {acc}")
     print(f"[i] Embedding shape is {z.data.shape}")
 
-    fname = "DW_%s_emb_%03d_wl_%03d_cs_%02d_wn_%02d_epochs_%03d.pickle" % (
-      opt['dataset'], opt['embedding_dim'], opt['walk_length'], opt['context_size'], opt['walks_per_node'], opt['epochs']
+
+    fname = "DW_%s_emb_%03d_wl_%03d_cs_%02d_wn_%02d_epochs_%03d_acc_%03f.pickle" % (
+      opt['dataset'], opt['embedding_dim'], opt['walk_length'], 
+      opt['context_size'], opt['walks_per_node'], opt['epochs'], acc*100
     )
 
-    import IPython; IPython.embed()
+
     save_path = osp.join("../data/pos_encodings")
 
     # Создаем директорию, если её нет
@@ -124,7 +126,7 @@ if __name__ == "__main__":
                         help='Walks per node')
   parser.add_argument('--neg_pos_ratio', type=int, default=1, 
                         help='Number of negatives for each positive')
-  parser.add_argument('--epochs', type=int, default=100, 
+  parser.add_argument('--epochs', type=int, default=40, 
                         help='Number of epochs')
   parser.add_argument('--gpu', type=int, default=0, 
                         help='GPU id (default 0)')
