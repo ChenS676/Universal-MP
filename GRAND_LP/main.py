@@ -263,7 +263,7 @@ if __name__=='__main__':
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     
-    data, splits = get_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
+    data, splits = get_grand_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
     
     if args.dataset == "ogbl-citation2":
         opt['metric'] = "MRR"

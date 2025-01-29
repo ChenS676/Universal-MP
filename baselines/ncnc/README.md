@@ -1,76 +1,76 @@
-Thisrepositorycontainstheofficialcodeforthepaper[NeuralCommonNeighborwithCompletionforLinkPrediction](https://arxiv.org/pdf/2302.00890.pdf).
+This repository contains the official code for the paper [Neural Common Neighbor with Completion for Link Prediction](https://arxiv.org/pdf/2302.00890.pdf).
 
 **Environment**
 
-TestedCombination:
-torch1.13.0+pyg2.2.0+ogb1.3.5
+Tested Combination:
+torch 1.13.0 + pyg 2.2.0 + ogb 1.3.5
 
 ```
-condaenvcreate-fenv.yaml
+conda env create -f env.yaml
 ```
 
-**PrepareDatasets**
+**Prepare Datasets**
 
 ```
-pythonogbdataset.py
+python ogbdataset.py
 ```
 
-**ReproduceResults**
+**Reproduce Results**
 
-Weimplementthefollowingmodels.
+We implement the following models.
 
-|name|$model|commandchange|
+| name     | $model    | command change     |
 |----------|-----------|--------------------|
-|GAE|cn0||
-|NCN|cn1||
-|NCNC|incn1cn1||
-|NCNC2|incn1cn1|add--depth2--splitsize131072|
-|GAE+CN|scn1||
-|NCN2|cn1.5||
-|NCN-diff|cn1res||
-|NoTLR|cn1|delete--maskinput|
+| GAE      | cn0       |                    |
+| NCN      | cn1       |                    |
+| NCNC     | incn1cn1  |                    |
+| NCNC2    | incn1cn1  | add --depth 2  --splitsize 131072    |
+| GAE+CN   | scn1      |                    |
+| NCN2     | cn1.5     |                    |
+| NCN-diff | cn1res    |                    |
+| NoTLR    | cn1       | delete --maskinput |
 
-Toreproducetheresults,pleasemodifythefollowingcommandsasshowninthetableabove.
+To reproduce the results, please modify the following commands as shown in the table above.
 
 Cora
 ```
-pythonNeighborOverlap.py--xdp0.7--tdp0.3--pt0.75--gnnedp0.0--preedp0.4--predp0.05--gnndp0.05--probscale4.3--proboffset2.8--alpha1.0--gnnlr0.0043--prelr0.0024--batch_size1152--ln--lnnn--predictor$model--datasetCora--epochs100--runs10--modelpuregcn--hiddim256--mplayers1--testbs8192--maskinput--jk--use_xlin--tailact
+python NeighborOverlap.py   --xdp 0.7 --tdp 0.3 --pt 0.75 --gnnedp 0.0 --preedp 0.4 --predp 0.05 --gnndp 0.05  --probscale 4.3 --proboffset 2.8 --alpha 1.0  --gnnlr 0.0043 --prelr 0.0024  --batch_size 1152  --ln --lnnn --predictor $model --dataset Cora  --epochs 100 --runs 10 --model puregcn --hiddim 256 --mplayers 1  --testbs 8192  --maskinput  --jk  --use_xlin  --tailact 
 ```
 
 Citeseer
 ```
-pythonNeighborOverlap.py--xdp0.4--tdp0.0--pt0.75--gnnedp0.0--preedp0.0--predp0.55--gnndp0.75--probscale6.5--proboffset4.4--alpha0.4--gnnlr0.0085--prelr0.0078--batch_size384--ln--lnnn--predictor$model--datasetCiteseer--epochs100--runs10--modelpuregcn--hiddim256--mplayers1--testbs4096--maskinput--jk--use_xlin--tailact--twolayerlin
+python NeighborOverlap.py   --xdp 0.4 --tdp 0.0 --pt 0.75 --gnnedp 0.0 --preedp 0.0 --predp 0.55 --gnndp 0.75  --probscale 6.5 --proboffset 4.4 --alpha 0.4  --gnnlr 0.0085 --prelr 0.0078  --batch_size 384  --ln --lnnn --predictor $model --dataset Citeseer  --epochs 100 --runs 10 --model puregcn --hiddim 256 --mplayers 1  --testbs 4096  --maskinput  --jk  --use_xlin  --tailact  --twolayerlin
 ```
 
 Pubmed
 ```
-pythonNeighborOverlap.py--xdp0.3--tdp0.0--pt0.5--gnnedp0.0--preedp0.0--predp0.05--gnndp0.1--probscale5.3--proboffset0.5--alpha0.3--gnnlr0.0097--prelr0.002--batch_size2048--ln--lnnn--predictor$model--datasetPubmed--epochs100--runs10--modelpuregcn--hiddim256--mplayers1--testbs8192--maskinput--jk--use_xlin--tailact
+python NeighborOverlap.py   --xdp 0.3 --tdp 0.0 --pt 0.5 --gnnedp 0.0 --preedp 0.0 --predp 0.05 --gnndp 0.1  --probscale 5.3 --proboffset 0.5 --alpha 0.3  --gnnlr 0.0097 --prelr 0.002  --batch_size 2048  --ln --lnnn --predictor $model --dataset Pubmed  --epochs 100 --runs 10 --model puregcn --hiddim 256 --mplayers 1  --testbs 8192  --maskinput  --jk  --use_xlin  --tailact 
 ```
 
 collab
 ```
-pythonNeighborOverlap.py--xdp0.25--tdp0.05--pt0.1--gnnedp0.25--preedp0.0--predp0.3--gnndp0.1--probscale2.5--proboffset6.0--alpha1.05--gnnlr0.0082--prelr0.0037--batch_size65536--ln--lnnn--predictor$model--datasetcollab--epochs100--runs10--modelgcn--hiddim64--mplayers1--testbs131072--maskinput--use_valedges_as_input--res--use_xlin--tailact
+python NeighborOverlap.py   --xdp 0.25 --tdp 0.05 --pt 0.1 --gnnedp 0.25 --preedp 0.0 --predp 0.3 --gnndp 0.1  --probscale 2.5 --proboffset 6.0 --alpha 1.05  --gnnlr 0.0082 --prelr 0.0037  --batch_size 65536  --ln --lnnn --predictor $model --dataset collab  --epochs 100 --runs 10 --model gcn --hiddim 64 --mplayers 1  --testbs 131072  --maskinput --use_valedges_as_input   --res  --use_xlin  --tailact 
 ```
 
 ppa
 ```
-pythonNeighborOverlap.py--xdp0.0--tdp0.0--gnnedp0.1--preedp0.0--predp0.1--gnndp0.0--gnnlr0.0013--prelr0.0013--batch_size16384--ln--lnnn--predictor$model--datasetppa--epochs25--runs10--modelgcn--hiddim64--mplayers3--maskinput--tailact--res--testbs65536--proboffset8.5--probscale4.0--pt0.1--alpha0.9--splitsize131072
+python NeighborOverlap.py  --xdp 0.0 --tdp 0.0 --gnnedp 0.1 --preedp 0.0 --predp 0.1 --gnndp 0.0 --gnnlr 0.0013 --prelr 0.0013  --batch_size 16384  --ln --lnnn --predictor $model --dataset ppa   --epochs 25 --runs 10 --model gcn --hiddim 64 --mplayers 3 --maskinput  --tailact  --res  --testbs 65536 --proboffset 8.5 --probscale 4.0 --pt 0.1 --alpha 0.9 --splitsize 131072
 ```
 
-ThefollowingdatasetsuseseparatecommandsforNCNandNCNC.Touseothermodels,pleasemodifyNCN'scommand.NotethatNCNCmodelsinthesedatasetsinitializeparameterswithtrainedNCNmodelstoacceleratetraining.Pleaseuseourpre-trainedmodelorrunNCNfirst.
+The following datasets use separate commands for NCN and NCNC. To use other models, please modify NCN's command. Note that NCNC models in these datasets initialize parameters with trained NCN models to accelerate training. Please use our pre-trained model or run NCN first.
 
 citation2
 ```
-pythonNeighborOverlapCitation2.py--xdp0.0--tdp0.3--gnnedp0.0--preedp0.0--predp0.2--gnndp0.2--gnnlr0.0088--prelr0.0058--batch_size32768--ln--lnnn--predictorcn1--datasetcitation2--epochs20--runs10--modelpuregcn--hiddim64--mplayers3--res--testbs65536--use_xlin--tailact--proboffset4.7--probscale7.0--pt0.3--trndeg128--tstdeg128--save_gemb
+python NeighborOverlapCitation2.py --xdp 0.0 --tdp 0.3 --gnnedp 0.0 --preedp 0.0 --predp 0.2 --gnndp 0.2 --gnnlr 0.0088 --prelr 0.0058 --batch_size 32768 --ln --lnnn --predictor cn1 --dataset citation2 --epochs 20 --runs 10 --model puregcn --hiddim 64 --mplayers 3 --res --testbs 65536 --use_xlin --tailact --proboffset 4.7 --probscale 7.0 --pt 0.3 --trndeg 128 --tstdeg 128 --save_gemb 
 
 
-pythonNeighborOverlapCitation2.py--xdp0.0--tdp0.3--gnnedp0.0--preedp0.0--predp0.2--gnndp0.2--gnnlr0.0088--prelr0.001--batch_size24576--ln--lnnn--predictorincn1cn1--datasetcitation2--epochs20--runs10--modelnone--hiddim64--mplayers0--res--testbs65536--use_xlin--tailact--loadgemb/citation2_puregcn_cn1.pt--proboffset-0.3--probscale1.4--pt0.25--trndeg96--tstdeg96--loadgemb/citation2_puregcn_cn1.pt
+python NeighborOverlapCitation2.py --xdp 0.0 --tdp 0.3 --gnnedp 0.0 --preedp 0.0 --predp 0.2 --gnndp 0.2 --gnnlr 0.0088 --prelr 0.001 --batch_size 24576 --ln --lnnn --predictor incn1cn1 --dataset citation2 --epochs 20 --runs 10 --model none --hiddim 64 --mplayers 0 --res --testbs 65536 --use_xlin --tailact --load gemb/citation2_puregcn_cn1.pt --proboffset -0.3 --probscale 1.4 --pt 0.25 --trndeg 96 --tstdeg 96 --load gemb/citation2_puregcn_cn1.pt 
 ```
 
 
 ddi
 ```
-pythonNeighborOverlap.py--xdp0.05--tdp0.0--gnnedp0.0--preedp0.0--predp0.6--gnndp0.4--gnnlr0.0021--prelr0.0018--batch_size24576--ln--lnnn--predictorcn1--datasetddi--epochs100--runs10--modelpuresum--hiddim224--mplayers1--testbs131072--use_xlin--twolayerlin--res--maskinput--savemod
+python NeighborOverlap.py  --xdp 0.05 --tdp 0.0 --gnnedp 0.0 --preedp 0.0 --predp 0.6 --gnndp 0.4 --gnnlr 0.0021 --prelr 0.0018  --batch_size 24576  --ln --lnnn --predictor cn1 --dataset ddi  --epochs 100 --runs 10 --model puresum --hiddim 224 --mplayers 1  --testbs 131072   --use_xlin  --twolayerlin  --res  --maskinput --savemod
 
-pythonNeighborOverlap.py--xdp0.05--tdp0.0--gnnedp0.0--preedp0.0--predp0.6--gnndp0.4--gnnlr0.0000000--prelr0.0025--batch_size24576--ln--lnnn--predictorincn1cn1--datasetddi--proboffset3--probscale10--pt0.1--alpha0.5--epochs2--runs10--modelpuresum--hiddim224--mplayers1--testbs24576--splitsize262144--use_xlin--twolayerlin--res--maskinput--loadmod
+python NeighborOverlap.py --xdp 0.05 --tdp 0.0 --gnnedp 0.0 --preedp 0.0 --predp 0.6 --gnndp 0.4 --gnnlr 0.0000000 --prelr 0.0025 --batch_size 24576 --ln --lnnn --predictor incn1cn1 --dataset ddi --proboffset 3 --probscale 10 --pt 0.1 --alpha 0.5 --epochs 2 --runs 10 --model puresum --hiddim 224 --mplayers 1 --testbs 24576 --splitsize 262144 --use_xlin --twolayerlin --res --maskinput --loadmod
 ```

@@ -79,8 +79,7 @@ def get_dataset(root, name: str, use_valedges_as_input=False, year=-1):
         # make node feature as float
         if data.x is not None:
             data.x = data.x.to(torch.float)
-        # if name != 'ogbl-ddi':
-            # del data.edge_index
+
         return data, split_edge
 
     pyg_dataset_dict = {
