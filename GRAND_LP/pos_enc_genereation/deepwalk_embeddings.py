@@ -19,10 +19,10 @@ def main(opt):
     dataset_name = opt['dataset']
 
     print(f"[i] Generating embeddings for dataset: {dataset_name}")
-    if dataset_name in ['ogbl-collab', 'ogbl-ddi', 'ogbl-ppa']:
-        data, split_edge = my_get_dataset('/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-German/Universal-MP/GRAND_LP/pos_enc_genereation/dataset', opt, dataset_name)
+    if dataset_name in ['ogbl-collab', 'ogbl-ddi', 'ogbl-ppa', 'ogbl-vessel', 'ogbl-citation2']:
+        data, split_edge = my_get_dataset('../data', opt, dataset_name)
     else:
-        dataset = get_dataset(opt, '/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-German/Universal-MP/GRAND_LP/pos_enc_genereation/dataset')
+        dataset = get_dataset(opt, '../data')
         data = dataset.data
     
     device = torch.device(f"cuda:{opt['gpu']}" if torch.cuda.is_available() else 'cpu')
@@ -49,12 +49,19 @@ def main(opt):
     def test():
         model.eval()
         z = model()
-        if dataset_name in ['ogbl-collab', 'ogbl-ddi']:
-            pos_test_edge = split_edge['test']['edge']
-            neg_test_edge = split_edge['test']['edge_neg']
+        if dataset_name == 'ogbl-citation2':
+            source_edge = split_edge['train']['source_node'].to(data.x.device)
+            target_edge = split_edge['train']['target_node'].to(data.x.device)
 
+            pos_test_edge = torch.stack((source_edge, target_edge), dim=1)
+            
+            neg_target = torch.randint(0, data.num_nodes, source_edge.size(),
+                                dtype=torch.long, device='cpu')
+            neg_test_edge = torch.stack((source_edge, neg_target), dim=1)
+            
             # Функция для оценки точности (AUC)
             def compute_auc(pos_edge, neg_edge):
+
                 pos_score = (z[pos_edge[:, 0]] * z[pos_edge[:, 1]]).sum(dim=-1).sigmoid()
                 neg_score = (z[neg_edge[:, 0]] * z[neg_edge[:, 1]]).sum(dim=-1).sigmoid()
 
@@ -70,6 +77,15 @@ def main(opt):
 
             # Оцениваем AUC на тестовом наборе
             acc = compute_auc(pos_test_edge, neg_test_edge)
+            
+        elif dataset_name in ['ogbl-collab', 'ogbl-ddi', 'ogbl-ppa', 'ogbl-vessel']:
+            
+            pos_test_edge = split_edge['test']['edge']
+            neg_test_edge = split_edge['test']['edge_neg']
+
+            # Оцениваем AUC на тестовом наборе
+            acc = compute_auc(pos_test_edge, neg_test_edge)
+            
         else:
             acc = model.test(z[data.train_mask], data.y[data.train_mask],
                             z[data.test_mask], data.y[data.test_mask],
@@ -92,11 +108,14 @@ def main(opt):
     print(f"[i] Final accuracy is {acc}")
     print(f"[i] Embedding shape is {z.data.shape}")
 
-    fname = "DW_%s_emb_%03d_wl_%03d_cs_%02d_wn_%02d_epochs_%03d.pickle" % (
-      opt['dataset'], opt['embedding_dim'], opt['walk_length'], opt['context_size'], opt['walks_per_node'], opt['epochs']
+
+    fname = "DW_%s_emb_%03d_wl_%03d_cs_%02d_wn_%02d_epochs_%03d_acc_%03f.pickle" % (
+      opt['dataset'], opt['embedding_dim'], opt['walk_length'], 
+      opt['context_size'], opt['walks_per_node'], opt['epochs'], acc*100
     )
 
-    save_path = osp.join("/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-German/Universal-MP/GRAND_LP/pos_enc_genereation/dataset/pos_encodings")
+
+    save_path = osp.join("../data/pos_encodings")
 
     # Создаем директорию, если её нет
     os.makedirs(save_path, exist_ok=True)
@@ -123,7 +142,7 @@ if __name__ == "__main__":
                         help='Walks per node')
   parser.add_argument('--neg_pos_ratio', type=int, default=1, 
                         help='Number of negatives for each positive')
-  parser.add_argument('--epochs', type=int, default=100, 
+  parser.add_argument('--epochs', type=int, default=40, 
                         help='Number of epochs')
   parser.add_argument('--gpu', type=int, default=0, 
                         help='GPU id (default 0)')

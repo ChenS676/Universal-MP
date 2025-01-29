@@ -8,3 +8,5 @@ trials/error/
 *.png
 
 baselines/mplp/data
+GRAND_LP/data/
+**/data

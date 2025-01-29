@@ -22,6 +22,10 @@ from snap_dataset import SNAPDataset
 from custom_dataset import SyntheticRandom, SyntheticRegularTilling, SyntheticDataset
 
 from torch_geometric.data.collate import collate
+from torch_geometric.transforms import RandomLinkSplit
+import matplotlib.pyplot as plt
+from scipy.sparse import coo_matrix
+
 
 
 def get_dataset(root, name: str, use_valedges_as_input=False, year=-1):
@@ -38,9 +42,10 @@ def get_dataset(root, name: str, use_valedges_as_input=False, year=-1):
             data, split_edge = filter_by_year(data, split_edge, year)
         if name == 'ogbl-vessel':
             # normalize x, y, z coordinates  
-            data.x[:, 0] = torch.nn.functional.normalize(data.x[:, 0], dim=0)
-            data.x[:, 1] = torch.nn.functional.normalize(data.x[:, 1], dim=0)
+            data.x[0, :] = torch.nn.functional.normalize(data.x[0, :], dim=0)
+            data.x[1, :] = torch.nn.functional.normalize(data.x[1, :], dim=0)
             data.x[:, 2] = torch.nn.functional.normalize(data.x[:, 2], dim=0)
+            
         if 'edge_weight' in data:
             data.edge_weight = data.edge_weight.view(-1).to(torch.float)
             # TEMP FIX: ogbl-collab has directed edges. adj_t.to_symmetric will
@@ -61,6 +66,7 @@ def get_dataset(root, name: str, use_valedges_as_input=False, year=-1):
         
         data = ToSparseTensor(remove_edge_index=False)(data)
         data.adj_t = data.adj_t.to_symmetric()
+        
         # Use training + validation edges for inference on test set.
         if use_valedges_as_input:
             val_edge_index = split_edge['valid']['edge'].t()
@@ -73,8 +79,7 @@ def get_dataset(root, name: str, use_valedges_as_input=False, year=-1):
         # make node feature as float
         if data.x is not None:
             data.x = data.x.to(torch.float)
-        # if name != 'ogbl-ddi':
-            # del data.edge_index
+
         return data, split_edge
 
     pyg_dataset_dict = {
@@ -86,6 +91,7 @@ def get_dataset(root, name: str, use_valedges_as_input=False, year=-1):
         'Computers': (datasets.Amazon, {'name':'Computers'}),
         'Photo': (datasets.Amazon, {'name':'Photo'}),
         'PolBlogs': (datasets.PolBlogs, {}),
+        
         'musae-twitch':(SNAPDataset, {'name':'musae-twitch'}),
         'musae-github':(SNAPDataset, {'name':'musae-github'}),
         'musae-facebook':(SNAPDataset, {'name':'musae-facebook'}),
@@ -99,6 +105,7 @@ def get_dataset(root, name: str, use_valedges_as_input=False, year=-1):
         'regulartilling-HEXAGONAL':(SyntheticRegularTilling, {'name':'HEXAGONAL'}),
         'regularTilling-SQUARE_GRID':(SyntheticRegularTilling, {'name':'SQUARE_GRID'}),
         
+        # TODO docment resource
         'syn-TRIANGULAR':(SyntheticDataset, {'name':'TRIANGULAR'}),
         'syn-GRID':(SyntheticDataset, {'name':'GRID'}),
         
@@ -144,14 +151,39 @@ def set_random_seeds(random_seed=0):
 
 # random split dataset
 def randomsplit(data, val_ratio: float=0.10, test_ratio: float=0.2):
-    # difference with coleasce
-    
+    # coleasce edge_index
     def removerepeated(ei):
-        ei = to_undirected(ei)
+        ei = to_undirected(ei.t())
         ei = ei[:, ei[0]<ei[1]]
         return ei
 
-    # change to random split func
+    # double check and doc the resources
+    transform = RandomLinkSplit(
+        num_val=val_ratio,  
+        num_test=test_ratio, 
+        is_undirected=True, 
+        split_labels=True   
+    )
+
+    train_data, val_data, test_data = transform(data)
+    split_edge = {'train': {}, 'valid': {}, 'test': {}}
+    split_edge['train']['edge'] = removerepeated(train_data.pos_edge_label_index.t())
+    split_edge['train']['edge_neg'] = removerepeated(train_data.neg_edge_label_index.t())
+    
+    # Validation edges
+    num_val = int(val_data.pos_edge_label_index.shape[1])
+    val_perm = torch.randperm(num_val)  
+    split_edge['valid']['edge'] = removerepeated(val_data.pos_edge_label_index[:, val_perm].t())
+    split_edge['valid']['edge_neg'] = removerepeated(val_data.neg_edge_label_index.t())
+
+    # Test edges
+    split_edge['test']['edge'] = removerepeated(test_data.pos_edge_label_index.t())
+    split_edge['test']['edge_neg'] = removerepeated(test_data.pos_edge_label_index.t())
+
+    construct_sparse_adj(split_edge['train']['edge'], data.num_nodes)
+    plot_coo_matrix(split_edge['train']['edge_neg'], name='train_neg.png')
+        
+        
     data = train_test_split_edges(data, test_ratio, test_ratio)
     split_edge = {'train': {}, 'valid': {}, 'test': {}}
     num_val = int(data.val_pos_edge_index.shape[1] * val_ratio/test_ratio)
@@ -161,7 +193,61 @@ def randomsplit(data, val_ratio: float=0.10, test_ratio: float=0.2):
     split_edge['valid']['edge_neg'] = removerepeated(data.val_neg_edge_index).t()
     split_edge['test']['edge'] = removerepeated(data.test_pos_edge_index).t()
     split_edge['test']['edge_neg'] = removerepeated(data.test_neg_edge_index).t()
+    
+    plot_coo_matrix(split_edge, num_nodes=data.num_nodes)
     return split_edge
+
+
+def plot_coo_matrix(m: coo_matrix, name: str):
+    """
+    Plot the COO matrix.
+
+    Parameters:
+    - m: coo_matrix, input COO matrix
+    - name: str, output file name
+    """
+
+    if not isinstance(m, coo_matrix):
+        m = coo_matrix(m)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, facecolor='white')
+    ax.plot(m.col, m.row, 's', color='black', ms=1)
+    ax.set_xlim(0, m.shape[1])
+    ax.set_ylim(0, m.shape[0])
+    ax.set_aspect('equal')
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.invert_yaxis()
+    ax.set_aspect('equal')
+    ax.set_xticks([])
+    ax.set_yticks([])
+    fig.savefig(name)
+    return ax
+
+
+def construct_sparse_adj(edge_index, num_node) -> coo_matrix:
+    """
+    Construct a sparse adjacency matrix from an edge index.
+
+    Parameters:
+    - edge_index: np.array or tuple, edge index
+    """
+    # Resource: https://stackoverflow.com/questions/22961541/python-matplotlib-plot-sparse-matrix-pattern
+
+    if type(edge_index) == tuple:
+        edge_index = np.concatenate([[edge_index[0].numpy()],
+                                     [edge_index[1].numpy()]], axis=0)
+    elif type(edge_index) != np.ndarray:
+        edge_index.numpy()
+
+    if edge_index.shape[0] > edge_index.shape[1]:
+        edge_index = edge_index.T
+
+    rows, cols = edge_index[0, :], edge_index[1, :]
+    vals = np.ones_like(rows)
+    m = coo_matrix((vals, (rows, cols)), shape=(num_node, num_node))
+    return m
+
 
 
 def str2bool(v):
@@ -178,8 +264,10 @@ def str2bool(v):
 def get_data_split(root, name: str, val_ratio, test_ratio, run=0):
     data_folder = Path(root) / name
     data_folder.mkdir(parents=True, exist_ok=True)
+    
+    data, _ = get_dataset(root, name)
+    
     file_path = data_folder / f"split{run}_{int(100*val_ratio)}_{int(100*test_ratio)}.pt"
-    data,_ = get_dataset(root, name)
     if file_path.exists():
         split_edge = torch.load(file_path)
         print(f"load split edges from {file_path}")
@@ -187,6 +275,7 @@ def get_data_split(root, name: str, val_ratio, test_ratio, run=0):
         split_edge = randomsplit(data)
         torch.save(split_edge, file_path)
         print(f"save split edges to {file_path}")
+    
     data.edge_index = to_undirected(split_edge["train"]["edge"].t())
     data.num_features = data.x.shape[0] if data.x is not None else 0
     print("-"*20)
@@ -244,6 +333,8 @@ def data_summary(name: str, data: Data, header=False, latex=False):
             .format(name, num_nodes, num_edges, avg_degree, degree_std, max_degree, density*100, attr_dim))
         print("-"*110)
 
+
+
 def initialize(data, method):
     if data.x is None:
         if method == 'one-hot':
@@ -295,6 +386,8 @@ def filter_by_year(data, split_edge, year):
     data.edge_index = new_edge_index
     data.edge_weight = new_edge_weight.unsqueeze(-1)
     return data, split_edge
+
+
 
 def get_git_revision_short_hash() -> str:
     return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()

@@ -88,6 +88,7 @@ def main():
     # device = torch.device('cpu')
 
     data, split_edge = get_dataset(args.dataset_dir, args.dataset, args.use_valedges_as_input, args.year)
+    exit(-1)
     if args.dataset == "ogbl-citation2":
         args.metric = "MRR"
     if data.x is None:

@@ -1,7 +1,5 @@
 from torch_geometric.data import Data, Dataset, InMemoryDataset
-from graph_generation import generate_graph, GraphType
-from syn_random import RandomType
-from syn_regulartilling import RegularTilling
+
 import os.path as osp
 
 from torch_geometric.utils import coalesce, to_undirected, from_networkx
@@ -12,6 +10,9 @@ import os.path as osp
 from typing import Union
 from torch_geometric.utils import from_networkx
 
+from graph_generation import generate_graph, GraphType
+from syn_random import RandomType
+from syn_regulartilling import RegularTilling
 
 
 class SyntheticDataset(InMemoryDataset):
