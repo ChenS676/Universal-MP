@@ -1,19 +1,19 @@
-#Copyright(c)Facebook,Inc.anditsaffiliates.
-#ThissourcecodeislicensedundertheMITlicensefoundinthe
-#LICENSEfileintherootdirectoryofthissourcetree.
+# Copyright (c) Facebook, Inc. and its affiliates.
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 
-importsys
-importmath
-fromtqdmimporttqdm
-importrandom
-importnumpyasnp
-importscipy.sparseasssp
-fromscipy.sparse.csgraphimportshortest_path
-importtorch
-fromtorch_sparseimportspspmm
-importtorch_geometric
-fromtorch_geometric.dataimportDataLoader
-fromtorch_geometric.dataimport Data
+import sys
+import math
+from tqdm import tqdm
+import random
+import numpy as np
+import scipy.sparse as ssp
+from scipy.sparse.csgraph import shortest_path
+import torch
+from torch_sparse import spspmm
+import torch_geometric
+from torch_geometric.data import DataLoader
+from torch_geometric.data import Data
 from torch_geometric.utils import (negative_sampling, add_self_loops,
                                    train_test_split_edges)
 import pdb

@@ -73,9 +73,8 @@ def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=Fal
                     sparse_sizes=(data.num_nodes, data.num_nodes))
     data.adj_t = data.adj_t.to_symmetric().coalesce()
     data.max_x = -1
-    # if name == "ogbl-collab":
-    #     data.edge_weight = data.edge_weight/2
-        
+    if name == "ogbl-collab":
+        data.edge_weight = data.edge_weight/2
     if name == "ogbl-ppa":
         data.x = torch.argmax(data.x, dim=-1).unsqueeze(-1).float()
         data.max_x = torch.max(data.x).item()

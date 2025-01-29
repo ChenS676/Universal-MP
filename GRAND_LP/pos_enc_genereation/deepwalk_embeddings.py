@@ -49,12 +49,19 @@ def main(opt):
     def test():
         model.eval()
         z = model()
-        if dataset_name in ['ogbl-collab', 'ogbl-ddi', 'ogbl-ppa', 'ogbl-vessel', 'ogbl-citation2']:
-            pos_test_edge = split_edge['test']['edge']
-            neg_test_edge = split_edge['test']['edge_neg']
+        if dataset_name == 'ogbl-citation2':
+            source_edge = split_edge['train']['source_node'].to(data.x.device)
+            target_edge = split_edge['train']['target_node'].to(data.x.device)
 
+            pos_test_edge = torch.stack((source_edge, target_edge), dim=1)
+            
+            neg_target = torch.randint(0, data.num_nodes, source_edge.size(),
+                                dtype=torch.long, device='cpu')
+            neg_test_edge = torch.stack((source_edge, neg_target), dim=1)
+            
             # Функция для оценки точности (AUC)
             def compute_auc(pos_edge, neg_edge):
+
                 pos_score = (z[pos_edge[:, 0]] * z[pos_edge[:, 1]]).sum(dim=-1).sigmoid()
                 neg_score = (z[neg_edge[:, 0]] * z[neg_edge[:, 1]]).sum(dim=-1).sigmoid()
 
@@ -70,6 +77,15 @@ def main(opt):
 
             # Оцениваем AUC на тестовом наборе
             acc = compute_auc(pos_test_edge, neg_test_edge)
+            
+        elif dataset_name in ['ogbl-collab', 'ogbl-ddi', 'ogbl-ppa', 'ogbl-vessel']:
+            
+            pos_test_edge = split_edge['test']['edge']
+            neg_test_edge = split_edge['test']['edge_neg']
+
+            # Оцениваем AUC на тестовом наборе
+            acc = compute_auc(pos_test_edge, neg_test_edge)
+            
         else:
             acc = model.test(z[data.train_mask], data.y[data.train_mask],
                             z[data.test_mask], data.y[data.test_mask],
