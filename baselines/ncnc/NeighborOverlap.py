@@ -63,9 +63,9 @@ def train(model,
         h = model(data.x, adj)
         edge = pos_train_edge[:, perm]
         pos_outs = predictor.multidomainforward(h,
-                                                    adj,
-                                                    edge,
-                                                    cndropprobs=cnprobs)
+                                                adj,
+                                                edge,
+                                                cndropprobs=cnprobs)
 
         pos_losss = -F.logsigmoid(pos_outs).mean()
         edge = negedge[:, perm]
