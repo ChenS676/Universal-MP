@@ -86,16 +86,6 @@ class GNN_KNN(BaseGNN):
 
     # if self.opt['batch_norm']:
     #   z = self.bn_in(z)
-
-    # Activation.
-    z = F.relu(z)
-
-    if self.opt['fc_out']:
-      z = self.fc(z)
-      z = F.relu(z)
-
-    # Dropout.
-    z = F.dropout(z, self.opt['dropout'], training=self.training)
     
     return z
 

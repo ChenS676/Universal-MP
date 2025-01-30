@@ -23,12 +23,13 @@ def create_regularization_fns(args):
     regularization_coeffs = []
 
     for arg_key, reg_fn in six.iteritems(REGULARIZATION_FNS):
-        if args[arg_key] is not None:
-            regularization_fns.append(reg_fn)
-            regularization_coeffs.append(args[arg_key])
+      if args[arg_key] is not None:
+          regularization_fns.append(reg_fn)
+          regularization_coeffs.append(args[arg_key])
 
     regularization_fns = regularization_fns
     regularization_coeffs = regularization_coeffs
+
     return regularization_fns, regularization_coeffs
 
 

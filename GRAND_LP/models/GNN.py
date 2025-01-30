@@ -14,6 +14,7 @@ class GRAND(BaseGNN):
     self.f = set_function(opt)
     block = set_block(opt)
     time_tensor = torch.tensor([0, self.T]).to(device)
+    
     self.odeblock = block(self.f, self.regularization_fns, opt, data, device, t=time_tensor).to(device)
 
   def forward(self, x, pos_encoding=None):
@@ -52,4 +53,13 @@ class GRAND(BaseGNN):
     if self.opt['augment']:
       z = torch.split(z, x.shape[1] // 2, dim=1)[0]
     
+    # # Activation.
+    # z = F.relu(z)
+
+    # if self.opt['fc_out']:
+    #   z = self.fc(z)
+    #   z = F.relu(z)
+
+    # # Dropout.
+    # z = F.dropout(z, self.opt['dropout'], training=self.training)
     return z

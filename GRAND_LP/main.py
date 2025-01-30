@@ -18,8 +18,6 @@ from models.GCN import GCN
 from GRAND_LP.models.trainer import Trainer_GRAND
 from torch_geometric.nn import Node2Vec
 from best_params import best_params_dict
-# I copied the best parameters for the rest of the data sets from ogbn-arxiv
-                      #'hidden_dim': 80 CORA
 
 
 def str2bool(v):
@@ -121,7 +119,7 @@ if __name__=='__main__':
     parser.add_argument('--optimizer', type=str, default='adam', help='One from sgd, rmsprop, adam, adagrad, adamax.')
     parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
     parser.add_argument('--decay', type=float, default=5e-4, help='Weight decay for optimization')
-    parser.add_argument('--epoch', type=int, default=100, help='Number of training epochs per iteration.')
+    parser.add_argument('--epoch', type=int, default=300, help='Number of training epochs per iteration.')
     parser.add_argument('--alpha', type=float, default=1.0, help='Factor in front matrix A.')
     parser.add_argument('--alpha_dim', type=str, default='sc', help='choose either scalar (sc) or vector (vc) alpha')
     parser.add_argument('--no_alpha_sigmoid', dest='no_alpha_sigmoid', action='store_true',
@@ -215,8 +213,6 @@ if __name__=='__main__':
     parser.add_argument('--rewire_KNN_epoch', type=int, default=5, help="frequency of epochs to rewire")
     parser.add_argument('--rewire_KNN_k', type=int, default=64, help="target degree for KNN rewire")
     parser.add_argument('--rewire_KNN_sym', action='store_true', help='make KNN symmetric')
-    parser.add_argument('--KNN_online', action='store_true', help='perform rewiring online')
-    parser.add_argument('--KNN_online_reps', type=int, default=4, help="how many online KNN its")
     parser.add_argument('--KNN_space', type=str, default="pos_distance", help="Z,P,QKZ,QKp")
     # beltrami args
     parser.add_argument('--beltrami', action='store_true', help='perform diffusion beltrami style')
@@ -264,30 +260,25 @@ if __name__=='__main__':
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     
-    data, splits = get_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
+    data, splits = get_grand_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
     
     if args.dataset == "ogbl-citation2":
         opt['metric'] = "MRR"
     if data.x is None:
         opt['use_feature'] = False
 
-    # if args.print_summary:
-    #     data_summary(args.dataset, data, header='header' in args.print_summary, latex='latex' in args.print_summary);exit(0)
-    # else:
-    #     print(opt)
-
-    data = data.to(device)
-    print(data)
     if opt['beltrami']:
-      pos_encoding = apply_beltrami(data, opt).to(device)
+      pos_encoding = apply_beltrami(data.to('cpu'), opt).to(device)
       opt['pos_enc_dim'] = pos_encoding.shape[1]
     else:
       pos_encoding = None
     
+    data = data.to(device)
     predictor = LinkPredictor(opt['hidden_dim'], opt['hidden_dim'], 1, opt['mlp_num_layers'], opt['dropout']).to(device)
     batch_size = opt['batch_size']  
     
     if opt['gcn']:
+      opt['epoch'] = 300
       model = GCN(opt['hidden_dim'], opt['hidden_dim'], opt['hidden_dim'], opt['dropout'])
     else:
       if opt['rewire_KNN'] or opt['fa_layer']:
@@ -313,9 +304,7 @@ if __name__=='__main__':
         log_dir='./logs'
     )
 
-    # Start training
     best_results = trainer.train()
 
-    # Finalize and display results
     trainer.finalize()
 
