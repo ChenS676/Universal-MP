@@ -11,7 +11,6 @@ from torch.utils.data import DataLoader
 from torch_geometric.utils import negative_sampling
 from utils.utils import PermIterator
 
-
 class Trainer_GRAND:
     def __init__(self,
                  opt,
@@ -59,27 +58,33 @@ class Trainer_GRAND:
         adjmask = torch.ones_like(pos_train_edge[0], dtype=torch.bool) # mask for adj
         pos_weight = 1.0
         neg_weight = pos_train_edge.size(1) / neg_edge.size(1)
-
-
         for perm in PermIterator(adjmask.device, adjmask.shape[0], self.batch_size):
             self.optimizer.zero_grad()
+
             if self.opt['gcn']:
                 h = self.model(self.data.x, self.data.adj_t.to_torch_sparse_coo_tensor())
             else:
                 h = self.model(self.data.x, pos_encoding)
+            
             edge = pos_train_edge[:, perm].to(self.device)
+            
             pos_out = self.predictor(h[edge[0]], h[edge[1]])
+
             pos_loss = -torch.log(pos_out + 1e-15).mean()
             
             edge = neg_edge[:, perm]
             neg_out = self.predictor(h[edge[0]], h[edge[1]])
             neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
+            
+            # TODO: Think about it
+            # loss = pos_weight * pos_loss + neg_weight * neg_loss
             loss = pos_loss + neg_loss
             
             if self.opt['gcn'] == False:
                 if self.model.odeblock.nreg > 0:
                     reg_states = tuple(torch.mean(rs) for rs in self.model.reg_states)
                     regularization_coeffs = self.model.regularization_coeffs
+
                     reg_loss = sum(
                         reg_state * coeff for reg_state, coeff in zip(reg_states, regularization_coeffs) if coeff != 0
                     )
@@ -98,10 +103,13 @@ class Trainer_GRAND:
             if self.opt['gcn'] == False:
                 self.model.bm.update(self.model.getNFE())
                 self.model.resetNFE()
-
+            
             num_examples = pos_out.size(0)
             total_loss += loss.item() * num_examples
             total_examples += num_examples
+
+            # Update progress bar description with current loss
+            # pbar.set_postfix({"Loss": loss.item()})
 
         return total_loss / total_examples
     
@@ -126,6 +134,11 @@ class Trainer_GRAND:
         pos_test_edge = self.splits['test']['edge'].t().to(self.data.x.device)
         neg_test_edge = self.splits['test']['edge_neg'].t().to(self.data.x.device)
         
+        # pos_train_preds = []
+        # for perm in DataLoader(range(pos_train_edge.size(0)), self.batch_size):
+        #     edge = pos_train_edge[perm].t()
+        #     pos_train_preds += [self.predictor(h[edge[0]], h[edge[1]]).squeeze().cpu()]
+        # pos_train_pred = torch.cat(pos_train_preds, dim=0)
         
         pos_train_pred = torch.cat([
         self.predictor(h[pos_train_edge[perm].t()[0]], h[pos_train_edge[perm].t()[1]]).squeeze().cpu()
@@ -134,32 +147,56 @@ class Trainer_GRAND:
         ],
                                 dim=0)
 
-
+        # pos_valid_preds = []
+        # for perm in DataLoader(range(pos_valid_edge.size(0)), self.batch_size):
+        #     edge = pos_valid_edge[perm].t()
+        #     pos_valid_preds += [self.predictor(h[edge[0]], h[edge[1]]).squeeze().cpu()]
+        # pos_valid_pred = torch.cat(pos_valid_preds, dim=0)
         pos_valid_pred = torch.cat([
         self.predictor(h[pos_valid_edge[perm][0]], h[pos_valid_edge[perm][1]]).squeeze().cpu()
         for perm in PermIterator(pos_valid_edge.device,
                                  pos_valid_edge.shape[0], self.batch_size, False)
-        ], dim=0)
-    
+        ],
+                                dim=0)
+        
+        # neg_valid_preds = []
+        # for perm in DataLoader(range(neg_valid_edge.size(0)), self.batch_size):
+        #     edge = neg_valid_edge[perm].t()
+        #     neg_valid_preds += [self.predictor(h[edge[0]], h[edge[1]]).squeeze().cpu()]
+        # neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
 
         neg_valid_pred = torch.cat([
         self.predictor(h[neg_valid_edge[perm][0]], h[neg_valid_edge[perm][1]]).squeeze().cpu()
         for perm in PermIterator(neg_valid_edge.device,
                                  neg_valid_edge.shape[0], self.batch_size, False)
-        ], dim=0)
+        ],
+                                dim=0)
+        
+        # pos_test_preds = []
+        # for perm in DataLoader(range(pos_test_edge.size(0)), self.batch_size):
+        #     edge = pos_test_edge[perm].t()
+        #     pos_test_preds += [self.predictor(h[edge[0]], h[edge[1]]).squeeze().cpu()]
+        # pos_test_pred = torch.cat(pos_test_preds, dim=0)
 
         pos_test_pred = torch.cat([
         self.predictor(h[pos_test_edge[perm][0]], h[pos_test_edge[perm][1]]).squeeze().cpu()
         for perm in PermIterator(pos_test_edge.device,
                                  pos_test_edge.shape[0], self.batch_size, False)
-        ], dim=0)
-
+        ],
+                                dim=0)
+        
+        # neg_test_preds = []
+        # for perm in DataLoader(range(neg_test_edge.size(0)), self.batch_size):
+        #     edge = neg_test_edge[perm].t()
+        #     neg_test_preds += [self.predictor(h[edge[0]], h[edge[1]]).squeeze().cpu()]
+        # neg_test_pred = torch.cat(neg_test_preds, dim=0)
 
         neg_test_pred = torch.cat([
         self.predictor(h[neg_test_edge[perm][0]], h[neg_test_edge[perm][1]]).squeeze().cpu()
         for perm in PermIterator(neg_test_edge.device,
                                  neg_test_edge.shape[0], self.batch_size, False)
-        ], dim=0)
+        ],
+                                dim=0)
         
         results = {}
         for K in [1, 3, 10, 20, 50, 100]:
@@ -179,6 +216,9 @@ class Trainer_GRAND:
 
             results[f'Hits@{K}'] = (train_hits, valid_hits, test_hits)
         
+        print(f"Shape of pos_val_pred: {pos_test_pred.shape}")
+        print(f"Shape of neg_val_pred: {neg_test_pred.shape}")
+
         result_mrr_test = evaluate_mrr(pos_test_pred, neg_test_pred, self.opt)  
         
         for name in ['MRR', 'mrr_hit1', 'mrr_hit3', 'mrr_hit10', 'mrr_hit20', 'mrr_hit50', 'mrr_hit100']:
@@ -195,7 +235,6 @@ class Trainer_GRAND:
         result_acc_test = acc(pos_test_pred, neg_test_pred)
         results['ACC'] = (result_acc_test)
         
-        print(results)
         return results
     
     def log_results(self, results, epoch):
