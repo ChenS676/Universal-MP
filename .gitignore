@@ -15,5 +15,5 @@ archiv/
 GRAND_LP/pos_encodings.tar.gz
 GRAND_LP/data/
 **/data
-
+**/logs/
 
