@@ -12,7 +12,7 @@ from metrics.metrics import *
 from models.base_classes import LinkPredictor
 from models.GNN_KNN import GNN_KNN
 from models.GNN_KNN_early import GNNKNNEarly
-from models.GNN import GNN
+from models.GNN import GRAND
 from models.GNN_early import GNNEarly
 from models.GCN import GCN
 from GRAND_LP.models.trainer import Trainer_GRAND
@@ -294,7 +294,7 @@ if __name__=='__main__':
         model = GNN_KNN(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNKNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
       else:
         print(opt["no_early"])
-        model = GNN(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
+        model = GRAND(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
 
     
     parameters = [p for p in model.parameters() if p.requires_grad]
