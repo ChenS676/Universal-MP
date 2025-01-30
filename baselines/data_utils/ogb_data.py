@@ -64,6 +64,7 @@ def loaddataset(name: str, use_valedges_as_input: bool, load=None):
         split_edge = dataset.get_edge_split()
         data = dataset[0]
         edge_index = data.edge_index
+        
     data.edge_weight = None 
     print(data.num_nodes, edge_index.max())
     data.adj_t = SparseTensor.from_edge_index(edge_index, sparse_sizes=(data.num_nodes, data.num_nodes))

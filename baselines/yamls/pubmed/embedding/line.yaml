@@ -1,0 +1,26 @@
+# line.yaml
+
+out_dir: results
+metric_best: f1
+wandb:
+  use: True
+  project: gtblueprint
+
+train:
+  mode: custom
+  batch_size: 32   
+  eval_period: 1
+model:
+  type: line
+  line:
+    max_iter: 1000
+
+num_threads: 11
+data:
+  name: pubmed
+  undirected: True
+  include_negatives: True
+  val_pct: 0.15
+  test_pct: 0.05
+  split_labels: False
+

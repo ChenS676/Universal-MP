@@ -2,11 +2,12 @@ import torch
 from sklearn.metrics import roc_auc_score, average_precision_score
 from ogb.linkproppred import PygLinkPropPredDataset
 import torch_geometric.transforms as T
-from torch_sparse import SparseTensor
 from torch_geometric.datasets import Planetoid
 from torch_geometric.utils import train_test_split_edges, negative_sampling, to_undirected
 from torch_geometric.transforms import RandomLinkSplit
 from torch_geometric.utils import  is_undirected
+import torch
+from torch_sparse import SparseTensor
 
 # random split dataset
 def randomsplit(dataset, val_ratio: float=0.10, test_ratio: float=0.2):
@@ -28,21 +29,13 @@ def randomsplit(dataset, val_ratio: float=0.10, test_ratio: float=0.2):
     return split_edge
 
 
-import torch
-from torch_sparse import SparseTensor
-
 def is_symmetric(adj_t: SparseTensor) -> bool:
     # Checks whether a given SparseTensor is symmetric.
     return (adj_t.t() == adj_t)
 
 
-# TODO document the standard preprocessing of dataset, categoried by data name, 
-# TODO node feature preprocessing, resource, visualization
-# TODO split dataset visualization 
-# TODO edge weight visualization
-# TODO merge loaddataset with get_dataset to simplify the comparison
 def loaddataset(name: str, use_valedges_as_input: bool, load=None):
-        
+    
     if name in ['ppa', 'ddi', 'collab', 'citation2', 'vessel']:
         dataset = PygLinkPropPredDataset(name=f'ogbl-{name}')
         data = dataset[0]

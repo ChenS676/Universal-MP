@@ -1,6 +1,7 @@
-# modified from https://github.com/AndrewSpano/Stanford-CS224W-ML-with-Graphs/blob/main/CS224W_Colab_3.ipynb
-import os, sys
+import os
+import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import torch
 torch.cuda.empty_cache()
 import itertools
@@ -8,9 +9,11 @@ from tqdm import tqdm
 from torch_geometric import seed_everything
 from torch_geometric.graphgym.utils.comp_budget import params_count
 from torch_geometric.graphgym.cmd_args import parse_args
+writer = SummaryWriter()
+
 import argparse
 import wandb
-
+from yacs.config import CfgNode as CN
 
 from graphgps.train.heart_train import Trainer_Heart
 from graphgps.config import (dump_cfg, dump_run_cfg)
@@ -20,13 +23,10 @@ from graphgps.utility.utils import set_cfg, parse_args, get_git_repo_root_path, 
 from graphgps.score.custom_score import mlp_score, InnerProduct
 from graphgps.network.heart_gnn import GAT_Variant, GAE_forall, GCN_Variant, \
                                 SAGE_Variant, GIN_Variant, DGCNN
-from yacs.config import CfgNode as CN
+from ncnc.ogbdataset import loaddataset
 
-
-import os
-import torch
 from torch.utils.tensorboard import SummaryWriter
-writer = SummaryWriter()
+
 
 FILE_PATH = f'{get_git_repo_root_path()}/'
 
@@ -91,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     r"""Parses the command line arguments."""
     parser = argparse.ArgumentParser(description='GraphGym')
     parser.add_argument('--sweep', dest='sweep_file', type=str, required=False,
-                        default='core/yamls/cora/gcns/gae_sp1.yaml',
+                        default='yamls/cora/gcns/gae_sp1.yaml',
                         help='The configuration file path.')
     parser.add_argument('--data', dest='data', type=str, required=True,
                         default='pubmed',
@@ -121,12 +121,12 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 yaml_file = {   
-             'GAT_Variant': 'core/yamls/cora/gcns/heart_gnn_models.yaml',
-             'GAE_Variant': 'core/yamls/cora/gcns/heart_gnn_models.yaml',
-             'GIN_Variant': 'core/yamls/cora/gcns/heart_gnn_models.yaml',
-             'GCN_Variant': 'core/yamls/cora/gcns/heart_gnn_models.yaml',
-             'SAGE_Variant': 'core/yamls/cora/gcns/heart_gnn_models.yaml',
-             'DGCNN': 'core/yamls/cora/gcns/heart_gnn_models.yaml'
+             'GAT_Variant': 'yamls/cora/gcns/heart_gnn_models.yaml',
+             'GAE_Variant': 'yamls/cora/gcns/heart_gnn_models.yaml',
+             'GIN_Variant': 'yamls/cora/gcns/heart_gnn_models.yaml',
+             'GCN_Variant': 'yamls/cora/gcns/heart_gnn_models.yaml',
+             'SAGE_Variant': 'yamls/cora/gcns/heart_gnn_models.yaml',
+             'DGCNN': 'yamls/cora/gcns/heart_gnn_models.yaml'
             }
 
 
@@ -138,38 +138,31 @@ def project_main(): # sourcery skip: avoid-builtin-shadow, low-code-quality
     args.cfg_file = args.cfg
     cfg = set_cfg(FILE_PATH, args.cfg_file)
     cfg.merge_from_list(args.opts)
-
     cfg.data.name = args.data
-    
     cfg.data.device = args.device
     cfg.model.device = args.device
     cfg.device = args.device
     cfg.train.epochs = args.epoch
-    
+    cfg.data.use_valedges_as_input = False
     cfg_model = eval(f'cfg.model.{args.model}')
     cfg_score = eval(f'cfg.score.{args.model}')
     cfg.model.type = args.model
-    # save params
     custom_set_out_dir(cfg, args.cfg_file, cfg.wandb.name_tag)
 
     torch.set_num_threads(20)
-    
     loggers = create_logger(args.repeat)
     for run_id, seed, split_index in zip(*run_loop_settings(cfg, args)):
         print(f'run id : {run_id}')
 
         id = wandb.util.generate_id()
         cfg.wandb.name_tag = f'{cfg.data.name}_run{id}_{args.model}'
-
         custom_set_run_dir(cfg, cfg.wandb.name_tag)
-
         cfg.seed = seed
         cfg.run_id = run_id
         seed_everything(cfg.seed)
-
         cfg = config_device(cfg)
 
-        splits, _, data = load_data_lp[cfg.data.name](cfg.data)
+        data, splits = loaddataset(cfg.data.name, cfg.data.use_valedges_as_input, None)
         cfg_model.in_channels = splits['train'].x.shape[1]
 
         print_logger = set_printing(cfg)
@@ -187,7 +180,6 @@ def project_main(): # sourcery skip: avoid-builtin-shadow, low-code-quality
         print_logger.info(f"bs : {cfg.train.batch_size}, lr: {cfg.optimizer.base_lr}")
         print_logger.info(f"The model {args.model} is initialized.")
 
-
         model = create_GAE_model(cfg_model, cfg_score, args.model)
         model.to(cfg.device)
         print_logger.info(f"{model} on {next(model.parameters()).device}" )
@@ -196,6 +188,7 @@ def project_main(): # sourcery skip: avoid-builtin-shadow, low-code-quality
         print_logger.info(f'Num parameters: {cfg.model.params}')
 
         optimizer = create_optimizer(model, cfg)
+        # TODO TRY IT OUT
         scheduler = LinearDecayLR(optimizer, start_lr=cfg.optimizer.base_lr, end_lr=cfg.optimizer.base_lr/10, num_epochs=cfg.train.epochs)
 
         if cfg.train.finetune: 
@@ -247,7 +240,7 @@ def project_main(): # sourcery skip: avoid-builtin-shadow, low-code-quality
         run_result['params'] = cfg.model.params
 
         print_logger.info(run_result)
-        to_file = f'{args.data}_{cfg.model.type}heart_tune_time_.csv'
+        to_file = f'{args.data}_{cfg.model.type}_heart_tune_time_.csv'
         trainer.save_tune(run_result, to_file)
 
     result_dict = {}
@@ -256,7 +249,7 @@ def project_main(): # sourcery skip: avoid-builtin-shadow, low-code-quality
         result_dict.update({key: valid_test})
     
     trainer.save_result(result_dict)
-    m_var_to_file = f'{args.data}_{cfg.model.type}heart_tune_time_.csv'
+    m_var_to_file = f'{args.data}_{cfg.model.type}_heart_tune_time_.csv'
     trainer.save_tune(result_dict, m_var_to_file)
 
     

@@ -276,16 +276,12 @@ if __name__=='__main__':
     data = data.to(device)
     predictor = LinkPredictor(opt['hidden_dim'], opt['hidden_dim'], 1, opt['mlp_num_layers'], opt['dropout']).to(device)
     batch_size = opt['batch_size']  
-    
-    if opt['gcn']:
-      opt['epoch'] = 300
-      model = GCN(opt['hidden_dim'], opt['hidden_dim'], opt['hidden_dim'], opt['dropout'])
+
+    if opt['rewire_KNN'] or opt['fa_layer']:
+      model = GNN_KNN(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNKNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
     else:
-      if opt['rewire_KNN'] or opt['fa_layer']:
-        model = GNN_KNN(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNKNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
-      else:
-        print(opt["no_early"])
-        model = GRAND(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
+      print(opt["no_early"])
+      model = GRAND(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
 
     
     parameters = [p for p in model.parameters() if p.requires_grad]
