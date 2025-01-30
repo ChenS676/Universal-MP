@@ -1121,3 +1121,101 @@ def get_average_embedding(text, model):
         return np.mean(embeddings, axis=0)
     else:
         return np.zeros(model.vector_size)
+    
+    
+    
+def save_parmet_tune(name_tag, metrics, root):
+    
+    csv_columns = ['Metric'] + list(metrics)
+
+    try:
+        Data = pd.read_csv(root)[:-1]
+    except:
+        Data = pd.DataFrame(None, columns=csv_columns)
+        Data.to_csv(root, index=False)
+
+    new_lst = [process_value(v) for k, v in metrics.items()]
+    v_lst = [f'{name_tag}'] + new_lst
+    new_df = pd.DataFrame([v_lst], columns=csv_columns)
+    new_Data = pd.concat([Data, new_df])
+    
+    # best value
+    highest_values = {}
+    for column in new_Data.columns:
+        try:
+            highest_values[column] = new_Data[column].max()
+        except:
+            highest_values[column] = None
+
+    # concat and save
+    Best_list = ['Best'] + pd.Series(highest_values).tolist()[1:]
+    # print(Best_list)
+    Best_df = pd.DataFrame([Best_list], columns=Data.columns)
+
+    upt_Data = pd.concat([new_Data, Best_df])
+    upt_Data.to_csv(root,index=False)
+    return upt_Data
+
+
+def dict2df(metrics: Dict[str, float], head: str) -> pd.DataFrame:
+    csv_columns = ['Metric'] + list(k for k in metrics) 
+
+    # create new line 
+    acc_lst = []
+    
+    for _, v in metrics.items():
+        acc_lst.append(process_value(v))
+        
+    # merge with old lines
+    v_lst = [head] + acc_lst
+    new_df = pd.DataFrame([v_lst], columns=csv_columns)
+    
+    return new_df, csv_columns
+
+    
+
+def convert_to_float(metrics: Dict[str, str]) -> Dict[str, float]:
+    float_metrics = copy.deepcopy(metrics)
+    for key, val in float_metrics.items():
+        float_metrics[key] = set_float(val)
+    return metrics, float_metrics
+
+
+
+def mvari_str2csv(name_tag, metrics, root):
+    # if not exists save the first row
+    # one for new string line 
+    # another for new highest value line
+
+    first_value_type = type(next(iter(metrics.values())))
+    if all(isinstance(value, first_value_type) for value in metrics.values()):
+        if first_value_type == str:
+            metrics, float_metrics = convert_to_float(metrics)
+        else:
+            float_metrics = metrics
+
+    new_df, csv_columns = dict2df(metrics, name_tag)
+    new_df_float, csv_columns = dict2df(float_metrics, name_tag)
+    
+    try:
+        Data = pd.read_csv(root)[:-1]
+    except:
+        Data = pd.DataFrame(None, columns=csv_columns)
+        Data.to_csv(root, index=False)
+
+    new_lst = [process_value(v) for k, v in metrics.items()]
+    v_lst = [f'{name_tag}'] + new_lst
+    new_df = pd.DataFrame([v_lst], columns=csv_columns)
+    new_Data = pd.concat([Data, new_df])
+    
+    # best value
+    highest_values = new_Data.apply(lambda column: max(column, default=None))
+    # concat and save
+    Best_list = ['Best'] + highest_values[1:].tolist()
+    Best_df = pd.DataFrame([Best_list], columns=Data.columns)
+
+    upt_Data = pd.concat([new_Data, Best_df])
+    upt_Data.to_csv(root,index=False)
+    return upt_Data
+
+

@@ -9,6 +9,7 @@ from tqdm import tqdm
 from torch_geometric import seed_everything
 from torch_geometric.graphgym.utils.comp_budget import params_count
 from torch_geometric.graphgym.cmd_args import parse_args
+from torch.utils.tensorboard import SummaryWriter
 writer = SummaryWriter()
 
 import argparse
@@ -25,7 +26,6 @@ from graphgps.network.heart_gnn import GAT_Variant, GAE_forall, GCN_Variant, \
                                 SAGE_Variant, GIN_Variant, DGCNN
 from ncnc.ogbdataset import loaddataset
 
-from torch.utils.tensorboard import SummaryWriter
 
 
 FILE_PATH = f'{get_git_repo_root_path()}/'
@@ -92,7 +92,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='GraphGym')
     parser.add_argument('--sweep', dest='sweep_file', type=str, required=False,
                         default='yamls/cora/gcns/gae_sp1.yaml',
-                        help='The configuration file path.')
+                        help='The configuration file path for param tune.')
     parser.add_argument('--data', dest='data', type=str, required=True,
                         default='pubmed',
                         help='data name')
@@ -102,7 +102,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--device', dest='device', required=True, 
                         help='device id')
     parser.add_argument('--epochs', dest='epoch', type=int, required=True,
-                        default=400,
+                        default=100,
                         help='data name')
     parser.add_argument('--model', dest='model', type=str, required=True,
                         default='GCN_Variant',
@@ -113,29 +113,26 @@ def parse_args() -> argparse.Namespace:
                         help='data name')
     parser.add_argument('--repeat', type=int, default=5,
                         help='The number of repeated jobs.')
-    parser.add_argument('--mark_done', action='store_true',
-                        help='Mark yaml as done after a job has finished.')
     parser.add_argument('opts', default=None, nargs=argparse.REMAINDER,
                         help='See graphgym/config.py for remaining options.')
-    parser.add_argument('--cfg', type=str, required=True)
     return parser.parse_args()
 
 yaml_file = {   
-             'GAT_Variant': 'yamls/cora/gcns/heart_gnn_models.yaml',
-             'GAE_Variant': 'yamls/cora/gcns/heart_gnn_models.yaml',
-             'GIN_Variant': 'yamls/cora/gcns/heart_gnn_models.yaml',
-             'GCN_Variant': 'yamls/cora/gcns/heart_gnn_models.yaml',
-             'SAGE_Variant': 'yamls/cora/gcns/heart_gnn_models.yaml',
+             'GAT_Variant': 'yamls/cora/gcns/all_gcn_baselines.yaml',
+             'GAE_Variant': 'yamls/cora/gcns/all_gcn_baselines.yaml',
+             'GIN_Variant': 'yamls/cora/gcns/all_gcn_baselines.yaml',
+             'GCN_Variant': 'yamls/cora/gcns/all_gcn_baselines.yaml',
+             'SAGE_Variant': 'yamls/cora/gcns/all_gcn_baselines.yaml',
              'DGCNN': 'yamls/cora/gcns/heart_gnn_models.yaml'
             }
 
-
+# python3 baselines/demo.py  --data cora --device cuda:0 --epochs 300 --model GCN_Variant 
 def project_main(): # sourcery skip: avoid-builtin-shadow, low-code-quality
     
     # process params
     args = parse_args()
     args.cfg_file = yaml_file[args.model]
-    args.cfg_file = args.cfg
+    
     cfg = set_cfg(FILE_PATH, args.cfg_file)
     cfg.merge_from_list(args.opts)
     cfg.data.name = args.data
@@ -144,6 +141,7 @@ def project_main(): # sourcery skip: avoid-builtin-shadow, low-code-quality
     cfg.device = args.device
     cfg.train.epochs = args.epoch
     cfg.data.use_valedges_as_input = False
+    
     cfg_model = eval(f'cfg.model.{args.model}')
     cfg_score = eval(f'cfg.score.{args.model}')
     cfg.model.type = args.model
@@ -161,17 +159,18 @@ def project_main(): # sourcery skip: avoid-builtin-shadow, low-code-quality
         cfg.run_id = run_id
         seed_everything(cfg.seed)
         cfg = config_device(cfg)
-
-        data, splits = loaddataset(cfg.data.name, cfg.data.use_valedges_as_input, None)
-        cfg_model.in_channels = splits['train'].x.shape[1]
+        
+        data, splits = loaddataset(cfg.data.name, cfg.data.use_valedges_as_input, None)        
+        # TODO debug from here 
+        cfg_model.in_channels = data.x.shape[1]
 
         print_logger = set_printing(cfg)
         print_logger.info(
-            f"The {cfg['data']['name']} graph with shape {splits['train']['x'].shape} is loaded on {splits['train']['x'].device},\n"
+            f"The {cfg['data']['name']} graph with shape {data.x.shape} is loaded on {data.x.device},\n"
             f"Split index: {cfg['data']['split_index']} based on {data.edge_index.size(1)} samples.\n"
-            f"Train: {cfg['data']['split_index'][0]}% ({2 * splits['train']['pos_edge_label'].shape[0]} samples),\n"
-            f"Valid: {cfg['data']['split_index'][1]}% ({2 * splits['valid']['pos_edge_label'].shape[0]} samples),\n"
-            f"Test:  {cfg['data']['split_index'][2]}% ({2 * splits['test']['pos_edge_label'].shape[0]} samples)"
+            f"Train: {cfg['data']['split_index'][0]}% ({2 * splits['train']['edge'].size(0)} samples),\n"
+            f"Valid: {cfg['data']['split_index'][1]}% ({2 * splits['valid']['edge'].size(0)} samples),\n"
+            f"Test:  {cfg['data']['split_index'][2]}% ({2 * splits['test']['edge'].size(0)} samples)"
         )
 
         dump_cfg(cfg)
@@ -204,6 +203,7 @@ def project_main(): # sourcery skip: avoid-builtin-shadow, low-code-quality
         dump_run_cfg(cfg)
         print_logger.info(f"config saved into {cfg.run_dir}")
         print_logger.info(f'Run {run_id} with seed {seed} and split {split_index} on device {cfg.device}')
+
 
         trainer = Trainer_Heart(
             FILE_PATH,

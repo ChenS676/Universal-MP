@@ -14,11 +14,10 @@ from yacs.config import CfgNode as CN
 from tqdm import tqdm 
 from torch_geometric.data import Data
 
-from graph_embed.tune_utils import mvari_str2csv, save_parmet_tune
-from heuristic.eval import get_metric_score
+from graphgps.utility.utils import mvari_str2csv, save_parmet_tune
+from metrics_ogb import get_metric_score
 from graphgps.utility.utils import config_device, Logger
 from typing import Dict, Tuple
-
 
 
 
@@ -59,11 +58,15 @@ class Trainer():
         self.data_name = cfg.data.name
         # TODO change before the submission
         report_step = {
-                'cora': 1,
-                'pubmed': 1,
-                'arxiv_2023': 1,
-                'ogbn-arxiv': 1,
-                'ogbn-products': 1,
+                'Cora': 1,
+                'Pubmed': 1,
+                'Citeseer': 1,
+                
+                'ppa': 1,
+                'ddi': 1,
+                'collab': 1,
+                'citation2': 1,
+                'vessel': 1,
         }
 
         self.report_step = report_step[cfg.data.name]

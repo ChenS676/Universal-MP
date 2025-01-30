@@ -14,7 +14,7 @@ from torch_geometric.utils import negative_sampling
 from torch_geometric.graphgym.config import cfg
 from torch_sparse import SparseTensor
 
-from heuristic.eval import get_metric_score
+from metrics_ogb import get_metric_score
 from torch.utils.data import DataLoader
 from torch_geometric.utils import negative_sampling
 from torch_geometric.data import Data
@@ -121,7 +121,7 @@ def test(model,
 
     # adj_t = adj_t.transpose(1,0)
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
-
+    
     x = data.x if emb is None else emb.weight
     x = x.to(device)
     data = data.to(device)
@@ -217,10 +217,10 @@ class Trainer_Heart(Trainer):
         self.train_func = {model_type: self._train_heart for model_type in self.model_types}
         self.test_func = {model_type: self._eval_heart  for model_type in self.model_types}
         self.evaluate_func = {model_type: self._eval_heart  for model_type in self.model_types}
-
+        self.data = data
         self.if_wandb = if_wandb
-        
-        self.train_loader = DataLoader(range(self.train_data.edge_index.size(1)),
+
+        self.train_loader = DataLoader(range(self.data.edge_index.size(1)),
                           batch_size=self.batch_size,
                           shuffle=True,  # Adjust the number of workers based on your system configuration
                           pin_memory=True,  # Enable pinning memory for faster data transfer
@@ -235,11 +235,11 @@ class Trainer_Heart(Trainer):
 
     def _train_heart(self):
 
-        edge_index = self.train_data.edge_index
+        edge_index = self.data.edge_index
         pos_train_weight = None
         
         if self.emb is None: 
-            x = self.train_data.x
+            x = self.data.x
             emb_update = 0
         else: 
             x = self.emb.weight
@@ -271,15 +271,14 @@ class Trainer_Heart(Trainer):
             
             x = x.to(self.device)
             pos_edge =  edge_index[:, perm].to(self.device)
+            batch_edge_index = batch_edge_index.to(x.device)
             if self.model_name == 'VGAE':
                 h = self.model(x, batch_edge_index)
                 loss = self.model.recon_loss(h, pos_edge)
                 loss = loss + (1 / self.train_data.num_nodes) * self.model.kl_loss()
-            elif self.model_name in ['GAE', 'GAT', 'GraphSage']:
-                h = self.model.encoder(x, batch_edge_index)
-                loss = self.model.recon_loss(h, pos_edge)
             elif self.model_name in ['GAE', 'GAT', 'GraphSage', 'GAT_Variant', 
                                  'GCN_Variant', 'SAGE_Variant', 'GIN_Variant']:
+                
                 h = self.model.encoder(x, batch_edge_index)
                 loss = self.model.recon_loss(h, pos_edge)                
             loss.backward()
@@ -306,20 +305,26 @@ class Trainer_Heart(Trainer):
 
         return torch.cat(preds, dim=0)
 
-
     @torch.no_grad()
     def _eval_heart(self, data: Data):
         self.model.eval()
-        pos_edge_index = data.pos_edge_label_index
-        neg_edge_index = data.neg_edge_label_index
+        pos_edge_index = data['edge']
+        if not hasattr(data, 'edge_neg'):
+            data['edge_neg'] = negative_sampling(pos_edge_index.T, 
+                                                 num_nodes=self.data.num_nodes, 
+                                                 num_neg_samples=pos_edge_index.size(1))
+            
+        neg_edge_index = data['edge_neg']
 
+        x = self.data.x.to(self.device)
+        edge_index = self.data.edge_index.to(self.device)
         if self.model_name == 'VGAE':
-            z = self.model(data.x, data.edge_index)
+            z = self.model(self.data.x, self.data.edge_index)
             
         elif self.model_name in ['GAE', 'GAT', 'GraphSage', 'GAT_Variant', 
                                  'GCN_Variant', 'SAGE_Variant', 'GIN_Variant']:
-            z = self.model.encoder(data.x, data.edge_index)
-        
+            z = self.model.encoder(x, edge_index)
+
         pos_pred = self.test_edge(z, pos_edge_index)
         neg_pred = self.test_edge(z, neg_edge_index)
         
@@ -348,11 +353,11 @@ class Trainer_Heart(Trainer):
         self.model.eval()
 
         if self.model_name == 'VGAE':
-            z = self.model(data.x, data.edge_index)
+            z = self.model(self.data.x, data.edge_index)
             
         elif self.model_name in ['GAE', 'GAT', 'GraphSage', 'GAT_Variant', 
                                  'GCN_Variant', 'SAGE_Variant', 'GIN_Variant']:
-            z = self.model.encoder(data.x, data.edge_index)
+            z = self.model.encoder(self.data.x, data.edge_index)
         
         pos_pred, pos_edge_index = self.save_eval_edge_pred(z, data.pos_edge_label_index)
         neg_pred, neg_edge_index = self.save_eval_edge_pred(z, data.neg_edge_label_index)
@@ -394,6 +399,7 @@ class Trainer_Heart(Trainer):
         
     def train(self):  
         for epoch in range(1, self.epochs + 1):
+
             loss = self.train_func[self.model_name]()
             
             if self.if_wandb:
