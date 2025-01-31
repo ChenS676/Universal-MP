@@ -16,51 +16,58 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+    
 def check_dimension(splits: Dict[str, Dict[str, torch.Tensor]], data: Data):
-    print("Checking dimension...")
-    for k, val in splits.items():
-        print(f"{k}: {val['edge'].size()}")
-    print(splits['train'].keys())
-    print(splits['valid'].keys())
-    print(splits['test'].keys())
-    print(data)
-    raise NotImplementedError
+    """
+    Check if the first dimension of each tensor is greater than the second.
+    Args:
+        data_dict (dict): A dictionary where keys are dataset names and values are torch tensors.
+    Returns:
+        bool: True if all tensors satisfy the condition, False otherwise.
+    """
+    for name, tensor in splits.items():
+        for k, val in tensor.items():
+            if val.size(0) <= val.size(1):
+                print(f"Check failed for {name} {k}: {val.size()}")
+                return False
+
+    print("All tensors satisfy the condition.")
+    return True
+
 
 
 def check_data_leakage(splits, log):
-    sets = ['train', 'valid', 'test']
     leakage = False
 
-    # Extract indices
-    train_pos_index = set(map(tuple, splits['train'].pos_edge_label_index.t().tolist()))
-    train_neg_index = set(map(tuple, splits['train'].neg_edge_label_index.t().tolist()))
-    valid_pos_index = set(map(tuple, splits['valid'].pos_edge_label_index.t().tolist()))
-    valid_neg_index = set(map(tuple, splits['valid'].neg_edge_label_index.t().tolist()))
-    test_pos_index = set(map(tuple, splits['test'].pos_edge_label_index.t().tolist()))
-    test_neg_index = set(map(tuple, splits['test'].neg_edge_label_index.t().tolist()))
+    train_pos_index = set(map(tuple, splits['train']['edge'].t().tolist()))
+    train_neg_index = set(map(tuple, splits['train']['edge_neg'].t().tolist()))
+    valid_pos_index = set(map(tuple, splits['valid']['edge'].t().tolist()))
+    valid_neg_index = set(map(tuple, splits['valid']['edge_neg'].t().tolist()))
+    test_pos_index = set(map(tuple, splits['test']['edge'].t().tolist()))
+    test_neg_index = set(map(tuple, splits['test']['edge_neg'].t().tolist()))
 
     # Check for leakage
     if train_pos_index & valid_pos_index:
-        log.write("Data leakage found between train and valid positive samples.\n")
+        log.info("Data leakage found between train and valid positive samples.\n")
         leakage = True
     if train_pos_index & test_pos_index:
-        log.write("Data leakage found between train and test positive samples.\n")
+        log.info("Data leakage found between train and test positive samples.\n")
         leakage = True
     if valid_pos_index & test_pos_index:
-        log.write("Data leakage found between valid and test positive samples.\n")
+        log.info("Data leakage found between valid and test positive samples.\n")
         leakage = True
     if train_neg_index & valid_neg_index:
-        log.write("Data leakage found between train and valid negative samples.\n")
+        log.info("Data leakage found between train and valid negative samples.\n")
         leakage = True
     if train_neg_index & test_neg_index:
-        log.write("Data leakage found between train and test negative samples.\n")
+        log.info("Data leakage found between train and test negative samples.\n")
         leakage = True
     if valid_neg_index & test_neg_index:
-        log.write("Data leakage found between valid and test negative samples.\n")
+        log.info("Data leakage found between valid and test negative samples.\n")
         leakage = True
-
     if not leakage:
-        log.write("No data leakage found.\n")
+        log.info("No data leakage found.\n")
+        
 
 def check_self_loops(data, log):
     self_loops = (data.edge_index[0] == data.edge_index[1]).nonzero(as_tuple=False)

@@ -160,7 +160,6 @@ def project_main():
         cfg = config_device(cfg)
         
         data, splits = loaddataset(cfg.data.name, cfg.data.use_valedges_as_input, None)        
-        # TODO debug from here 
         cfg_model.in_channels = data.x.shape[1]
 
         print_logger = set_printing(cfg)
@@ -171,13 +170,15 @@ def project_main():
             f"Valid: {cfg['data']['split_index'][1]}% ({2 * splits['valid']['edge'].size(0)} samples),\n"
             f"Test:  {cfg['data']['split_index'][2]}% ({2 * splits['test']['edge'].size(0)} samples)"
         )
-                
-        if not hasattr(splits['train'], 'edge_neg'):
+                    
+        if splits['train']['edge_neg'] is None:
             splits['train']['edge_neg'] = negative_sampling(splits['train']['edge'].T, 
                                                     num_nodes=data.num_nodes, 
-                                                    num_neg_samples=splits['train']['edge'].size(0))
+                                                    num_neg_samples=splits['train']['edge'].size(0)).t()
             print_logger.info(f"{cfg.data.name}: {splits['train']['edge'].size(0)} train neg edges are generated for {splits['train']['edge'].size(0)} train pos edges.")
         
+        check_data_leakage(splits, print_logger)
+
         if check_dimension(splits, data):
             pass
         else:
@@ -260,6 +261,7 @@ def project_main():
     trainer.save_result(result_dict)
     m_var_to_file = f'{args.data}_{cfg.model.type}_heart_tune_time_.csv'
     trainer.save_tune(result_dict, m_var_to_file)
+    trainer.save_tune(result_dict,f'{cfg.out_dir}/{m_var_to_file}')
 
     
 if __name__ == "__main__":

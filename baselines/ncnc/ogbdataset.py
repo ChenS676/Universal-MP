@@ -38,11 +38,17 @@ def randomsplit(dataset: Planetoid,
         split_edge['valid']['edge'] = removerepeated(val_data.pos_edge_label_index[:, -num_val:]).t()
     else:
         train_pos_edge = train_data.pos_edge_label_index
-    split_edge['train']['edge'] = removerepeated(train_pos_edge).t()
-    split_edge['valid']['edge'] = removerepeated(val_data.pos_edge_label_index).t()
+        split_edge['train']['edge'] = removerepeated(train_pos_edge).t()
+        split_edge['valid']['edge'] = removerepeated(val_data.pos_edge_label_index).t()
+        
+    split_edge['train']['edge_neg'] = removerepeated(train_data.neg_edge_label_index).t()
     split_edge['valid']['edge_neg'] = removerepeated(val_data.neg_edge_label_index).t()
     split_edge['test']['edge'] = removerepeated(test_data.pos_edge_label_index).t()
     split_edge['test']['edge_neg'] = removerepeated(test_data.neg_edge_label_index).t()
+    for k, val in split_edge.items():
+        print(f"{k}: {val['edge'].size()}")
+        print(f"{k}: {val['edge_neg'].size()}")
+        
     return split_edge
 
 
@@ -94,7 +100,6 @@ def loaddataset(name: str, use_valedges_as_input: bool, load=None):
         # ddi no node feature
         data.x = torch.arange(data.num_nodes)
         data.max_x = data.num_nodes
-    # 
     if load is not None:
         data.x = torch.load(load, map_location="cpu")
         data.max_x = -1
