@@ -1,5 +1,8 @@
 import argparse
 import torch
+from typing import Dict, List
+from torch_geometric.data import Data
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='GraphGym')
@@ -11,6 +14,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--split_labels', type=bool, required=False, default=True)
     parser.add_argument('--device', type=str, required=False, default='cpu')
     return parser.parse_args()
+
+
+def check_dimension(splits: Dict[str, Dict[str, torch.Tensor]], data: Data):
+    print("Checking dimension...")
+    for k, val in splits.items():
+        print(f"{k}: {val['edge'].size()}")
+    print(splits['train'].keys())
+    print(splits['valid'].keys())
+    print(splits['test'].keys())
+    print(data)
+    raise NotImplementedError
 
 
 def check_data_leakage(splits, log):
