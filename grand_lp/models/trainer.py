@@ -61,10 +61,7 @@ class Trainer_GRAND:
         for perm in PermIterator(adjmask.device, adjmask.shape[0], self.batch_size):
             self.optimizer.zero_grad()
 
-            if self.opt['gcn']:
-                h = self.model(self.data.x, self.data.adj_t.to_torch_sparse_coo_tensor())
-            else:
-                h = self.model(self.data.x, pos_encoding)
+            h = self.model(self.data.x, pos_encoding)
             
             edge = pos_train_edge[:, perm].to(self.device)
             

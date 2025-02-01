@@ -39,18 +39,29 @@ load_dotenv()
 set_float = lambda result: float(result.split(' ± ')[0])
 
 
+
 def get_git_repo_root_path():
+    """
+    Identify the root folder of the current Git repository by searching from the current file to the root.
+    """
     try:
         # Using git module
-        git_repo = git.Repo('.', search_parent_directories=True)
+        git_repo = git.Repo(os.getcwd(), search_parent_directories=True)
         return git_repo.working_dir
     except git.InvalidGitRepositoryError:
-        # Fallback to using subprocess if not a valid Git repository
+        # Fallback to manual directory traversal
+        current_path = os.path.abspath(os.getcwd())
+        while current_path != os.path.dirname(current_path):  # Stop at root
+            if os.path.isdir(os.path.join(current_path, '.git')):
+                return current_path
+            current_path = os.path.dirname(current_path)
+        
+        # Fallback to subprocess if not found
         result = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True)
-
         if result.returncode == 0:
             return result.stdout.strip()
-        print("Error:", result.stderr)
+        
+        print("Error: Not a Git repository.")
         return None
 
 

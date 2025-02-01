@@ -1,3 +1,4 @@
+
 import os, sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -92,26 +93,32 @@ def load_yaml_config(file_path):
 
 
 if __name__=='__main__':
-
+    # python3 main.py --batch_size 128 --device 0 --dataset Cora
     parser = argparse.ArgumentParser(description='OGBL-DDI (GNN)')
-    parser.add_argument('--cfg', dest='cfg_file', type=str, required=False,
-                        default='yamls/cora/gcn.yaml',
+    parser.add_argument('--cfg-file', dest='cfg_file', type=str, required=False,
+                        default= 'yamls/cora/grand/early_beltrami.yaml',
                         help='The configuration file path.')
+    parser.add_argument('--batch_size', type=int, default=2**12)
+    parser.add_argument('--device', type=int, default='cuda:0')
+    parser.add_argument('--dataset', type=str, default='ogbl-ppa')
+    parser.add_argument('--dataset_dir', type=str, default='./data')
+
     args = parser.parse_args()
     
-    yaml_config = load_yaml_config(args.cfg_file)
-    opt = yaml_config[next(iter(yaml_config))]
-    
+    yaml_opt = load_yaml_config(FILE_PATH + args.cfg_file)
+    # opt = opt[next(iter(opt))]
     cmd_opt = vars(args)
+    opt = yaml_opt | cmd_opt  # merge the two dictionaries
+    
     try:
         best_opt = best_params_dict[cmd_opt['dataset']]
-        opt = {**cmd_opt, **best_opt}
+        opt = {**opt, **best_opt}
     except KeyError:
-        opt = cmd_opt
+        pass
     
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
-    
+
     data, splits = get_grand_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
     
     if args.dataset == "ogbl-citation2":
