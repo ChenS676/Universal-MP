@@ -16,9 +16,7 @@
             "--device", 
             "cuda:0",
             "--epochs", 
-            "50",
-            "--model", 
-            "GCN_Variant"]
+            "50"]
         }
     ]
 }

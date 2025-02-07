@@ -99,3 +99,6 @@ mlp_num_layers: 3
 no_early: true
 use_valedges_as_input: false
 gcn: false
+wandb:
+  name_tag: grand
+out_dir: results

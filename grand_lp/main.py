@@ -7,7 +7,7 @@ import torch
 import time
 from tqdm import tqdm
 
-from data_utils.load_lp import *
+from data_utils.load_lp import get_grand_dataset, apply_beltrami
 from data_utils.graph_rewiring import apply_KNN
 from metrics.metrics import *
 from models.base_classes import LinkPredictor
@@ -18,9 +18,7 @@ from models.GNN_early import GNNEarly
 from grand_lp.models.trainer import Trainer_GRAND
 from torch_geometric.nn import Node2Vec
 from best_params import best_params_dict
-from graphgps.utility.utils import set_cfg, parse_args, get_git_repo_root_path, custom_set_out_dir \
-    , custom_set_run_dir, set_printing, run_loop_settings, create_optimizer, config_device, \
-        init_model_from_pretrained, create_logger, LinearDecayLR
+from graphgps.utility.utils import set_cfg, parse_args, get_git_repo_root_path
 
 FILE_PATH = f'{get_git_repo_root_path()}/'
 
@@ -95,7 +93,7 @@ def load_yaml_config(file_path):
 if __name__=='__main__':
     # python3 main.py --batch_size 128 --device 0 --dataset Cora
     parser = argparse.ArgumentParser(description='OGBL-DDI (GNN)')
-    parser.add_argument('--cfg-file', dest='cfg_file', type=str, required=False,
+    parser.add_argument('--cfg_file', dest='cfg_file', type=str, required=False,
                         default= 'yamls/cora/grand/early_beltrami.yaml',
                         help='The configuration file path.')
     parser.add_argument('--batch_size', type=int, default=2**12)
