@@ -19,4 +19,7 @@ baselines/results
 baselines/runs/
 baselines/results
 **/logs/
-
+grand_lp/pos_encodings.tar.gz
+ogb/
+results/
+runs/

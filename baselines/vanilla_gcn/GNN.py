@@ -280,31 +280,29 @@ class Custom_GIN(torch.nn.Module):
         return x
 
 
+# An end-to-end deep learning architecture for graph classification, AAAI-18.
 class DGCNN(torch.nn.Module):
-    def __init__(self, hidden_channels, 
-                 num_layers, 
-                 max_z, 
-                 k=0.6, 
-                 train_dataset=None,
-                 dynamic_train=False, GNN=GCNConv, use_feature=False,
+    def __init__(self, hidden_channels, num_layers, max_z, k=0.6, train_dataset=None, 
+                 dynamic_train=False, GNN=GCNConv, use_feature=False, 
                  node_embedding=None):
         super(DGCNN, self).__init__()
 
         self.use_feature = use_feature
-        Node_embedding = node_embedding
+        self.node_embedding = node_embedding
 
         if k <= 1:  # Transform percentile to number.
             if train_dataset is None:
                 k = 30
             else:
-                sampled_train = train_dataset[:1000] if dynamic_train else \
-                                train_dataset
+                if dynamic_train:
+                    sampled_train = train_dataset[:1000]
+                else:
+                    sampled_train = train_dataset
                 num_nodes = sorted([g.num_nodes for g in sampled_train])
                 k = num_nodes[int(math.ceil(k * len(num_nodes))) - 1]
                 k = max(10, k)
         self.k = int(k)
 
-        # embedding for DRNL?
         self.max_z = max_z
         self.z_embedding = Embedding(self.max_z, hidden_channels)
 
@@ -312,37 +310,28 @@ class DGCNN(torch.nn.Module):
         initial_channels = hidden_channels
         if self.use_feature:
             initial_channels += train_dataset.num_features
-        if Node_embedding is not None:
+        if self.node_embedding is not None:
             initial_channels += node_embedding.embedding_dim
 
         self.convs.append(GNN(initial_channels, hidden_channels))
-        for _ in range(0, num_layers - 1):
+        for i in range(0, num_layers-1):
             self.convs.append(GNN(hidden_channels, hidden_channels))
         self.convs.append(GNN(hidden_channels, 1))
 
         conv1d_channels = [16, 32]
         total_latent_dim = hidden_channels * num_layers + 1
         conv1d_kws = [total_latent_dim, 5]
-        self.conv1 = Conv1d(
-            1, conv1d_channels[0], conv1d_kws[0], conv1d_kws[0]
-        )
+        self.conv1 = Conv1d(1, conv1d_channels[0], conv1d_kws[0],
+                            conv1d_kws[0])
         self.maxpool1d = MaxPool1d(2, 2)
-        self.conv2 = Conv1d(
-            conv1d_channels[0], conv1d_channels[1], conv1d_kws[1], 1)
+        self.conv2 = Conv1d(conv1d_channels[0], conv1d_channels[1],
+                            conv1d_kws[1], 1)
         dense_dim = int((self.k - 2) / 2 + 1)
         dense_dim = (dense_dim - conv1d_kws[1] + 1) * conv1d_channels[1]
         self.lin1 = Linear(dense_dim, 128)
         self.lin2 = Linear(128, 1)
 
-    def forward(self, 
-                z, 
-                edge_index, 
-                batch, 
-                x=None, 
-                edge_weight=None, 
-                node_id=None):
-        
-        # batch is the batch idx for each data samples
+    def forward(self, z, edge_index, batch, x=None, edge_weight=None, node_id=None):
         z_emb = self.z_embedding(z)
         if z_emb.ndim == 3:  # in case z has multiple integer labels
             z_emb = z_emb.sum(dim=1)
@@ -350,8 +339,8 @@ class DGCNN(torch.nn.Module):
             x = torch.cat([z_emb, x.to(torch.float)], 1)
         else:
             x = z_emb
-        if Node_embedding is not None and node_id is not None:
-            n_emb = Node_embedding(node_id)
+        if self.node_embedding is not None and node_id is not None:
+            n_emb = self.node_embedding(node_id)
             x = torch.cat([x, n_emb], 1)
         xs = [x]
 
@@ -372,7 +361,6 @@ class DGCNN(torch.nn.Module):
         x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin2(x)
         return x
-
 
 class GAE4LP(torch.nn.Module):
     """graph auto encoder。
@@ -485,6 +473,62 @@ class SparseLinear(MessagePassing):
 
     def message_and_aggregate(self, adj_t: Adj, weight: Tensor) -> Tensor:
         return spmm(adj_t, weight, reduce=self.aggr)
+    
+    
+import math
+
+import torch
+from torch import Tensor
+from torch.nn import BatchNorm1d, Parameter
+
+from torch_geometric.nn import inits
+from torch_geometric.nn.conv import MessagePassing
+from torch_geometric.nn.models import MLP
+from torch_geometric.typing import Adj, OptTensor
+from torch_geometric.utils import spmm
+
+
+class SparseLinear(MessagePassing):
+    def __init__(self, in_channels: int, out_channels: int, bias: bool = True):
+        super().__init__(aggr='add')
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+
+        self.weight = Parameter(torch.empty(in_channels, out_channels))
+        if bias:
+            self.bias = Parameter(torch.empty(out_channels))
+        else:
+            self.register_parameter('bias', None)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        inits.kaiming_uniform(self.weight, fan=self.in_channels,
+                              a=math.sqrt(5))
+        inits.uniform(self.in_channels, self.bias)
+
+    def forward(
+        self,
+        edge_index: Adj,
+        edge_weight: OptTensor = None,
+    ) -> Tensor:
+        # propagate_type: (weight: Tensor, edge_weight: OptTensor)
+        out = self.propagate(edge_index, weight=self.weight,
+                             edge_weight=edge_weight)
+
+        if self.bias is not None:
+            out = out + self.bias
+
+        return out
+
+    def message(self, weight_j: Tensor, edge_weight: OptTensor) -> Tensor:
+        if edge_weight is None:
+            return weight_j
+        else:
+            return edge_weight.view(-1, 1) * weight_j
+
+    def message_and_aggregate(self, adj_t: Adj, weight: Tensor) -> Tensor:
+        return spmm(adj_t, weight, reduce=self.aggr)
 
 
 class LINKX(torch.nn.Module):
@@ -533,14 +577,14 @@ class LINKX(torch.nn.Module):
     ):
         super().__init__()
 
-        Num_nodes = num_nodes
+        self.num_nodes = num_nodes
         self.in_channels = in_channels
         self.out_channels = out_channels
-        Num_edge_layers = num_edge_layers
+        self.num_edge_layers = num_edge_layers
 
         self.edge_lin = SparseLinear(num_nodes, hidden_channels)
 
-        if Num_edge_layers > 1:
+        if self.num_edge_layers > 1:
             self.edge_norm = BatchNorm1d(hidden_channels)
             channels = [hidden_channels] * num_edge_layers
             self.edge_mlp = MLP(channels, dropout=0., act_first=True)
@@ -549,7 +593,7 @@ class LINKX(torch.nn.Module):
             self.edge_mlp = None
 
         channels = [in_channels] + [hidden_channels] * num_node_layers
-        Node_mlp = MLP(channels, dropout=0., act_first=True)
+        self.node_mlp = MLP(channels, dropout=0., act_first=True)
 
         self.cat_lin1 = torch.nn.Linear(hidden_channels, hidden_channels)
         self.cat_lin2 = torch.nn.Linear(hidden_channels, hidden_channels)
@@ -566,7 +610,7 @@ class LINKX(torch.nn.Module):
             self.edge_norm.reset_parameters()
         if self.edge_mlp is not None:
             self.edge_mlp.reset_parameters()
-        Node_mlp.reset_parameters()
+        self.node_mlp.reset_parameters()
         self.cat_lin1.reset_parameters()
         self.cat_lin2.reset_parameters()
         self.final_mlp.reset_parameters()
@@ -588,17 +632,13 @@ class LINKX(torch.nn.Module):
         out = out + self.cat_lin1(out)
 
         if x is not None:
-            x = Node_mlp(x)
+            x = self.node_mlp(x)
             out = out + x
             out = out + self.cat_lin2(x)
 
         return self.final_mlp(out.relu_())
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__}(num_nodes={Num_nodes}, '
+        return (f'{self.__class__.__name__}(num_nodes={self.num_nodes}, '
                 f'in_channels={self.in_channels}, '
                 f'out_channels={self.out_channels})')
-        
-        
-
-
