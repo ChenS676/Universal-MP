@@ -42,14 +42,31 @@ class GraphConvolution(Module):
                + str(self.out_features) + ')'
                
 class GCN(nn.Module):
-    def __init__(self, nfeat, nhid, out_dim, dropout):
+    def __init__(self, opt, pos_encoding, nfeat, nhid, out_dim, dropout, device):
         super(GCN, self).__init__()
 
+        self.opt = opt
+        self.pos_encoding = pos_encoding
         self.gc1 = GraphConvolution(nfeat, nhid)
         self.gc2 = GraphConvolution(nhid, out_dim)
         self.dropout = dropout
+        self.device = device
+        
+        if opt['beltrami']:
+            self.mx = nn.Linear(nfeat, opt['feat_hidden_dim'])
+            self.mp = nn.Linear(opt['pos_enc_dim'], opt['pos_enc_hidden_dim'])
+            opt['hidden_dim'] = opt['feat_hidden_dim'] + opt['pos_enc_hidden_dim']
 
     def forward(self, x, adj):
+        if self.opt['beltrami']:
+            pos_encoding = self.pos_encoding.to(self.device) if self.pos_encoding is not None else None
+            
+            x = F.dropout(x, self.opt['input_dropout'], training=self.training)
+            x = self.mx(x)
+            p = F.dropout(pos_encoding, self.opt['input_dropout'], training=self.training)
+            p = self.mp(p)
+            x = torch.cat([x, p], dim=1)
+            
         x = F.relu(self.gc1(x, adj))
         x = F.dropout(x, self.dropout, training=self.training)
         x = self.gc2(x, adj)
