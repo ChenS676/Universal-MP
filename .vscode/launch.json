@@ -12,7 +12,8 @@
             "console": "integratedTerminal",
             "justMyCode": false, 
             "args": [
-                "--data_name", "Cora", "--gnn_model","GCN", "--lr", "0.01", "--dropout", "0.3", "--l2", "1e-4", "--num_layers", "1", "--num_layers_predictor", "3", "--hidden_channels", "128", "--epochs", "9999"
+                "--data_name", "Cora", "--gnn_model","GCN", "--lr", "0.01", "--dropout", "0.3", "--l2", "1e-4", "--num_layers", "1", "--num_layers_predictor", "3", "--hidden_channels", "128", "--epochs", "5", "--runs", "2"
+                
             ]
         }
     ]

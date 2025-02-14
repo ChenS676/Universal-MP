@@ -15,11 +15,9 @@ archiv/
 GRAND_LP/pos_encodings.tar.gz
 GRAND_LP/data/
 **/data
-baselines/results
 baselines/runs/
-baselines/results
+
 **/logs/
 grand_lp/pos_encodings.tar.gz
 ogb/
-results/
 runs/
