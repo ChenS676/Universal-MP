@@ -2,7 +2,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
+# benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
 import torch
 import numpy as np
 import argparse
@@ -345,9 +345,8 @@ def main():
     ### train setting
     parser.add_argument('--batch_size', type=int, default=16384)
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--epochs', type=int, default=9999)
     parser.add_argument('--eval_steps', type=int, default=1)
-    parser.add_argument('--runs', type=int, default=10)
+
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=20,    type=int,       help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
     parser.add_argument('--l2',		type=float,             default=0.0,			help='L2 Regularization for Optimizer')
@@ -371,6 +370,11 @@ def main():
     parser.add_argument('--test_batch_size', type=int, default=1024 * 64) 
     parser.add_argument('--use_hard_negative', default=False, action='store_true')
     parser.add_argument('--name_tag', type=str, default='')
+
+    # debug
+    parser.add_argument('--runs', type=int, default=2)
+    parser.add_argument('--epochs', type=int, default=5)
+    
     args = parser.parse_args()
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
@@ -580,6 +584,7 @@ def main():
     
     result_all_run = {}
     save_dict = {}
+    import IPython; IPython.embed()
     for key in loggers.keys():
         if len(loggers[key].results[0]) > 0:
             print(key)
@@ -592,11 +597,8 @@ def main():
                 best_auc_metric = best_valid_mean
             result_all_run[key] = [mean_list, var_list]
             save_dict[key] = test_res
-
-        print(best_metric_valid_str +' ' +best_auc_valid_str)
-
+        # print(best_metric_valid_str +' ' +best_auc_valid_str)
     mvari_str2csv(args.name_tag, save_dict, f'results/{args.data_name}_lm_mrr.csv')
-
     if args.runs == 1:
         print(str(best_valid_current) + ' ' + str(best_test) + ' ' + str(best_valid_auc) + ' ' + str(best_test_auc))
     else:
