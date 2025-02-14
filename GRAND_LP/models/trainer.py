@@ -10,7 +10,6 @@ from data_utils.graph_rewiring import apply_KNN
 from ogb.linkproppred import Evaluator
 from torch_geometric.utils import negative_sampling
 from utils.utils import PermIterator
-
 class Trainer_GRAND:
     def __init__(self,
                  opt,
@@ -61,16 +60,12 @@ class Trainer_GRAND:
         
         indices = torch.randperm(pos_train_edge.size(0), device=pos_train_edge.device)
 
-<<<<<<< HEAD:grand_lp/models/trainer.py
-            h = self.model(self.data.x, pos_encoding)
-=======
         for start in range(0, pos_train_edge.size(0), self.batch_size):
             self.optimizer.zero_grad()
             if self.opt['gcn']:
                 h = self.model(self.data.x, self.data.adj_t.to_torch_sparse_coo_tensor())
             else:
                 h = self.model(self.data.x, pos_encoding)
->>>>>>> 90245a37c81fa5b207d6a3179be62202e1e9e483:GRAND_LP/models/trainer.py
             
             end = start + self.batch_size
             perm = indices[start:end]
