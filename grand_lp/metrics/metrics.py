@@ -32,7 +32,8 @@ def eval_mrr(y_pred_pos, y_pred_neg):
     y_pred_pos = y_pred_pos.view(-1, 1)
     # optimistic rank: "how many negatives have at least the positive score?"
     # ~> the positive is ranked first among those with equal score
-    
+    print(y_pred_pos.shape)
+    print(y_pred_neg.shape)
     optimistic_rank = (y_pred_neg >= y_pred_pos).sum(dim=1)
     
     # pessimistic rank: "how many negatives have a larger score than the positive?"
@@ -61,8 +62,12 @@ def eval_mrr(y_pred_pos, y_pred_neg):
 
 
 def evaluate_mrr(pos_val_pred, neg_val_pred, opt):
-                 
-    mrr_output =  eval_mrr(pos_val_pred, neg_val_pred)
+    
+    neg_val_pred = neg_val_pred.view(pos_val_pred.shape[0], -1)
+    if opt['dataset'] == 'ogbl-ppa':
+        mrr_output =  eval_mrr_batch(pos_val_pred, neg_val_pred, opt['batch_size'])
+    else:
+        mrr_output =  eval_mrr(pos_val_pred, neg_val_pred)
         
     valid_mrr=mrr_output['mrr_list'].mean().item()
     valid_mrr_hit1 = mrr_output['hits@1_list'].mean().item()
