@@ -21,7 +21,7 @@
 source /hkfs/home/project/hk-project-test-p0021478/cc7738/anaconda3/etc/profile.d/conda.sh
 
 conda activate base
-cd /hkfs/work/workspace/scratch/
+
  
 # <<< conda initialize <<<
 module purge
