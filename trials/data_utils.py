@@ -229,10 +229,7 @@ def load_regulartilling(N: int, g_type: str, seed: int):
 
 
 def loaddataset(name: str, nfeat_path=None):
-    # TODO double check 
-    #      1: 
-    #      2:
-    #      3:
+
     if name in ["Cora", "Citeseer", "Pubmed"]:
         dataset = Planetoid(root="dataset", name=name)
         data = dataset[0]

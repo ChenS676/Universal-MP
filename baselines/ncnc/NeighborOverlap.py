@@ -63,9 +63,9 @@ def train(model,
         h = model(data.x, adj)
         edge = pos_train_edge[:, perm]
         pos_outs = predictor.multidomainforward(h,
-                                                    adj,
-                                                    edge,
-                                                    cndropprobs=cnprobs)
+                                                adj,
+                                                edge,
+                                                cndropprobs=cnprobs)
 
         pos_losss = -F.logsigmoid(pos_outs).mean()
         edge = negedge[:, perm]
@@ -320,6 +320,7 @@ def main():
                               f'Valid: {100 * valid_hits:.2f}%, '
                               f'Test: {100 * test_hits:.2f}%')
                     print('---', flush=True)
+                    
         print(f"best {bestscore}")
         if args.dataset == "collab":
             ret.append(bestscore["Hits@50"][-2:])

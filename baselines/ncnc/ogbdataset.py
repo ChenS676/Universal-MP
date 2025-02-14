@@ -2,47 +2,63 @@ import torch
 from sklearn.metrics import roc_auc_score, average_precision_score
 from ogb.linkproppred import PygLinkPropPredDataset
 import torch_geometric.transforms as T
-from torch_sparse import SparseTensor
 from torch_geometric.datasets import Planetoid
 from torch_geometric.utils import train_test_split_edges, negative_sampling, to_undirected
 from torch_geometric.transforms import RandomLinkSplit
 from torch_geometric.utils import  is_undirected
+import torch
+from torch_sparse import SparseTensor
 
-# random split dataset
-def randomsplit(dataset, val_ratio: float=0.10, test_ratio: float=0.2):
+# random split for Planetoid 70-10-20 percent train-val-test
+def randomsplit(dataset: Planetoid, 
+                use_valedges_as_input: bool,  
+                val_ratio: float=0.1, 
+                test_ratio: float=0.2):
     def removerepeated(ei):
         ei = to_undirected(ei)
         ei = ei[:, ei[0]<ei[1]]
         return ei
     data = dataset[0]
     data.num_nodes = data.x.shape[0]
-    data = train_test_split_edges(data, test_ratio, test_ratio)
+
+    train_data, val_data, test_data  = RandomLinkSplit(num_val=val_ratio,
+                            num_test=test_ratio, 
+                            is_undirected=True, 
+                            split_labels=True)(data)
+    del data, train_data.y, val_data.y, test_data.y, train_data.train_mask, train_data.val_mask, train_data.test_mask
+    del val_data.y, val_data.train_mask, val_data.val_mask, val_data.test_mask
+    del test_data.y, test_data.train_mask, test_data.val_mask, test_data.test_mask
+    
     split_edge = {'train': {}, 'valid': {}, 'test': {}}
-    num_val = int(data.val_pos_edge_index.shape[1] * val_ratio/test_ratio)
-    data.val_pos_edge_index = data.val_pos_edge_index[:, torch.randperm(data.val_pos_edge_index.shape[1])]
-    split_edge['train']['edge'] = removerepeated(torch.cat((data.train_pos_edge_index, data.val_pos_edge_index[:, :-num_val]), dim=-1)).t()
-    split_edge['valid']['edge'] = removerepeated(data.val_pos_edge_index[:, -num_val:]).t()
-    split_edge['valid']['edge_neg'] = removerepeated(data.val_neg_edge_index).t()
-    split_edge['test']['edge'] = removerepeated(data.test_pos_edge_index).t()
-    split_edge['test']['edge_neg'] = removerepeated(data.test_neg_edge_index).t()
+    
+    if use_valedges_as_input:
+        num_val = int(val_data.pos_edge_label_index.shape[1] * val_ratio/test_ratio)
+        train_pos_edge = torch.cat((train_data.pos_edge_label_index, val_data.pos_edge_label_index[:, :-num_val]), dim=-1)
+        split_edge['train']['edge'] = removerepeated(train_pos_edge).t()
+        split_edge['valid']['edge'] = removerepeated(val_data.pos_edge_label_index[:, -num_val:]).t()
+    else:
+        train_pos_edge = train_data.pos_edge_label_index
+        split_edge['train']['edge'] = removerepeated(train_pos_edge).t()
+        split_edge['valid']['edge'] = removerepeated(val_data.pos_edge_label_index).t()
+        
+    split_edge['train']['edge_neg'] = removerepeated(train_data.neg_edge_label_index).t()
+    split_edge['valid']['edge_neg'] = removerepeated(val_data.neg_edge_label_index).t()
+    split_edge['test']['edge'] = removerepeated(test_data.pos_edge_label_index).t()
+    split_edge['test']['edge_neg'] = removerepeated(test_data.neg_edge_label_index).t()
+    for k, val in split_edge.items():
+        print(f"{k}: {val['edge'].size()}")
+        print(f"{k}: {val['edge_neg'].size()}")
+        
     return split_edge
 
-
-import torch
-from torch_sparse import SparseTensor
 
 def is_symmetric(adj_t: SparseTensor) -> bool:
     # Checks whether a given SparseTensor is symmetric.
     return (adj_t.t() == adj_t)
 
 
-# TODO document the standard preprocessing of dataset, categoried by data name, 
-# TODO node feature preprocessing, resource, visualization
-# TODO split dataset visualization 
-# TODO edge weight visualization
-# TODO merge loaddataset with get_dataset to simplify the comparison
 def loaddataset(name: str, use_valedges_as_input: bool, load=None):
-        
+    
     if name in ['ppa', 'ddi', 'collab', 'citation2', 'vessel']:
         dataset = PygLinkPropPredDataset(name=f'ogbl-{name}')
         data = dataset[0]
@@ -50,14 +66,14 @@ def loaddataset(name: str, use_valedges_as_input: bool, load=None):
         edge_index = data.edge_index
     elif name in ["Cora", "Citeseer", "Pubmed"]:
         dataset = Planetoid(root="dataset", name=name)
-        split_edge = randomsplit(dataset)
+        split_edge = randomsplit(dataset, use_valedges_as_input)
         data = dataset[0]
         data.edge_index = to_undirected(split_edge["train"]["edge"].t())
         edge_index = data.edge_index
         data.num_nodes = data.x.shape[0]
     else:
         raise ValueError(f"Dataset {name} not supported")
-
+    
     # copy from get_dataset
     if 'edge_weight' in data: 
         data.edge_weight = data.edge_weight.view(-1).to(torch.float)
@@ -84,7 +100,6 @@ def loaddataset(name: str, use_valedges_as_input: bool, load=None):
         # ddi no node feature
         data.x = torch.arange(data.num_nodes)
         data.max_x = data.num_nodes
-    # 
     if load is not None:
         data.x = torch.load(load, map_location="cpu")
         data.max_x = -1
