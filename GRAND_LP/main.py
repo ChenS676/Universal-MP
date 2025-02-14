@@ -17,9 +17,13 @@ from models.GNN_early import GNNEarly
 from models.GCN import GCN
 from models.trainer import Trainer_GRAND
 from torch_geometric.nn import Node2Vec
-# I copied the best parameters for the rest of the data sets from ogbn-arxiv
-                      #'hidden_dim': 80 CORA
-from best_params import best_params_dict
+import yaml 
+
+def load_yaml_config(file_path):
+    """Loads a YAML configuration file."""
+    with open(file_path, 'r') as f:
+        config = yaml.safe_load(f)
+    return config
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -77,9 +81,24 @@ def print_model_params(model):
     if param.requires_grad:
       print(name)
       print(param.data.shape)
+
+import random
+def set_seed(seed=42):
+    random.seed(seed)  # Фиксируем seed для стандартного random
+    np.random.seed(seed)  # Фиксируем seed для NumPy
+    torch.manual_seed(seed)  # Фиксируем seed для PyTorch (CPU)
+    torch.cuda.manual_seed(seed)  # Фиксируем seed для PyTorch (GPU)
+    torch.cuda.manual_seed_all(seed)  # Фиксируем seed для всех GPU
+    torch.backends.cudnn.deterministic = True  # Опционально: делаем вычисления детерминированными
+    torch.backends.cudnn.benchmark = False  # Отключаем автооптимизации для детерминированности
+
+set_seed(42)
       
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='OGBL-DDI (GNN)')
+    parser.add_argument('--cfg', dest='cfg_file', type=str, required=False,
+                        default='yamls/cora/gcn.yaml',
+                        help='The configuration file path.')
     ### MPLP PARAMETERS ###
     # dataset setting
     parser.add_argument('--dataset', type=str, default='ogbl-ppa')
@@ -111,7 +130,7 @@ if __name__=='__main__':
     parser.add_argument('--planetoid_split', action='store_true',
                     help='use planetoid splits for Cora/Citeseer/Pubmed')
     # GNN args
-    # parser.add_argument('--hidden_dim', type=int, default=16, help='Hidden dimension.')
+    parser.add_argument('--hidden_dim', type=int, default=16, help='Hidden dimension.')
     parser.add_argument('--fc_out', dest='fc_out', action='store_true',
                     help='Add a fully connected layer to the decoder.')
     parser.add_argument('--input_dropout', type=float, default=0.5, help='Input dropout rate.')
@@ -214,8 +233,6 @@ if __name__=='__main__':
     parser.add_argument('--rewire_KNN_epoch', type=int, default=5, help="frequency of epochs to rewire")
     parser.add_argument('--rewire_KNN_k', type=int, default=64, help="target degree for KNN rewire")
     parser.add_argument('--rewire_KNN_sym', action='store_true', help='make KNN symmetric')
-    parser.add_argument('--KNN_online', action='store_true', help='perform rewiring online')
-    parser.add_argument('--KNN_online_reps', type=int, default=4, help="how many online KNN its")
     parser.add_argument('--KNN_space', type=str, default="pos_distance", help="Z,P,QKZ,QKp")
     # beltrami args
     parser.add_argument('--beltrami', action='store_true', help='perform diffusion beltrami style')
@@ -253,17 +270,13 @@ if __name__=='__main__':
     
     args = parser.parse_args()
     
-    cmd_opt = vars(args)
-    try:
-        best_opt = best_params_dict[cmd_opt['dataset']]
-        opt = {**cmd_opt, **best_opt}
-    except KeyError:
-        opt = cmd_opt
+    yaml_config = load_yaml_config(args.cfg_file)
+    opt = yaml_config[next(iter(yaml_config))]
     
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     
-    data, splits = get_grand_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
+    data, splits = get_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
     
     if args.dataset == "ogbl-citation2":
         opt['metric'] = "MRR"
@@ -277,19 +290,11 @@ if __name__=='__main__':
       pos_encoding = None
     
     data = data.to(device)
-
-
-    if opt['beltrami']:
-      opt['hidden_dim'] = opt['feat_hidden_dim'] + opt['pos_enc_hidden_dim']
-    else:
-      opt['hidden_dim'] = opt['feat_hidden_dim'] 
-                        
     predictor = LinkPredictor(opt['hidden_dim'], opt['hidden_dim'], 1, opt['mlp_num_layers'], opt['dropout']).to(device)
     batch_size = opt['batch_size']  
     
     if opt['gcn']:
-      opt['epoch'] = 300
-      model = GCN(opt['hidden_dim'], opt['hidden_dim'], opt['hidden_dim'], opt['dropout'])
+      model = GCN(opt, pos_encoding, data.x.shape[1], opt['hidden_dim'], opt['hidden_dim'], opt['dropout'], device)
     else:
       if opt['rewire_KNN'] or opt['fa_layer']:
         model = GNN_KNN(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNKNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
@@ -298,7 +303,10 @@ if __name__=='__main__':
         model = GNN(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
 
     
-    parameters = [p for p in model.parameters() if p.requires_grad]
+    parameters = (
+      [p for p in model.parameters() if p.requires_grad] +
+      [p for p in predictor.parameters() if p.requires_grad]
+    )
     optimizer = get_optimizer(opt['optimizer'], parameters, lr=opt['lr'], weight_decay=opt['decay'])
     
     trainer = Trainer_GRAND(
