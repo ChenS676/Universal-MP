@@ -1,0 +1,103 @@
+cora:
+  # M_nodes: 64 # USELESS
+  # adaptive: false # USELESS
+  add_source: true
+  adjoint: false
+  adjoint_method: adaptive_heun
+  adjoint_step_size: 1
+  alpha: 1.0
+  # alpha_dim: sc # USELESS
+  att_samp_pct: 1
+  attention_dim: 16
+  attention_norm_idx: 1
+  # attention_rewiring: false # USELESS
+  attention_type: scaled_dot
+  augment: false
+  # baseline: false # USELESS
+  batch_norm: false
+  beltrami: True
+  # beta_dim: sc # USELESS
+  block: attention
+  # cpus: 1 # USELESS
+  data_norm: rw
+  dataset: Cora
+  decay: 0.005 # 0.00507685443154266
+  directional_penalty: null
+  dropout: 0.1 # 0.046878964627763316
+  # dt: 0.001 # USELESS
+  # dt_min: 1e-05 # USELESS
+  epoch: 100
+  exact: true
+  fc_out: false
+  feat_hidden_dim: 716
+  function: laplacian
+  # gdc_avg_degree: 64 # USELESS
+  gdc_k: 64
+  gdc_method: ppr ########
+  gdc_sparsification: topk #############
+  gdc_threshold: 0.01
+  # gpus: 0.5 # USELESS
+  # grace_period: 20 # USELESS
+  heads: 8
+  heat_time: 3.0
+  hidden_dim: 1433
+  input_dropout: 0.5 # Try to decrease
+  jacobian_norm2: null
+  kinetic_energy: null
+  # label_rate: 0.5 # USELESS
+  leaky_relu_slope: 0.2
+  lr: 0.001 #0.022924849756740397
+  # max_epochs: 1000 # USELESS
+  max_iters: 100
+  max_nfe: 2000
+  method: rk4
+  # metric: MRR # USELESS
+  mix_features: false 
+  # name: cora_beltrami_splits # USELESS
+  new_edges: random ##############
+  no_alpha_sigmoid: false
+  # not_lcc: true # USELESS
+  # num_init: 1 # USELESS
+  # num_samples: 1000 # USELESS
+  # num_splits: 2 # USELESS
+  # ode_blocks: 1 # USELESS
+  optimizer: rmsprop
+  # patience: 100 # USELESS
+  pos_enc_hidden_dim: 717
+  pos_enc_orientation: row ##################
+  pos_enc_type: DW1433
+  ppr_alpha: 0.05
+  # reduction_factor: 10 # USELESS
+  # regularise: false # USELESS
+  reweight_attention: false
+  rewire_KNN: false # Problem with library
+  rewire_KNN_T: T0 ####################
+  rewire_KNN_epoch: 10
+  rewire_KNN_k: 64
+  rewire_KNN_sym: false
+  rewiring: null
+  rw_addD: 0.02
+  # rw_rmvR: 0.02 # USELESS
+  self_loop_weight: 1
+  sparsify: S_hat
+  square_plus: true
+  step_size: 1
+  threshold_type: addD_rvR ####################
+  time: 18.294754260552843 #########################
+  tol_scale: 821.9773048827274
+  tol_scale_adjoint: 1.0
+  total_deriv: null
+  # use_cora_defaults: false # USELESS
+  use_flux: false
+  # use_labels: false # USELESS
+  # use_lcc: true # USELESS
+  use_mlp: false
+
+  # Additional hyperparameters
+  batch_size: 128
+  dataset_dir: ./dataset
+  fa_layer: false
+  gcn: false
+  mlp_num_layers: 3
+  no_early: true
+  use_valedges_as_input: false
