@@ -20,7 +20,7 @@ from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
 from torch_geometric.utils import negative_sampling
 import os
 from tqdm import tqdm 
-from graphgps.utility.utils import mvari_str2csv
+from graphgps.utility.utils import mvari_str2csv, random_sampling
 import torch
 from torch_geometric.data import Data
 import numpy as np
@@ -402,6 +402,7 @@ def main():
     else:
         emb = torch.nn.Embedding(node_num, args.hidden_channels).to(device)
         input_channel = args.hidden_channels
+        
     if hasattr(data, 'edge_weight'):
         if data.edge_weight != None:
             edge_weight = data.edge_weight.to(torch.float)
@@ -413,6 +414,8 @@ def main():
     else:
         train_edge_weight = None
     data = T.ToSparseTensor()(data)
+    
+    ############ process splits ################
     if args.use_valedges_as_input:
         val_edge_index = split_edge['valid']['edge'].t()
         val_edge_index = to_undirected(val_edge_index)
