@@ -220,7 +220,7 @@ def main():
     args = parser.parse_args()
     if args.debug == True:
         print('debug mode with runs 2 and epochs 3')
-        args.runs = 4
+        args.runs = 2
         args.epochs = 7
         
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
