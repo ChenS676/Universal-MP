@@ -208,15 +208,21 @@ def main():
     ######mf
     parser.add_argument('--cat_node_feat_mf', default=False, action='store_true')
     parser.add_argument('--name_tag', type=str, default='ddi')
-    ######debug 
-    parser.add_argument('--runs', type=int, default=2)
-    parser.add_argument('--epochs', type=int, default=7)
-    
-    args = parser.parse_args()
+
     # args.lr = lr
     # args.l2 = l2
     # args.dropout = dropout
 
+    parser.add_argument('--debug', action='store_true', default=False)
+    parser.add_argument('--runs', type=int, default=10)
+    parser.add_argument('--epochs', type=int, default=9999)
+    
+    args = parser.parse_args()
+    if args.debug == True:
+        print('debug mode with runs 2 and epochs 3')
+        args.runs = 4
+        args.epochs = 7
+        
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
     print(args)

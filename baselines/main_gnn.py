@@ -15,12 +15,13 @@ from torch_sparse import SparseTensor
 from torch_geometric.datasets import Planetoid 
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ncnc.ogbdataset import loaddataset
+from graphgps.utility.utils import mvari_str2csv
 
 dir_path  = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
 
-from graphgps.utility.utils import mvari_str2csv
+
 
 def save_result(data_name, results_dict: dict[str, float]):  # sourcery skip: avoid-builtin-shadow
     
@@ -312,14 +313,10 @@ def main():
     parser.add_argument('--num_layers_predictor', type=int, default=2)
     parser.add_argument('--hidden_channels', type=int, default=64)
     parser.add_argument('--dropout', type=float, default=0.0)
-
-
     ### train setting
     parser.add_argument('--batch_size', type=int, default=1024)
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--epochs', type=int, default=9999)
     parser.add_argument('--eval_steps', type=int, default=5)
-    parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=10,    type=int,       help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
     parser.add_argument('--l2',		type=float,             default=0.0,			help='L2 Regularization for Optimizer')
@@ -330,22 +327,27 @@ def main():
     parser.add_argument('--metric', type=str, default='MRR')
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--log_steps', type=int, default=1)
-    
     ####### gin
     parser.add_argument('--gin_mlp_layer', type=int, default=2)
-
     ######gat
     parser.add_argument('--gat_head', type=int, default=1)
-
     ######mf
     parser.add_argument('--cat_node_feat_mf', default=False, action='store_true')
-
     ###### n2v
     parser.add_argument('--cat_n2v_feat', default=False, action='store_true')
     
-    args = parser.parse_args()
    
-
+    parser.add_argument('--debug', action='store_true', default=False)
+    parser.add_argument('--runs', type=int, default=10)
+    parser.add_argument('--epochs', type=int, default=9999)
+    
+    args = parser.parse_args()
+    if args.debug == True:
+        print('debug mode with runs 2 and epochs 3')
+        args.runs = 2
+        args.epochs = 7
+        args.name_tag = args.name_tag + '_debug'
+        
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('cat_n2v_feat: ', args.cat_n2v_feat)
     print(args)
@@ -463,7 +465,7 @@ def main():
         for key in loggers.keys():
             print(key)
             loggers[key].print_statistics(run)
-    
+
     result_all_run = {}
     save_dict = {}
     for key in loggers.keys():

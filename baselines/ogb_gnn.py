@@ -1,8 +1,8 @@
+# adopted from benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
 
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-# benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
 import torch
 import numpy as np
 import argparse
@@ -21,7 +21,9 @@ from torch_geometric.utils import negative_sampling
 import os
 from tqdm import tqdm 
 from graphgps.utility.utils import mvari_str2csv
-
+import torch
+from torch_geometric.data import Data
+import numpy as np
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
@@ -79,7 +81,7 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     
     return result
 
-        
+
 
 def train_use_hard_negative(model, score_func, train_pos, data, emb, optimizer, batch_size, pos_train_weight, remove_edge_aggre, gnn_batch_size):
     model.train()
@@ -157,8 +159,6 @@ def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_
     else: 
         x = emb.weight
         emb_update = 1
-
-
     for perm in DataLoader(range(train_pos.size(0)), batch_size,
                            shuffle=True):
         optimizer.zero_grad()
@@ -208,29 +208,21 @@ def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_
 @torch.no_grad()
 def test_edge(score_func, input_data, h, batch_size, mrr_mode=False, negative_data=None):
 
-    
     preds = []
 
     if mrr_mode:
         source = input_data.t()[0]
         source = source.view(-1, 1).repeat(1, 1000).view(-1)
         target_neg = negative_data.view(-1)
-
         for perm in DataLoader(range(source.size(0)), batch_size):
             src, dst_neg = source[perm], target_neg[perm]
             preds += [score_func(h[src], h[dst_neg]).squeeze().cpu()]
         pred_all = torch.cat(preds, dim=0).view(-1, 1000)
-
     else:
-
         for perm  in DataLoader(range(input_data.size(0)), batch_size):
             edge = input_data[perm].t()
-        
             preds += [score_func(h[edge[0]], h[edge[1]]).cpu()]
-            
         pred_all = torch.cat(preds, dim=0)
-
-
     return pred_all
 
 @torch.no_grad()
@@ -254,13 +246,9 @@ def test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit
     neg_test_edge = neg_test_edge.to(x.device)
 
     neg_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size, mrr_mode=True, negative_data=neg_valid_edge)
-
     pos_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size)
-
     pos_test_pred = test_edge(score_func, pos_test_edge, h, batch_size)
-
     neg_test_pred = test_edge(score_func, pos_test_edge, h, batch_size, mrr_mode=True, negative_data=neg_test_edge)
-
     pos_train_pred = test_edge(score_func, train_val_edge, h, batch_size)
         
     pos_valid_pred = pos_valid_pred.view(-1)
@@ -297,10 +285,7 @@ def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluato
     pos_test_edge = pos_test_edge.to(x.device) 
     neg_test_edge = neg_test_edge.to(x.device)
 
-
-   
     neg_valid_pred = test_edge(score_func, neg_valid_edge, h, batch_size)
-
     pos_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size)
 
     if use_valedges_as_input:
@@ -372,21 +357,29 @@ def main():
     parser.add_argument('--name_tag', type=str, default='')
 
     # debug
-    parser.add_argument('--runs', type=int, default=2)
-    parser.add_argument('--epochs', type=int, default=5)
+    parser.add_argument('--debug', action='store_true', default=False)
+    parser.add_argument('--runs', type=int, default=10)
+    parser.add_argument('--epochs', type=int, default=9999)
     
     args = parser.parse_args()
+    if args.debug == True:
+        print('debug mode with runs 4 and epochs 3')
+        args.runs = 4
+        args.epochs = 3
+
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
     print('cat_n2v_feat: ', args.cat_n2v_feat)
     print('use_hard_negative: ',args.use_hard_negative)
     print(args)
+    
     init_seed(args.seed)
-
+    
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     dataset = PygLinkPropPredDataset(name=args.data_name, root=os.path.join(get_root_dir(), "dataset", args.data_name))
     data = dataset[0]
+    
     edge_index = data.edge_index
     emb = None
     node_num = data.num_nodes
@@ -440,6 +433,7 @@ def main():
             adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
             data.adj_t = adj_t
     data = data.to(device)
+    
     model = eval(args.gnn_model)(input_channel, args.hidden_channels,
                     args.hidden_channels, args.num_layers, args.dropout, mlp_layer=args.gin_mlp_layer, head=args.gat_head, node_num=node_num, cat_node_feat_mf=args.cat_node_feat_mf,  data_name=args.data_name).to(device)
     score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
@@ -584,7 +578,6 @@ def main():
     
     result_all_run = {}
     save_dict = {}
-    import IPython; IPython.embed()
     for key in loggers.keys():
         if len(loggers[key].results[0]) > 0:
             print(key)
