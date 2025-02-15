@@ -2,18 +2,19 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
+   "version":"0.2.0",
+   "configurations": [
         {
-            "name": "Python Debugger: Current File",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "justMyCode": false, 
-            "args": [
-                "--data_name", "Cora", "--gnn_model", "GCN", "--lr", "0.01", "--dropout", "0.3", "--l2", "1e-4", "--num_layers", "1", "--num_layers_predictor", "3", "--hidden_channels", "128", "--epochs", "4", "--kill_cnt", "10", "--eval_steps", "5", "--batch_size", "1024",
-                "--runs", "2"
+           "name":"Python Debugger: Current File",
+           "type":"debugpy",
+           "request":"launch",
+           "program":"${file}",
+           "console":"integratedTerminal",
+           "justMyCode": false, 
+           "args": [
+               "--data_name","ogbl-collab","--gnn_model","GCN","--lr","0.01","--dropout","0.3","--l2","1e-4","--num_layers","1","--num_layers_predictor","3", "--hidden_channels","128","--epochs",
+                   "9999","--kill_cnt","10","--eval_steps",
+                    "5","--batch_size","1024","--debug"
 
             ]
         }

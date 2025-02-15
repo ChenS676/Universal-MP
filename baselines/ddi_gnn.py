@@ -222,6 +222,8 @@ def main():
         print('debug mode with runs 2 and epochs 3')
         args.runs = 2
         args.epochs = 7
+        args.eval_steps = 1
+        args.name_tag = args.name_tag + '_debug'
         
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)

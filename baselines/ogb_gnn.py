@@ -364,9 +364,11 @@ def main():
     args = parser.parse_args()
     if args.debug == True:
         print('debug mode with runs 4 and epochs 3')
-        args.runs = 4
+        args.runs = 2
         args.epochs = 3
-
+        args.eval_steps = 1 
+        args.name_tag = args.name_tag + '_debug'
+        
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
     print('cat_n2v_feat: ', args.cat_n2v_feat)
@@ -526,6 +528,7 @@ def main():
                     results_rank, score_emb= test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size)
                 else:
                     results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
+                
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
                 if epoch % args.log_steps == 0:
@@ -576,11 +579,13 @@ def main():
                 print(key)
                 loggers[key].print_statistics(run)
     
+    
     result_all_run = {}
     save_dict = {}
     for key in loggers.keys():
         if len(loggers[key].results[0]) > 0:
             print(key)
+            pdb.set_trace()
             best_metric,  best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
             if key == eval_metric:
                 best_metric_valid_str = best_metric
@@ -590,7 +595,9 @@ def main():
                 best_auc_metric = best_valid_mean
             result_all_run[key] = [mean_list, var_list]
             save_dict[key] = test_res
+            pdb.set_trace()
         # print(best_metric_valid_str +' ' +best_auc_valid_str)
+    print(f"now save {save_dict}")
     mvari_str2csv(args.name_tag, save_dict, f'results/{args.data_name}_lm_mrr.csv')
     if args.runs == 1:
         print(str(best_valid_current) + ' ' + str(best_test) + ' ' + str(best_valid_auc) + ' ' + str(best_test_auc))

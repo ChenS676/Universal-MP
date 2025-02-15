@@ -1200,6 +1200,7 @@ def mvari_str2csv(name_tag, metrics, root):
     # another for new highest value line
 
     Path(root).parent.mkdir(parents=True, exist_ok=True)
+    
     first_value_type = type(next(iter(metrics.values())))
     if all(isinstance(value, first_value_type) for value in metrics.values()):
         if first_value_type == str:
