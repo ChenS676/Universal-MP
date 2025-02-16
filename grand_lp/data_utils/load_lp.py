@@ -78,35 +78,7 @@ def get_grand_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bo
         split_edge = dataset.get_edge_split()
         opt['use_lcc'] = False
 
-    # FOR ALL GRAPHS SMALLER THAN 5000 MUST LCC
-    # FOR ALL DONT USE LCC
-    # if opt['use_lcc']:
-    #     data, lcc, _ = use_lcc(data)
-<<<<<<< HEAD:GRAND_LP/data_utils/load_lp.py
-    #     dataset._data = data
-    #     print(data.x.shape, data.edge_index.shape)
-    #     lcc = get_largest_connected_component(dataset)
-    #     data.x = data.x[lcc]
-    #     row, col = dataset._data.edge_index.numpy()
-    #     edges = [[i, j] for i, j in zip(row, col) if i in lcc and j in lcc]
-    #     data.edge_index = torch.tensor(remap_edges(edges, get_node_mapper(lcc)))
-    #     print(data.x.shape, data.edge_index.shape)
-    #     data.num_nodes = data.x.shape[0]
-    
-    # unified for all datasets 
     edge_index = data.edge_index
-=======
-    #     dataset.data = data
-    #     print(data.x.shape, data.edge_index.shape)
-    #     lcc = get_largest_connected_component(dataset)
-    #     data.x = data.x[lcc]
-    #     row, col = dataset.data.edge_index.numpy()
-    #     edges = [[i, j] for i, j in zip(row, col) if i in lcc and j in lcc]
-    #     data.edge_index = torch.tensor(remap_edges(edges, get_node_mapper(lcc)))
-    #     print(data.x.shape, data.edge_index.shape)
-          
-          
->>>>>>> 5f139ae8a4e2595d0041787583d9a4bc4e07f6a0:grand_lp/data_utils/load_lp.py
     # copy from get_dataset
     if 'edge_weight' in data: 
         data.edge_weight = data.edge_weight.view(-1).to(torch.float)
