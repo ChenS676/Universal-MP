@@ -19,7 +19,6 @@ from torch_geometric.utils import remove_self_loops
 from typing import Tuple, List, Dict
 import logging
 from yacs.config import CfgNode
-import torch
 import copy 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from transformers import AutoTokenizer, AutoModel
@@ -34,6 +33,7 @@ import nltk
 from nltk.tokenize import word_tokenize
 import re
 from pathlib import Path 
+import random
 load_dotenv()
 
 set_float = lambda result: float(result.split(' ± ')[0])
@@ -1037,10 +1037,6 @@ def analyse_hyper(file_path: str):
     return
 
 
-import time
-import random
-
-
 def timeit(func):
     def wrapper(*args, **kwargs):
         start = time.perf_counter()
@@ -1102,7 +1098,46 @@ def save_run_results_to_csv(cfg, loggers, seed, run_id):
 
 
 
+def random_sampling_ogb(split_edge, sample_ratio=0.5, seed=42):
+    """
+    Downsamples the train, valid, and test splits by randomly sampling edges while preserving structure.
+    
+    Parameters:
+    - split_edge (dict): The dataset dictionary containing 'train', 'valid', and 'test' splits.
+    - sample_ratio (float): The fraction of data to keep.
+    - seed (int): Random seed for reproducibility.
+    
+    Returns:
+    - dict: A new dictionary with downsampled data.
+    
+    Test:
+    # Example usage:
+    split_edge = {  # Replace with the actual dictionary
+        'train': {'edge': torch.randint(0, 100000, (1000, 2)), 'weight': torch.randint(1, 5, (1000,)), 'year': torch.randint(2000, 2020, (1000,))},
+        'valid': {'edge': torch.randint(0, 100000, (200, 2)), 'weight': torch.randint(1, 5, (200,)), 'year': torch.randint(2018, 2019, (200,)), 'edge_neg': torch.randint(0, 100000, (200, 2))},
+        'test': {'edge': torch.randint(0, 100000, (300, 2)), 'weight': torch.randint(1, 5, (300,)), 'year': torch.randint(2019, 2020, (300,)), 'edge_neg': torch.randint(0, 100000, (300, 2))},
+    }
+
+    downsampled_data = downsample_split(split_edge, sample_ratio=0.5)
+    print({k: {kk: v.shape for kk, v in v.items()} for k, v in downsampled_data.items()})
+
+    """
+    print(split_edge.keys())
+    downsampled_dict = {}
+    for split, data in split_edge.items():
+        num_samples = int(len(data['edge']) * sample_ratio)
+        sampled_indices = torch.randperm(len(data['edge']))[:num_samples]
+        downsampled_split = {
+            key: value[sampled_indices] if torch.is_tensor(value) and len(value) == len(data['edge']) else value
+            for key, value in data.items()
+        }
+        downsampled_dict[split] = downsampled_split
+    return downsampled_dict
+
+
+
 def random_sampling(splits, scale: int):
+
     print(f"train adj shape: {splits['train'].edge_index.shape[1]}")
 
     for k, data in splits.items():

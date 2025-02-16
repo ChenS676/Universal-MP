@@ -57,7 +57,7 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
 
 
 
-def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name):
+def train(model, score_func, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name):
     model.train()
     score_func.train()
 
@@ -239,13 +239,18 @@ def main():
     edge_index = data.edge_index
     emb = None
     node_num = data.num_nodes
-    split_edge = dataset.get_edge_split()
+    split = dataset.get_edge_split()
 
+    ############################ preprocess data node feat ##########################
     if hasattr(data, 'x'):
         if data.x != None:
             x = data.x
             x = x.to(device)
             input_channel = x.size(1)
+            if args.cat_n2v_feat:
+                print('cat n2v embedding!!')
+                n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
+                data.x = torch.cat((data.x, n2v_emb), dim=-1)
         else:
             emb = torch.nn.Embedding(node_num, args.hidden_channels).to(device)
             input_channel = args.hidden_channels
@@ -264,24 +269,37 @@ def main():
     else:
         train_edge_weight = None
     data = T.ToSparseTensor()(data)
+    ############ process splits ################
     if args.use_valedges_as_input:
         val_edge_index = split_edge['valid']['edge'].t()
         val_edge_index = to_undirected(val_edge_index)
-
         full_edge_index = torch.cat([edge_index, val_edge_index], dim=-1)
-
         val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=torch.float)
         edge_weight = torch.cat([edge_weight, val_edge_weight], 0)
-
         A = SparseTensor.from_edge_index(full_edge_index, edge_weight.view(-1), [data.num_nodes, data.num_nodes])
-        
         data.full_adj_t = A
         data.full_edge_index = full_edge_index
         print(data.full_adj_t)
         print(data.adj_t)
     else:
         data.full_adj_t = data.adj_t
-
+    if args.data_name != 'ogbl-citation2':
+        pos_train_edge = split_edge['train']['edge']
+        pos_valid_edge = split_edge['valid']['edge']
+        neg_valid_edge = split_edge['valid']['edge_neg']
+        pos_test_edge = split_edge['test']['edge']
+        neg_test_edge = split_edge['test']['edge_neg']
+    else:
+        source_edge, target_edge = split_edge['train']['source_node'], split_edge['train']['target_node']
+        pos_train_edge = torch.cat([source_edge.unsqueeze(0), target_edge.unsqueeze(0)], dim=0)
+        source, target = split_edge['valid']['source_node'],  split_edge['valid']['target_node']
+        pos_valid_edge = torch.cat([source.unsqueeze(0), target.unsqueeze(0)], dim=0)
+        neg_valid_edge = split_edge['valid']['target_node_neg'] 
+        source, target = split_edge['test']['source_node'],  split_edge['test']['target_node']
+        pos_test_edge = torch.cat([source.unsqueeze(0), target.unsqueeze(0)], dim=0)
+        neg_test_edge = split_edge['test']['target_node_neg']
+        
+        
     data = data.to(device)
     model = eval(args.gnn_model)(input_channel, args.hidden_channels,
                     args.hidden_channels, args.num_layers, args.dropout, args.gin_mlp_layer, args.gat_head, node_num, args.cat_node_feat_mf).to(device)
@@ -312,26 +330,7 @@ def main():
         eval_metric = 'Hits@100'
     elif args.data_name =='ogbl-citation2':
         eval_metric = 'MRR'
-    if args.data_name != 'ogbl-citation2':
-        pos_train_edge = split_edge['train']['edge']
-        pos_valid_edge = split_edge['valid']['edge']
-        neg_valid_edge = split_edge['valid']['edge_neg']
-        pos_test_edge = split_edge['test']['edge']
-        neg_test_edge = split_edge['test']['edge_neg']
-    else:
-        source_edge, target_edge = split_edge['train']['source_node'], split_edge['train']['target_node']
-        pos_train_edge = torch.cat([source_edge.unsqueeze(0), target_edge.unsqueeze(0)], dim=0)
-        # idx = torch.randperm(split_edge['train']['source_node'].numel())[:split_edge['valid']['source_node'].size(0)]
-        # source, target = split_edge['train']['source_node'][idx], split_edge['train']['target_node'][idx]
-        # train_val_edge = torch.cat([source.unsqueeze(0), target.unsqueeze(0)], dim=0)
 
-        source, target = split_edge['valid']['source_node'],  split_edge['valid']['target_node']
-        pos_valid_edge = torch.cat([source.unsqueeze(0), target.unsqueeze(0)], dim=0)
-        neg_valid_edge = split_edge['valid']['target_node_neg'] 
-
-        source, target = split_edge['test']['source_node'],  split_edge['test']['target_node']
-        pos_test_edge = torch.cat([source.unsqueeze(0), target.unsqueeze(0)], dim=0)
-        neg_test_edge = split_edge['test']['target_node_neg']
     idx = torch.randperm(pos_train_edge.size(0))[:pos_valid_edge.size(0)]
     train_val_edge = pos_train_edge[idx]
     pos_train_edge = pos_train_edge.to(device)
@@ -363,7 +362,7 @@ def main():
         best_valid = 0
         kill_cnt = 0
         for epoch in range(1, 1 + args.epochs):
-            loss = train(model, score_func, split_edge, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name)
+            loss = train(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name)
             # print(model.convs[0].att_src[0][0][:10])
             
             if epoch % args.eval_steps == 0:
