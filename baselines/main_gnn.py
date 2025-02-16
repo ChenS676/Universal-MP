@@ -266,9 +266,7 @@ def test(model, score_func, data, x, evaluator_hit, evaluator_mrr, batch_size):
 
 def data2dict(data, splits, data_name) -> dict:
     #TODO test with all ogbl-datasets, start with collab
-    if data_name is not ['Cora', 'CiteSeer', 'PubMed']:
-        raise ValueError('data_name not supported')
-    else:
+    if data_name in ['Cora', 'CiteSeer', 'PubMed']:
         datadict = {}
         datadict.update({'adj': data.adj_t})
         datadict.update({'train_pos': splits['train']['edge']})
@@ -279,6 +277,8 @@ def data2dict(data, splits, data_name) -> dict:
         datadict.update({'test_neg': splits['test']['edge_neg']})   
         datadict.update({'train_val': torch.cat([splits['valid']['edge'], splits['train']['edge']])})
         datadict.update({'x': data.x}) 
+    else:
+        raise ValueError('data_name not supported')
     return datadict
 
 
@@ -346,8 +346,10 @@ def main():
     # readdata = read_data(args.data_name, args.neg_mode)
     if args.name_tag == 'None':
         args.name_tag = args.gnn_model
+    else:
+        args.name_tag = args.data_name + '_' + args.gnn_model + '_' +  args.name_tag
+        
     load_data, splits = loaddataset(args.data_name, False, None) 
-    
     data = data2dict(load_data, splits, args.data_name)
     del load_data, splits
     node_num = data['x'].size(0) 
@@ -385,7 +387,9 @@ def main():
     }
 
     for run in range(args.runs):
-
+        import wandb
+        wandb.init(project="GCN4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.config.update(args)
         print('#################################          ', run, '          #################################')
         
         if args.runs == 1:
@@ -408,15 +412,21 @@ def main():
 
         best_valid = 0
         kill_cnt = 0
+        best_test = 0
+        step = 0
+        
         for epoch in range(1, 1 + args.epochs):
             loss = train(model, score_func, train_pos, x, optimizer, args.batch_size)
             # print(model.convs[0].att_src[0][0][:10])
             if epoch % args.eval_steps == 0:
                 results_rank, score_emb = test(model, score_func, data, x, evaluator_hit, evaluator_mrr, args.batch_size)
-
+                
                 for key, result in results_rank.items():
+                    wandb.log({'train_loss': loss}, step = epoch)
                     loggers[key].add_result(run, result)
-
+                    wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                    step += 1
+                    
                 if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
                         print(key)

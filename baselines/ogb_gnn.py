@@ -349,6 +349,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=9999)
     
     args = parser.parse_args()
+    
     if args.debug == True:
         print('debug mode with runs 4 and epochs 3')
         args.runs = 2
@@ -357,7 +358,9 @@ def main():
         args.name_tag = args.name_tag + '_debug'
     if args.random_sampling:
         args.name_tag = args.name_tag + '_rand' + str(sampling_ratio[f"ogbl-{args.data_name}"])
-        
+    if args.name_tag == 'confirm': # result to update in the paper
+        args.name_tag = args.name_tag + f'{args.data_name}_{args.gnn_model}_{args.score_model}_sampling{sampling_ratio[args.data_name]}'
+    
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
     print('cat_n2v_feat: ', args.cat_n2v_feat)
@@ -457,7 +460,6 @@ def main():
             data.adj_t = adj_t
             
     data = data.to(device)
-
     
     model = eval(args.gnn_model)(input_channel, args.hidden_channels,
                     args.hidden_channels, args.num_layers, args.dropout, mlp_layer=args.gin_mlp_layer, head=args.gat_head, node_num=node_num, cat_node_feat_mf=args.cat_node_feat_mf,  data_name=args.data_name).to(device)
@@ -488,7 +490,6 @@ def main():
         eval_metric = 'Hits@100'
     elif args.data_name =='citation2':
         eval_metric = 'MRR'
-
 
     idx = torch.randperm(pos_train_edge.size(0))[:pos_valid_edge.size(0)]
     train_val_edge = pos_train_edge[idx]
@@ -526,7 +527,6 @@ def main():
         best_valid = 0
         kill_cnt = 0
         best_test = 0
-        iters = len(DataLoader(range(pos_train_edge.size(0)), args.batch_size, shuffle=True))
         step = 0
     
         for epoch in tqdm(range(1, 1 + args.epochs)):
