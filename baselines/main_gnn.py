@@ -23,12 +23,12 @@ log_print = get_logger('testrun', 'log', get_config_dir())
 
 
 
-def save_result(data_name, results_dict: dict[str, float]):  # sourcery skip: avoid-builtin-shadow
+# def save_result(data_name, results_dict: dict[str, float]):  # sourcery skip: avoid-builtin-shadow
     
-    root = os.path.join(dir_path, 'results')
-    acc_file = os.path.join(root, f'{data_name}_lm_mrr.csv')
-    os.makedirs(root, exist_ok=True)
-    mvari_str2csv(None, results_dict, acc_file)
+#     root = os.path.join(dir_path, 'results')
+#     acc_file = os.path.join(root, f'{data_name}_lm_mrr.csv')
+#     os.makedirs(root, exist_ok=True)
+#     mvari_str2csv(None, results_dict, acc_file)
     
 def read_data(data_name, neg_mode):
     data_name = data_name
