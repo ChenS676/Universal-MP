@@ -21,7 +21,7 @@ def check_dimension(splits: Dict[str, Dict[str, torch.Tensor]], data: Data):
     """
     Check if the first dimension of each tensor is greater than the second.
     Args:
-        data_dict (dict): A dictionary where keys are dataset names and values are torch tensors.
+        split_edge (dict): A dictionary where keys are dataset names and values are torch tensors.
     Returns:
         bool: True if all tensors satisfy the condition, False otherwise.
     """

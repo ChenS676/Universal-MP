@@ -20,13 +20,20 @@ from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
 from torch_geometric.utils import negative_sampling
 import os
 from tqdm import tqdm 
-from graphgps.utility.utils import mvari_str2csv
+from graphgps.utility.utils import mvari_str2csv, random_sampling, random_sampling_ogb
 import torch
 from torch_geometric.data import Data
 import numpy as np
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
+sampling_ratio = {
+    'ogbl-collab': 0.01,
+    'ogbl-ddi': 0.01,
+    'ogbl-ppa': 0.01,
+    'ogbl-citation2': 0.01,
+    'ogbl-vessel': 0.01,
+}
 
 def get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
     
@@ -144,15 +151,10 @@ def train_use_hard_negative(model, score_func, train_pos, data, emb, optimizer, 
 
 
 
-def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name, remove_edge_aggre):
+def train(model, score_func, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name, remove_edge_aggre):
     model.train()
     score_func.train()
-
-    # train_pos = train_pos.transpose(1, 0)
     total_loss = total_examples = 0
-
-    # pos_train_edge = split_edge['train']['edge'].to(data.x.device)
-    
     if emb == None: 
         x = data.x
         emb_update = 0
@@ -187,29 +189,22 @@ def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_
                                 device=h.device)
         neg_out = score_func(h[edge[0]], h[edge[1]])
         neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
-
         loss = pos_loss + neg_loss
         loss.backward()
-
         if emb_update == 1: torch.nn.utils.clip_grad_norm_(x, 1.0)
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         torch.nn.utils.clip_grad_norm_(score_func.parameters(), 1.0)
-
         optimizer.step()
-
         num_examples = pos_out.size(0)
         total_loss += loss.item() * num_examples
         total_examples += num_examples
-
     return total_loss / total_examples
 
 
 
 @torch.no_grad()
 def test_edge(score_func, input_data, h, batch_size, mrr_mode=False, negative_data=None):
-
     preds = []
-
     if mrr_mode:
         source = input_data.t()[0]
         source = source.view(-1, 1).repeat(1, 1000).view(-1)
@@ -268,13 +263,10 @@ def test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit
 def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size, use_valedges_as_input):
     model.eval()
     score_func.eval()
-
     # adj_t = adj_t.transpose(1,0)
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
-
     if emb == None: x = data.x
     else: x = emb.weight
-    
     h = model(x, data.adj_t.to(x.device))
     x1 = h
     x2 = torch.tensor(1)
@@ -284,32 +276,21 @@ def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluato
     neg_valid_edge = neg_valid_edge.to(x.device)
     pos_test_edge = pos_test_edge.to(x.device) 
     neg_test_edge = neg_test_edge.to(x.device)
-
     neg_valid_pred = test_edge(score_func, neg_valid_edge, h, batch_size)
     pos_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size)
-
     if use_valedges_as_input:
         print('use_val_in_edge')
         h = model(x, data.full_adj_t.to(x.device))
         x2 = h
-
     pos_test_pred = test_edge(score_func, pos_test_edge, h, batch_size)
-
     neg_test_pred = test_edge(score_func, neg_test_edge, h, batch_size)
-
     pos_train_pred = test_edge(score_func, train_val_edge, h, batch_size)
-
     pos_train_pred = torch.flatten(pos_train_pred)
     neg_valid_pred, pos_valid_pred = torch.flatten(neg_valid_pred),  torch.flatten(pos_valid_pred)
     pos_test_pred, neg_test_pred = torch.flatten(pos_test_pred), torch.flatten(neg_test_pred)
-
     print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
-    
     result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
-    
-
     score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x1.cpu(), x2.cpu()]
-
     return result, score_emb
 
 
@@ -364,9 +345,11 @@ def main():
     args = parser.parse_args()
     if args.debug == True:
         print('debug mode with runs 4 and epochs 3')
-        args.runs = 4
+        args.runs = 2
         args.epochs = 3
-
+        args.eval_steps = 1 
+        args.name_tag = args.name_tag + '_debug'
+        
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
     print('cat_n2v_feat: ', args.cat_n2v_feat)
@@ -384,9 +367,15 @@ def main():
     emb = None
     node_num = data.num_nodes
     split_edge = dataset.get_edge_split()
+    split_downsample = random_sampling_ogb(split_edge, sampling_ratio[args.data_name], sampling_ratio[args.data_name])
+    for k, val in split_downsample.items():
+        for tvt, sampled_edge in val.items():
+            print(f"{k} {tvt}: {sampled_edge.size(1)}")
+            
+    ############################ preprocess data node feat ##########################
+    exit(-1)
     if hasattr(data, 'x'):
         if data.x != None:
-            x = data.x
             data.x = data.x.to(torch.float)
             if args.cat_n2v_feat:
                 print('cat n2v embedding!!')
@@ -398,8 +387,10 @@ def main():
             emb = torch.nn.Embedding(node_num, args.hidden_channels).to(device)
             input_channel = args.hidden_channels
     else:
+        # TODO Vlad test the node feature preprocessing method from mplp or lpformer
         emb = torch.nn.Embedding(node_num, args.hidden_channels).to(device)
         input_channel = args.hidden_channels
+        
     if hasattr(data, 'edge_weight'):
         if data.edge_weight != None:
             edge_weight = data.edge_weight.to(torch.float)
@@ -411,6 +402,7 @@ def main():
     else:
         train_edge_weight = None
     data = T.ToSparseTensor()(data)
+    ############ process splits ################
     if args.use_valedges_as_input:
         val_edge_index = split_edge['valid']['edge'].t()
         val_edge_index = to_undirected(val_edge_index)
@@ -422,7 +414,23 @@ def main():
         data.full_edge_index = full_edge_index
         print(data.full_adj_t)
         print(data.adj_t)
-    
+    if args.data_name != 'ogbl-citation2':
+        pos_train_edge = split_edge['train']['edge']
+        pos_valid_edge = split_edge['valid']['edge']
+        neg_valid_edge = split_edge['valid']['edge_neg']
+        pos_test_edge = split_edge['test']['edge']
+        neg_test_edge = split_edge['test']['edge_neg']
+    else:
+        source_edge, target_edge = split_edge['train']['source_node'], split_edge['train']['target_node']
+        pos_train_edge = torch.cat([source_edge.unsqueeze(1), target_edge.unsqueeze(1)], dim=-1)
+        source, target = split_edge['valid']['source_node'],  split_edge['valid']['target_node']
+        pos_valid_edge = torch.cat([source.unsqueeze(1), target.unsqueeze(1)], dim=-1)
+        neg_valid_edge = split_edge['valid']['target_node_neg'] 
+        source, target = split_edge['test']['source_node'],  split_edge['test']['target_node']
+        pos_test_edge = torch.cat([source.unsqueeze(1), target.unsqueeze(1)], dim=-1)
+        neg_test_edge = split_edge['test']['target_node_neg']
+        
+        
     if args.data_name == 'ogbl-citation2': 
         data.adj_t = data.adj_t.to_symmetric()
         if args.gnn_model == 'GCN':
@@ -432,6 +440,7 @@ def main():
             deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
             adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
             data.adj_t = adj_t
+            
     data = data.to(device)
     
     model = eval(args.gnn_model)(input_channel, args.hidden_channels,
@@ -463,23 +472,6 @@ def main():
         eval_metric = 'Hits@100'
     elif args.data_name =='ogbl-citation2':
         eval_metric = 'MRR'
-    if args.data_name != 'ogbl-citation2':
-        pos_train_edge = split_edge['train']['edge']
-        pos_valid_edge = split_edge['valid']['edge']
-        neg_valid_edge = split_edge['valid']['edge_neg']
-        pos_test_edge = split_edge['test']['edge']
-        neg_test_edge = split_edge['test']['edge_neg']
-    else:
-        source_edge, target_edge = split_edge['train']['source_node'], split_edge['train']['target_node']
-        pos_train_edge = torch.cat([source_edge.unsqueeze(1), target_edge.unsqueeze(1)], dim=-1)
-
-        source, target = split_edge['valid']['source_node'],  split_edge['valid']['target_node']
-        pos_valid_edge = torch.cat([source.unsqueeze(1), target.unsqueeze(1)], dim=-1)
-        neg_valid_edge = split_edge['valid']['target_node_neg'] 
-
-        source, target = split_edge['test']['source_node'],  split_edge['test']['target_node']
-        pos_test_edge = torch.cat([source.unsqueeze(1), target.unsqueeze(1)], dim=-1)
-        neg_test_edge = split_edge['test']['target_node_neg']
 
 
     idx = torch.randperm(pos_train_edge.size(0))[:pos_valid_edge.size(0)]
@@ -520,7 +512,7 @@ def main():
             if args.use_hard_negative:
                 loss = train_use_hard_negative(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.remove_edge_aggre, args.test_batch_size)
             else:
-                loss = train(model, score_func, split_edge, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
+                loss = train(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
             if epoch % args.eval_steps == 0:
                 if args.data_name == 'ogbl-citation2':
                     results_rank, score_emb= test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size)
@@ -530,9 +522,7 @@ def main():
                     loggers[key].add_result(run, result)
                 if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
-                        
                         print(key)
-                        
                         train_hits, valid_hits, test_hits = result
                         log_print.info(
                             f'Run: {run + 1:02d}, '
@@ -541,33 +531,26 @@ def main():
                               f'Train: {100 * train_hits:.2f}%, '
                               f'Valid: {100 * valid_hits:.2f}%, '
                               f'Test: {100 * test_hits:.2f}%')
-
                 r = torch.tensor(loggers[eval_metric].results[run])
                 best_valid_current = round(r[:, 1].max().item(),4)
                 best_test = round(r[r[:, 1].argmax(), 2].item(), 4)
-
                 print(eval_metric)
                 log_print.info(f'best valid: {100*best_valid_current:.2f}%, '
                                 f'best test: {100*best_test:.2f}%')
-                
                 if len(loggers['AUC'].results[run]) > 0:
                     r = torch.tensor(loggers['AUC'].results[run])
                     best_valid_auc = round(r[:, 1].max().item(), 4)
                     best_test_auc = round(r[r[:, 1].argmax(), 2].item(), 4)
-                    
                     print('AUC')
                     log_print.info(f'best valid: {100*best_valid_auc:.2f}%, '
                                 f'best test: {100*best_test_auc:.2f}%')
-                
                 print('---')
-                
                 if best_valid_current > best_valid:
                     best_valid = best_valid_current
                     kill_cnt = 0
                     if args.save: save_emb(score_emb, save_path)
                 else:
                     kill_cnt += 1
-                    
                     if kill_cnt > args.kill_cnt: 
                         print("Early Stopping!!")
                         break
@@ -575,6 +558,7 @@ def main():
             if len(loggers[key].results[0]) > 0:
                 print(key)
                 loggers[key].print_statistics(run)
+    
     
     result_all_run = {}
     save_dict = {}
@@ -591,6 +575,7 @@ def main():
             result_all_run[key] = [mean_list, var_list]
             save_dict[key] = test_res
         # print(best_metric_valid_str +' ' +best_auc_valid_str)
+    print(f"now save {save_dict}")
     mvari_str2csv(args.name_tag, save_dict, f'results/{args.data_name}_lm_mrr.csv')
     if args.runs == 1:
         print(str(best_valid_current) + ' ' + str(best_test) + ' ' + str(best_valid_auc) + ' ' + str(best_test_auc))
