@@ -387,7 +387,6 @@ def main():
             for tvt, sampled_edge in val.items():
                 print(f"{k} {tvt}: {sampled_edge.size(0)}")
         
-    
     ############################ preprocess data node feat ##########################
     if hasattr(data, 'x'):
         if data.x != None:
