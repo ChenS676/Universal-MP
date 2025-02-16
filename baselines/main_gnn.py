@@ -278,7 +278,8 @@ def test(model, score_func, data, x, evaluator_hit, evaluator_mrr, batch_size):
 
     return result, score_emb
 
-def data2dict(data, splits) -> dict:
+def data2dict(data, splits, data_name) -> dict:
+    
     datadict = {}
     datadict.update({'adj': data.adj_t})
     datadict.update({'train_pos': splits['train']['edge']})
@@ -358,7 +359,7 @@ def main():
         args.name_tag = args.gnn_model
     load_data, splits = loaddataset(args.data_name, False, None) 
     
-    data = data2dict(load_data, splits)
+    data = data2dict(load_data, splits, args.data_name)
     del load_data, splits
     node_num = data['x'].size(0) 
 

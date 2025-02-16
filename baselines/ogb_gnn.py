@@ -367,6 +367,7 @@ def main():
     emb = None
     node_num = data.num_nodes
     split_edge = dataset.get_edge_split()
+    print(args.data_name)
     split_downsample = random_sampling_ogb(split_edge, sampling_ratio[args.data_name], sampling_ratio[args.data_name])
     for k, val in split_downsample.items():
         for tvt, sampled_edge in val.items():

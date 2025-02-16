@@ -1122,6 +1122,7 @@ def random_sampling_ogb(split_edge, sample_ratio=0.5, seed=42):
     print({k: {kk: v.shape for kk, v in v.items()} for k, v in downsampled_data.items()})
 
     """
+    import IPython; IPython.embed(header='Enter the interactive shell')
     print(split_edge.keys())
     downsampled_dict = {}
     for split, data in split_edge.items():
