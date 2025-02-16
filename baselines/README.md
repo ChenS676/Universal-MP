@@ -34,9 +34,14 @@ Pubmed
 python  main_gnn.py  --data_name Pubmed  --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024 --debug
 ```
 
-ogb-datasets:  ogbl-collab, ogbl-ppa, and ogbl-citation2
+ogb-datasets:  ogbl-ppa, ddi, vessel and ogbl-citation2, ogbl-collab, 
 ```
-python  ogb_gnn.py  --data_name ogbl-ddi  --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024 --debug
+python  ogb_gnn.py  --data_name ppa  --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
+python  ogb_gnn.py  --data_name collab  --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
+python  ogb_gnn.py  --data_name ddi  --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
+python  ogb_gnn.py  --data_name citation2  --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
+python  ogb_gnn.py  --data_name vessel  --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
+
 ```
 
 ```

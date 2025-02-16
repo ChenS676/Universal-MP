@@ -20,7 +20,7 @@ from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
 from torch_geometric.utils import negative_sampling
 import os
 from tqdm import tqdm 
-from graphgps.utility.utils import mvari_str2csv, random_sampling, random_sampling_ogb
+from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
 import torch
 from torch_geometric.data import Data
 import numpy as np
@@ -320,6 +320,7 @@ def main():
     
     parser.add_argument('--save', action='store_true', default=False)
     parser.add_argument('--use_saved_model', action='store_true', default=False)
+
     # parser.add_argument('--metric', type=str, default='Hits@50')
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--log_steps', type=int, default=1)
@@ -336,7 +337,8 @@ def main():
     parser.add_argument('--test_batch_size', type=int, default=1024 * 64) 
     parser.add_argument('--use_hard_negative', default=False, action='store_true')
     parser.add_argument('--name_tag', type=str, default='')
-
+    parser.add_argument('--random_sampling', action='store_true', required=True)
+    
     # debug
     parser.add_argument('--debug', action='store_true', default=False)
     parser.add_argument('--runs', type=int, default=10)
@@ -349,6 +351,8 @@ def main():
         args.epochs = 3
         args.eval_steps = 1 
         args.name_tag = args.name_tag + '_debug'
+    if args.random_sampling:
+        args.name_tag = args.name_tag + '_rand' + str(sampling_ratio[f"ogbl-{args.data_name}"])
         
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
@@ -360,7 +364,7 @@ def main():
     
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
-    dataset = PygLinkPropPredDataset(name=args.data_name, root=os.path.join(get_root_dir(), "dataset", args.data_name))
+    dataset = PygLinkPropPredDataset(name=f"ogbl-{args.data_name}", root=os.path.join(get_root_dir(), "dataset", args.data_name))
     data = dataset[0]
     
     edge_index = data.edge_index
@@ -368,10 +372,15 @@ def main():
     node_num = data.num_nodes
     split_edge = dataset.get_edge_split()
     print(args.data_name)
-    split_downsample = random_sampling_ogb(split_edge, sampling_ratio[args.data_name], sampling_ratio[args.data_name])
-    for k, val in split_downsample.items():
+    for k, val in split_edge.items():
         for tvt, sampled_edge in val.items():
-            print(f"{k} {tvt}: {sampled_edge.size(1)}")
+            print(f"{k} {tvt}: {sampled_edge.size(0)}")
+            
+    if args.random_sampling:
+        split_edge = random_sampling_ogb(split_edge, sampling_ratio[f"ogbl-{args.data_name}"], args.data_name)
+    for k, val in split_edge.items():
+        for tvt, sampled_edge in val.items():
+            print(f"{k} {tvt}: {sampled_edge.size(0)}")
             
     ############################ preprocess data node feat ##########################
     exit(-1)
