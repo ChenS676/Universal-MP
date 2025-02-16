@@ -246,50 +246,39 @@ def test_edge(score_func, input_data, h, batch_size):
 def test(model, score_func, data, x, evaluator_hit, evaluator_mrr, batch_size):
     model.eval()
     score_func.eval()
-
     # adj_t = adj_t.transpose(1,0)
-    
-    
     h = model(x, data['adj'].to(x.device))
     # print(h[0][:10])
     x = h
-
     pos_train_pred = test_edge(score_func, data['train_val'], h, batch_size)
-
     neg_valid_pred = test_edge(score_func, data['valid_neg'], h, batch_size)
-
     pos_valid_pred = test_edge(score_func, data['valid_pos'], h, batch_size)
-
     pos_test_pred = test_edge(score_func, data['test_pos'], h, batch_size)
-
     neg_test_pred = test_edge(score_func, data['test_neg'], h, batch_size)
-
     pos_train_pred = torch.flatten(pos_train_pred)
     neg_valid_pred, pos_valid_pred = torch.flatten(neg_valid_pred),  torch.flatten(pos_valid_pred)
     pos_test_pred, neg_test_pred = torch.flatten(pos_test_pred), torch.flatten(neg_test_pred)
-
-
     print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
-    
     result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
-    
-
     score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x.cpu()]
-
     return result, score_emb
 
+
 def data2dict(data, splits, data_name) -> dict:
-    
-    datadict = {}
-    datadict.update({'adj': data.adj_t})
-    datadict.update({'train_pos': splits['train']['edge']})
-    datadict.update({'train_neg': splits['train']['edge_neg']})
-    datadict.update({'valid_pos': splits['valid']['edge']})
-    datadict.update({'valid_neg': splits['valid']['edge_neg']})
-    datadict.update({'test_pos': splits['test']['edge']})
-    datadict.update({'test_neg': splits['test']['edge_neg']})   
-    datadict.update({'train_val': torch.cat([splits['valid']['edge'], splits['train']['edge']])})
-    datadict.update({'x': data.x}) 
+    #TODO test with all ogbl-datasets, start with collab
+    if data_name is not ['Cora', 'CiteSeer', 'PubMed']:
+        raise ValueError('data_name not supported')
+    else:
+        datadict = {}
+        datadict.update({'adj': data.adj_t})
+        datadict.update({'train_pos': splits['train']['edge']})
+        datadict.update({'train_neg': splits['train']['edge_neg']})
+        datadict.update({'valid_pos': splits['valid']['edge']})
+        datadict.update({'valid_neg': splits['valid']['edge_neg']})
+        datadict.update({'test_pos': splits['test']['edge']})
+        datadict.update({'test_neg': splits['test']['edge_neg']})   
+        datadict.update({'train_val': torch.cat([splits['valid']['edge'], splits['train']['edge']])})
+        datadict.update({'x': data.x}) 
     return datadict
 
 
