@@ -382,7 +382,7 @@ def main():
             
     if args.random_sampling:
         split_edge = random_sampling_ogb(split_edge, sampling_ratio[f"ogbl-{args.data_name}"], args.data_name)
-        import time; time.sleep(20) 
+        import time; time.sleep(5) 
         for k, val in split_edge.items():
             for tvt, sampled_edge in val.items():
                 print(f"{k} {tvt}: {sampled_edge.size(0)}")
@@ -526,16 +526,15 @@ def main():
         best_valid = 0
         kill_cnt = 0
         best_test = 0
-        iters = len(DataLoader(range(pos_train_edge.size(0)), args.batch_size,
-                           shuffle=True))
-        step = args.epoch * iters
+        iters = len(DataLoader(range(pos_train_edge.size(0)), args.batch_size, shuffle=True))
+        step = 0
     
         for epoch in tqdm(range(1, 1 + args.epochs)):
             if args.use_hard_negative:
                 loss = train_use_hard_negative(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.remove_edge_aggre, args.test_batch_size)
             else:
                 loss = train(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
-                wandb.log({'train_loss': loss})
+                wandb.log({'train_loss': loss}, step = epoch)
                 
             if epoch % args.eval_steps == 0:
                 if args.data_name == 'ogbl-citation2':
@@ -611,7 +610,6 @@ def main():
         print(str(best_metric_valid_str) +' ' +str(best_auc_valid_str))
 
 if __name__ == "__main__":
-
     main()
 
 
