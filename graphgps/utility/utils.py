@@ -1120,7 +1120,7 @@ def random_sampling_ogb(split_edge, sample_ratio, data_name):
     
     for (split, data), (ori_split, ori_data) in zip(downsampled_dict.items(), split_edge.items()):
         for (k, val), (k_ori, val_ori)  in zip(data.items(), ori_data.items()):
-            print(f"{val.shape[0]} is sampled from {val_ori.shape[0]} with ratio {sample_ratio}")
+            print(f"{split}/{k}:{val.shape[0]} is sampled from {val_ori.shape[0]} with ratio {sample_ratio}")
             
     return downsampled_dict
 

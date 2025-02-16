@@ -27,13 +27,17 @@ import numpy as np
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
+
 sampling_ratio = {
-    'ogbl-collab': 0.01,
-    'ogbl-ddi': 0.01,
-    'ogbl-ppa': 0.01,
-    'ogbl-citation2': 0.01,
-    'ogbl-vessel': 0.01,
+    "ogbl-ppa": 0.044,
+    "ogbl-collab": 1.0,  # No downsampling needed
+    "ogbl-ddi": 1.0,  # Reference dataset
+    "ogbl-citation2": 0.044,
+    "ogbl-wikikg2": 0.078,
+    "ogbl-biokg": 0.262,
+    "ogbl-vessel": 0.25
 }
+
 
 def get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
     
@@ -378,12 +382,13 @@ def main():
             
     if args.random_sampling:
         split_edge = random_sampling_ogb(split_edge, sampling_ratio[f"ogbl-{args.data_name}"], args.data_name)
-    for k, val in split_edge.items():
-        for tvt, sampled_edge in val.items():
-            print(f"{k} {tvt}: {sampled_edge.size(0)}")
-            
+        import time; time.sleep(20) 
+        for k, val in split_edge.items():
+            for tvt, sampled_edge in val.items():
+                print(f"{k} {tvt}: {sampled_edge.size(0)}")
+        
+    
     ############################ preprocess data node feat ##########################
-    exit(-1)
     if hasattr(data, 'x'):
         if data.x != None:
             data.x = data.x.to(torch.float)
@@ -412,6 +417,7 @@ def main():
     else:
         train_edge_weight = None
     data = T.ToSparseTensor()(data)
+    
     ############ process splits ################
     if args.use_valedges_as_input:
         val_edge_index = split_edge['valid']['edge'].t()
@@ -474,13 +480,13 @@ def main():
         'mrr_hit50':  Logger(args.runs),
         'mrr_hit100':  Logger(args.runs),
     }
-    if args.data_name =='ogbl-collab':
+    if args.data_name =='collab':
         eval_metric = 'Hits@50'
-    elif args.data_name =='ogbl-ddi':
+    elif args.data_name =='ddi':
         eval_metric = 'Hits@20'
-    elif args.data_name =='ogbl-ppa':
+    elif args.data_name =='ppa':
         eval_metric = 'Hits@100'
-    elif args.data_name =='ogbl-citation2':
+    elif args.data_name =='citation2':
         eval_metric = 'MRR'
 
 
