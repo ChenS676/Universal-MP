@@ -1,14 +1,15 @@
 ## Baselines 
 
 #TODO 
-pretest trainer for ogb dataset to measure the difference with reported performance in paper 
-implement one random sampling method to reduce development period for ogb dataset except ddi 
+- [x] Pretest trainer for OGB dataset to measure the difference with reported performance in paper
+- [x] Implement one random sampling method to reduce development period for OGB dataset except DDI
+- [ ] Add W&B init
+- [ ] Transfer different split methods
+- [ ] Create one result
+- [ ] Start some experiment with synthetic graphs
+- [ ] Implement one script to fill the LaTeX table automatically
+- [ ] Integrate GRAND-LP
 
-integrate grand_lp 
-transfer differnet split methods 
-create one result 
-start some experiment with synthetic graphs
-implement one script to fill the latex table automatically 
 ```
 cd /hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines
 python3 main.py  --data Cora --device cuda:0 --epochs 300 --model GCN_Variant 
@@ -57,7 +58,7 @@ python ddi_gnn.py --data_name ogbl-ddi --gnn_model GCN  --lr 0.01 --dropout 0.5 
 ```
 
 ```
-python ogb_gnn.py --data_name ogbl-ddi --gnn_model GCN  --lr 0.01 --dropout 0.5  --num_layers 3 --num_layers_predictor 3  --hidden_channels 256 --epochs 200 --eval_steps 1 --kill_cnt 100 --batch_size 65536 --name_tag ddi_ogb_trainer --runs 2
+python ogb_gnn.py --data_name ddi --gnn_model GCN  --lr 0.01 --dropout 0.5  --num_layers 3 --num_layers_predictor 3  --hidden_channels 256 --epochs 200 --eval_steps 1 --kill_cnt 100 --batch_size 65536 --name_tag ddi_ogb_trainer 
 ```
 
 

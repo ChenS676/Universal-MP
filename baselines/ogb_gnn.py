@@ -341,7 +341,7 @@ def main():
     parser.add_argument('--test_batch_size', type=int, default=1024 * 64) 
     parser.add_argument('--use_hard_negative', default=False, action='store_true')
     parser.add_argument('--name_tag', type=str, default='')
-    parser.add_argument('--random_sampling', action='store_true', required=True)
+    parser.add_argument('--random_sampling', action='store_true', required=False)
     
     # debug
     parser.add_argument('--debug', action='store_true', default=False)
@@ -457,6 +457,7 @@ def main():
             data.adj_t = adj_t
             
     data = data.to(device)
+
     
     model = eval(args.gnn_model)(input_channel, args.hidden_channels,
                     args.hidden_channels, args.num_layers, args.dropout, mlp_layer=args.gin_mlp_layer, head=args.gat_head, node_num=node_num, cat_node_feat_mf=args.cat_node_feat_mf,  data_name=args.data_name).to(device)
@@ -498,6 +499,9 @@ def main():
     best_auc_valid_str = 2
 
     for run in range(args.runs):
+        import wandb
+        wandb.init(project="GCN4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.config.update(args)
         print('#################################          ', run, '          #################################')
         if args.runs == 1:
             seed = args.seed
@@ -522,19 +526,28 @@ def main():
         best_valid = 0
         kill_cnt = 0
         best_test = 0
-        
+        iters = len(DataLoader(range(pos_train_edge.size(0)), args.batch_size,
+                           shuffle=True))
+        step = args.epoch * iters
+    
         for epoch in tqdm(range(1, 1 + args.epochs)):
             if args.use_hard_negative:
                 loss = train_use_hard_negative(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.remove_edge_aggre, args.test_batch_size)
             else:
                 loss = train(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
+                wandb.log({'train_loss': loss})
+                
             if epoch % args.eval_steps == 0:
                 if args.data_name == 'ogbl-citation2':
                     results_rank, score_emb= test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size)
                 else:
                     results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
+                    
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
+                    wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                    step += 1
+                    
                 if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
                         print(key)
