@@ -62,7 +62,6 @@ class mlp_score(torch.nn.Module):
 
     def forward(self, h1, h2):
         x = self.product(h1, h2) 
-
         for lin in self.lins[:-1]:
             x = lin(x)
             x = F.relu(x)
