@@ -21,3 +21,5 @@ baselines/runs/
 grand_lp/pos_encodings.tar.gz
 ogb/
 runs/
+baselines/results
+baselines/results
