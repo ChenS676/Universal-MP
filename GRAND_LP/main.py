@@ -270,6 +270,7 @@ if __name__=='__main__':
     
     args = parser.parse_args()
     
+    # TODO Bug 1 dataset name is determined by opt, so loaded data is opt['dataset'], whatever argparse input is ogbl-ddi or ogbl-ppa
     yaml_config = load_yaml_config(args.cfg_file)
     opt = yaml_config[next(iter(yaml_config))]
     
@@ -308,7 +309,7 @@ if __name__=='__main__':
       [p for p in predictor.parameters() if p.requires_grad]
     )
     optimizer = get_optimizer(opt['optimizer'], parameters, lr=opt['lr'], weight_decay=opt['decay'])
-    
+    import IPython; IPython.embed()
     trainer = Trainer_GRAND(
         opt=opt,
         model=model,
