@@ -20,20 +20,24 @@ from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
 from torch_geometric.utils import negative_sampling
 import os
 from tqdm import tqdm 
-from graphgps.utility.utils import mvari_str2csv, random_sampling, random_sampling_ogb
+from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
 import torch
 from torch_geometric.data import Data
 import numpy as np
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
+
 sampling_ratio = {
-    'ogbl-collab': 0.01,
-    'ogbl-ddi': 0.01,
-    'ogbl-ppa': 0.01,
-    'ogbl-citation2': 0.01,
-    'ogbl-vessel': 0.01,
+    "ogbl-ppa": 0.044,
+    "ogbl-collab": 1.0,  # No downsampling needed
+    "ogbl-ddi": 1.0,  # Reference dataset
+    "ogbl-citation2": 0.044,
+    "ogbl-wikikg2": 0.078,
+    "ogbl-biokg": 0.262,
+    "ogbl-vessel": 0.25
 }
+
 
 def get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
     
@@ -320,6 +324,7 @@ def main():
     
     parser.add_argument('--save', action='store_true', default=False)
     parser.add_argument('--use_saved_model', action='store_true', default=False)
+
     # parser.add_argument('--metric', type=str, default='Hits@50')
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--log_steps', type=int, default=1)
@@ -336,20 +341,26 @@ def main():
     parser.add_argument('--test_batch_size', type=int, default=1024 * 64) 
     parser.add_argument('--use_hard_negative', default=False, action='store_true')
     parser.add_argument('--name_tag', type=str, default='')
-
+    parser.add_argument('--random_sampling', action='store_true', required=False)
+    
     # debug
     parser.add_argument('--debug', action='store_true', default=False)
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--epochs', type=int, default=9999)
     
     args = parser.parse_args()
+    
     if args.debug == True:
         print('debug mode with runs 4 and epochs 3')
         args.runs = 2
         args.epochs = 3
         args.eval_steps = 1 
         args.name_tag = args.name_tag + '_debug'
-        
+    if args.random_sampling:
+        args.name_tag = args.name_tag + '_rand' + str(sampling_ratio[f"ogbl-{args.data_name}"])
+    if args.name_tag == 'confirm': # result to update in the paper
+        args.name_tag = args.name_tag + f'{args.data_name}_{args.gnn_model}_{args.score_model}_sampling{sampling_ratio[args.data_name]}'
+    
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
     print('cat_n2v_feat: ', args.cat_n2v_feat)
@@ -360,20 +371,26 @@ def main():
     
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
-    dataset = PygLinkPropPredDataset(name=args.data_name, root=os.path.join(get_root_dir(), "dataset", args.data_name))
+    dataset = PygLinkPropPredDataset(name=f"ogbl-{args.data_name}", root=os.path.join(get_root_dir(), "dataset", args.data_name))
     data = dataset[0]
     
     edge_index = data.edge_index
     emb = None
     node_num = data.num_nodes
     split_edge = dataset.get_edge_split()
-    split_downsample = random_sampling_ogb(split_edge, sampling_ratio[args.data_name], sampling_ratio[args.data_name])
-    for k, val in split_downsample.items():
+    print(args.data_name)
+    for k, val in split_edge.items():
         for tvt, sampled_edge in val.items():
-            print(f"{k} {tvt}: {sampled_edge.size(1)}")
+            print(f"{k} {tvt}: {sampled_edge.size(0)}")
             
+    if args.random_sampling:
+        split_edge = random_sampling_ogb(split_edge, sampling_ratio[f"ogbl-{args.data_name}"], args.data_name)
+        import time; time.sleep(5) 
+        for k, val in split_edge.items():
+            for tvt, sampled_edge in val.items():
+                print(f"{k} {tvt}: {sampled_edge.size(0)}")
+        
     ############################ preprocess data node feat ##########################
-    exit(-1)
     if hasattr(data, 'x'):
         if data.x != None:
             data.x = data.x.to(torch.float)
@@ -402,6 +419,7 @@ def main():
     else:
         train_edge_weight = None
     data = T.ToSparseTensor()(data)
+    
     ############ process splits ################
     if args.use_valedges_as_input:
         val_edge_index = split_edge['valid']['edge'].t()
@@ -464,15 +482,14 @@ def main():
         'mrr_hit50':  Logger(args.runs),
         'mrr_hit100':  Logger(args.runs),
     }
-    if args.data_name =='ogbl-collab':
+    if args.data_name =='collab':
         eval_metric = 'Hits@50'
-    elif args.data_name =='ogbl-ddi':
+    elif args.data_name =='ddi':
         eval_metric = 'Hits@20'
-    elif args.data_name =='ogbl-ppa':
+    elif args.data_name =='ppa':
         eval_metric = 'Hits@100'
-    elif args.data_name =='ogbl-citation2':
+    elif args.data_name =='citation2':
         eval_metric = 'MRR'
-
 
     idx = torch.randperm(pos_train_edge.size(0))[:pos_valid_edge.size(0)]
     train_val_edge = pos_train_edge[idx]
@@ -483,6 +500,9 @@ def main():
     best_auc_valid_str = 2
 
     for run in range(args.runs):
+        import wandb
+        wandb.init(project="GCN4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.config.update(args)
         print('#################################          ', run, '          #################################')
         if args.runs == 1:
             seed = args.seed
@@ -507,19 +527,26 @@ def main():
         best_valid = 0
         kill_cnt = 0
         best_test = 0
-        
+        step = 0
+    
         for epoch in tqdm(range(1, 1 + args.epochs)):
             if args.use_hard_negative:
                 loss = train_use_hard_negative(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.remove_edge_aggre, args.test_batch_size)
             else:
                 loss = train(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
+                wandb.log({'train_loss': loss}, step = epoch)
+                
             if epoch % args.eval_steps == 0:
                 if args.data_name == 'ogbl-citation2':
                     results_rank, score_emb= test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size)
                 else:
                     results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
+                    
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
+                    wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                    step += 1
+                    
                 if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
                         print(key)
@@ -583,7 +610,6 @@ def main():
         print(str(best_metric_valid_str) +' ' +str(best_auc_valid_str))
 
 if __name__ == "__main__":
-
     main()
 
 

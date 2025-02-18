@@ -21,15 +21,6 @@ from typing import Dict
 dir_path  = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
-
-
-def save_result(data_name: str, results_dict: Dict[str, float]):  # sourcery skip: avoid-builtin-shadow
-    
-    root = os.path.join(dir_path, 'results')
-    acc_file = os.path.join(root, f'{data_name}_lm_mrr.csv')
-    os.makedirs(root, exist_ok=True)
-    mvari_str2csv(None, results_dict, acc_file)
-    
     
 def read_data(data_name, neg_mode):
     data_name = data_name
@@ -255,49 +246,39 @@ def test_edge(score_func, input_data, h, batch_size):
 def test(model, score_func, data, x, evaluator_hit, evaluator_mrr, batch_size):
     model.eval()
     score_func.eval()
-
     # adj_t = adj_t.transpose(1,0)
-    
-    
     h = model(x, data['adj'].to(x.device))
     # print(h[0][:10])
     x = h
-
     pos_train_pred = test_edge(score_func, data['train_val'], h, batch_size)
-
     neg_valid_pred = test_edge(score_func, data['valid_neg'], h, batch_size)
-
     pos_valid_pred = test_edge(score_func, data['valid_pos'], h, batch_size)
-
     pos_test_pred = test_edge(score_func, data['test_pos'], h, batch_size)
-
     neg_test_pred = test_edge(score_func, data['test_neg'], h, batch_size)
-
     pos_train_pred = torch.flatten(pos_train_pred)
     neg_valid_pred, pos_valid_pred = torch.flatten(neg_valid_pred),  torch.flatten(pos_valid_pred)
     pos_test_pred, neg_test_pred = torch.flatten(pos_test_pred), torch.flatten(neg_test_pred)
-
-
     print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
-    
     result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
-    
-
     score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x.cpu()]
-
     return result, score_emb
 
-def data2dict(data, splits) -> dict:
-    datadict = {}
-    datadict.update({'adj': data.adj_t})
-    datadict.update({'train_pos': splits['train']['edge']})
-    datadict.update({'train_neg': splits['train']['edge_neg']})
-    datadict.update({'valid_pos': splits['valid']['edge']})
-    datadict.update({'valid_neg': splits['valid']['edge_neg']})
-    datadict.update({'test_pos': splits['test']['edge']})
-    datadict.update({'test_neg': splits['test']['edge_neg']})   
-    datadict.update({'train_val': torch.cat([splits['valid']['edge'], splits['train']['edge']])})
-    datadict.update({'x': data.x}) 
+
+def data2dict(data, splits, data_name) -> dict:
+    #TODO test with all ogbl-datasets, start with collab
+    if data_name in ['Cora', 'CiteSeer', 'PubMed']:
+        datadict = {}
+        datadict.update({'adj': data.adj_t})
+        datadict.update({'train_pos': splits['train']['edge']})
+        datadict.update({'train_neg': splits['train']['edge_neg']})
+        datadict.update({'valid_pos': splits['valid']['edge']})
+        datadict.update({'valid_neg': splits['valid']['edge_neg']})
+        datadict.update({'test_pos': splits['test']['edge']})
+        datadict.update({'test_neg': splits['test']['edge_neg']})   
+        datadict.update({'train_val': torch.cat([splits['valid']['edge'], splits['train']['edge']])})
+        datadict.update({'x': data.x}) 
+    else:
+        raise ValueError('data_name not supported')
     return datadict
 
 
@@ -365,9 +346,11 @@ def main():
     # readdata = read_data(args.data_name, args.neg_mode)
     if args.name_tag == 'None':
         args.name_tag = args.gnn_model
+    else:
+        args.name_tag = args.data_name + '_' + args.gnn_model + '_' +  args.name_tag
+        
     load_data, splits = loaddataset(args.data_name, False, None) 
-    
-    data = data2dict(load_data, splits)
+    data = data2dict(load_data, splits, args.data_name)
     del load_data, splits
     node_num = data['x'].size(0) 
 
@@ -404,7 +387,9 @@ def main():
     }
 
     for run in range(args.runs):
-
+        import wandb
+        wandb.init(project="GCN4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.config.update(args)
         print('#################################          ', run, '          #################################')
         
         if args.runs == 1:
@@ -427,15 +412,21 @@ def main():
 
         best_valid = 0
         kill_cnt = 0
+        best_test = 0
+        step = 0
+        
         for epoch in range(1, 1 + args.epochs):
             loss = train(model, score_func, train_pos, x, optimizer, args.batch_size)
             # print(model.convs[0].att_src[0][0][:10])
             if epoch % args.eval_steps == 0:
                 results_rank, score_emb = test(model, score_func, data, x, evaluator_hit, evaluator_mrr, args.batch_size)
-
+                
                 for key, result in results_rank.items():
+                    wandb.log({'train_loss': loss}, step = epoch)
                     loggers[key].add_result(run, result)
-
+                    wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                    step += 1
+                    
                 if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
                         print(key)
@@ -492,4 +483,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

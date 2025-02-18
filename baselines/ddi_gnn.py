@@ -16,7 +16,7 @@ from torch_geometric.utils import to_networkx, to_undirected
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from torch_geometric.utils import negative_sampling
 import os
-from graphgps.utility.utils import mvari_str2csv
+from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
 
 dir_path = get_root_dir()
 log_print		= get_logger('testrun', 'log', get_config_dir())
@@ -208,7 +208,6 @@ def main():
     ######mf
     parser.add_argument('--cat_node_feat_mf', default=False, action='store_true')
     parser.add_argument('--name_tag', type=str, default='ddi')
-
     # args.lr = lr
     # args.l2 = l2
     # args.dropout = dropout
@@ -224,7 +223,7 @@ def main():
         args.epochs = 7
         args.eval_steps = 1
         args.name_tag = args.name_tag + '_debug'
-        
+
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
     print(args)
@@ -235,12 +234,13 @@ def main():
     device = torch.device(device)
     # dataset = Planetoid('.', 'cora')
     dataset = PygLinkPropPredDataset(name=args.data_name, root=os.path.join(get_root_dir(), "dataset", args.data_name))
+    
     data = dataset[0]
     edge_index = data.edge_index
     emb = None
     node_num = data.num_nodes
-    split = dataset.get_edge_split()
-
+    split_edge = dataset.get_edge_split()
+                
     ############################ preprocess data node feat ##########################
     if hasattr(data, 'x'):
         if data.x != None:

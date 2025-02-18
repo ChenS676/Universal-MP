@@ -1098,7 +1098,7 @@ def save_run_results_to_csv(cfg, loggers, seed, run_id):
 
 
 
-def random_sampling_ogb(split_edge, sample_ratio=0.5, seed=42):
+def random_sampling_ogb(split_edge, sample_ratio, data_name):
     """
     Downsamples the train, valid, and test splits by randomly sampling edges while preserving structure.
     
@@ -1109,29 +1109,19 @@ def random_sampling_ogb(split_edge, sample_ratio=0.5, seed=42):
     
     Returns:
     - dict: A new dictionary with downsampled data.
-    
-    Test:
-    # Example usage:
-    split_edge = {  # Replace with the actual dictionary
-        'train': {'edge': torch.randint(0, 100000, (1000, 2)), 'weight': torch.randint(1, 5, (1000,)), 'year': torch.randint(2000, 2020, (1000,))},
-        'valid': {'edge': torch.randint(0, 100000, (200, 2)), 'weight': torch.randint(1, 5, (200,)), 'year': torch.randint(2018, 2019, (200,)), 'edge_neg': torch.randint(0, 100000, (200, 2))},
-        'test': {'edge': torch.randint(0, 100000, (300, 2)), 'weight': torch.randint(1, 5, (300,)), 'year': torch.randint(2019, 2020, (300,)), 'edge_neg': torch.randint(0, 100000, (300, 2))},
-    }
-
-    downsampled_data = downsample_split(split_edge, sample_ratio=0.5)
-    print({k: {kk: v.shape for kk, v in v.items()} for k, v in downsampled_data.items()})
-
     """
-    print(split_edge.keys())
-    downsampled_dict = {}
+    print(split_edge.keys(), data_name)
+    downsampled_dict = dict.fromkeys(split_edge, {})
     for split, data in split_edge.items():
-        num_samples = int(len(data['edge']) * sample_ratio)
-        sampled_indices = torch.randperm(len(data['edge']))[:num_samples]
-        downsampled_split = {
-            key: value[sampled_indices] if torch.is_tensor(value) and len(value) == len(data['edge']) else value
-            for key, value in data.items()
-        }
-        downsampled_dict[split] = downsampled_split
+        for pos_neg_k, value in data.items():
+            num_samples = int(len(value) * sample_ratio)
+            sampled_indices = torch.randperm(len(value))[:num_samples]
+            downsampled_dict[split][pos_neg_k] = value[sampled_indices]  
+    
+    for (split, data), (ori_split, ori_data) in zip(downsampled_dict.items(), split_edge.items()):
+        for (k, val), (k_ori, val_ori)  in zip(data.items(), ori_data.items()):
+            print(f"{split}/{k}:{val.shape[0]} is sampled from {val_ori.shape[0]} with ratio {sample_ratio}")
+            
     return downsampled_dict
 
 
