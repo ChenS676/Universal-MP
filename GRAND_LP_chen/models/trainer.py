@@ -10,6 +10,8 @@ from data_utils.graph_rewiring import apply_KNN
 from ogb.linkproppred import Evaluator
 from torch_geometric.utils import negative_sampling
 from utils.utils import PermIterator
+
+
 class Trainer_GRAND:
     def __init__(self,
                  opt,
@@ -57,56 +59,53 @@ class Trainer_GRAND:
         ).t().to(self.data.x.device)
 
         total_loss = total_examples = 0
-        
         indices = torch.randperm(pos_train_edge.size(0), device=pos_train_edge.device)
 
         for start in range(0, pos_train_edge.size(0), self.batch_size):
             self.optimizer.zero_grad()
-            if self.opt['gcn']:
-                h = self.model(self.data.x, self.data.adj_t.to_torch_sparse_coo_tensor())
-            else:
-                h = self.model(self.data.x, pos_encoding)
+            h = self.model(self.data.x, pos_encoding)
             
             end = start + self.batch_size
             perm = indices[start:end]
-            
             pos_out = self.predictor(h[pos_train_edge[perm, 0]], h[pos_train_edge[perm, 1]])
-
             pos_loss = -torch.log(pos_out + 1e-15).mean()
-            
             neg_out = self.predictor(h[neg_train_edge[perm, 0]], h[neg_train_edge[perm, 1]])
             neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
-            
             loss = pos_loss + neg_loss
             
-            if self.opt['gcn'] == False:
-                if self.model.odeblock.nreg > 0:
-                    reg_states = tuple(torch.mean(rs) for rs in self.model.reg_states)
-                    regularization_coeffs = self.model.regularization_coeffs
-
-                    reg_loss = sum(
-                        reg_state * coeff for reg_state, coeff in zip(reg_states, regularization_coeffs) if coeff != 0
-                    )
-                    loss = loss + reg_loss
+            if self.model.odeblock.nreg > 0:
+                reg_states = tuple(torch.mean(rs) for rs in self.model.reg_states)
+                regularization_coeffs = self.model.regularization_coeffs
+                reg_loss = sum(
+                    reg_state * coeff for reg_state, coeff in zip(reg_states, regularization_coeffs) if coeff != 0
+                )
+                loss = loss + reg_loss
             
             num_examples = (end - start)
             total_loss += loss.item() * num_examples
             total_examples += num_examples
 
-            # Update parameters
-            if self.opt['gcn'] == False:
-                self.model.fm.update(self.model.getNFE())
-                self.model.resetNFE()
-            loss.backward()
+            # Germa 's update Update parameters
+            # self.model.fm.update(self.model.getNFE())
+            # self.model.resetNFE()
+            # loss.backward()
             
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-            torch.nn.utils.clip_grad_norm_(self.predictor.parameters(), 1.0)
+            # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+            # torch.nn.utils.clip_grad_norm_(self.predictor.parameters(), 1.0)
 
+            # self.optimizer.step()
+            # self.model.bm.update(self.model.getNFE())
+            # self.model.resetNFE()
+            ######################## original code
+            
+            self.model.fm.update(self.model.getNFE())
+            self.model.resetNFE()
+            loss.backward()
             self.optimizer.step()
-            if self.opt['gcn'] == False:
-                self.model.bm.update(self.model.getNFE())
-                self.model.resetNFE()
-
+            self.model.bm.update(self.model.getNFE())
+            self.model.resetNFE()
+            #######################
+            
         return total_loss / total_examples
     
     @torch.no_grad()
@@ -118,11 +117,8 @@ class Trainer_GRAND:
             evaluator = Evaluator(name=self.opt['dataset'])
         else:
             evaluator = Evaluator(name='ogbl-collab')
-        
-        if self.opt['gcn']:
-            h = self.model(self.data.x, self.data.adj_t.to_torch_sparse_coo_tensor())
-        else:
-            h = self.model(self.data.x, self.pos_encoding)
+
+        h = self.model(self.data.x, self.pos_encoding)
         
         pos_train_edge = self.splits['train']['edge'].to(self.data.x.device)
         pos_valid_edge = self.splits['valid']['edge'].to(self.data.x.device)
@@ -165,10 +161,8 @@ class Trainer_GRAND:
         ],
                                 dim=0)
         
-        print(pos_test_pred.mean())
-        print(neg_test_pred.mean())
         top_neg = neg_test_pred.topk(50)  
-        print("Highest 50 negative preds:", top_neg.values)
+        # print("Highest 50 negative preds:", top_neg.values)
         results = {}
         for K in [1, 3, 10, 20, 50, 100]:
             evaluator.K = K
@@ -187,28 +181,6 @@ class Trainer_GRAND:
 
             results[f'Hits@{K}'] = (train_hits, valid_hits, test_hits)
         
-        # pos_test_pred, neg_test_pred - ваши тензоры
-        print("pos_test_pred shape:", pos_test_pred.shape)
-        print("neg_test_pred shape:", neg_test_pred.shape)
-
-        # Проверяем на NaN, +/- Inf
-        if torch.isnan(pos_test_pred).any():
-            print("Warning: pos_test_pred has NaNs!")
-        if torch.isinf(pos_test_pred).any():
-            print("Warning: pos_test_pred has Inf!")
-
-        if torch.isnan(neg_test_pred).any():
-            print("Warning: neg_test_pred has NaNs!")
-        if torch.isinf(neg_test_pred).any():
-            print("Warning: neg_test_pred has Inf!")
-
-        # Дополнительно можно проверить min/max
-        print("pos_test_pred min:", pos_test_pred.min().item(),
-            "max:", pos_test_pred.max().item(),
-            "mean:", pos_test_pred.mean().item())
-        print("neg_test_pred min:", neg_test_pred.min().item(),
-            "max:", neg_test_pred.max().item(),
-            "mean:", neg_test_pred.mean().item())
 
         result_mrr_test = evaluate_mrr(pos_test_pred, neg_test_pred.repeat(pos_test_pred.size(0), 1), self.opt)  
         
@@ -239,24 +211,24 @@ class Trainer_GRAND:
         except Exception as e:
             print(f"Failed to save results: {e}")
 
+
     def train(self):
         print(f"Starting training for {self.epochs} epochs...")
         for epoch in range(1, self.epochs + 1):
             start_time = time.time()
 
-            # CHECK 
+            # CHECK Misalignment
             if self.opt['rewire_KNN'] and epoch % self.opt['rewire_KNN_epoch'] == 0 and epoch != 0:
                 ei = apply_KNN(self.data, self.pos_encoding, self.model, self.opt)
                 self.model.odeblock.odefunc.edge_index = ei
+                # self.data.edge_index = ei
                 
             loss = self.train_epoch()
             
             print(f"Epoch {epoch}, Loss: {loss:.4f}")
-            if epoch % 5 == 0:
+            if epoch % 1 == 0:
                 results = self.test_epoch()
-
                 self.log_results(results, epoch)
-
                 current_metric = results['Hits@100'][2]
                 if current_metric > self.best_metric:
                     self.best_epoch = epoch

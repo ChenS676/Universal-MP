@@ -1,5 +1,7 @@
 - [x]  first formatten the best parameters for all datasets 
 - [ ]  generate nodevec for all listed dataset ogbl-ddi, ppa, vessel, citation2, collab, Cora, Citeseer, Pubmed 
 - [ ]  create link
-- [ ]  check the input and data dimension
-- [ ]   TODO check the overlapping params betweena argparse and cfg_file for further analysis
+- [ ]  check the input and data dimension 
+- [ ]  TODO check the overlapping params betweena argparse and cfg_file for further analysis - use default value for ogbl-collab as test
+- [ ] debug on ogbl-collab, 
+    - [ ] error in apply-KNN - mismatch in test epoch after first apply-KNN
