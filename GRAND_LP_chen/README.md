@@ -4,4 +4,11 @@
 - [ ]  check the input and data dimension 
 - [ ]  TODO check the overlapping params betweena argparse and cfg_file for further analysis - use default value for ogbl-collab as test
 - [ ] debug on ogbl-collab, 
-    - [ ] error in apply-KNN - mismatch in test epoch after first apply-KNN
+    - download new version it is runnable. german has done a good job....
+    - 
+- [ ] debug on ogbl-ddi 
+    - killed -> estimation is the hidden dimension is too high wrong
+             -> check parameter integration method is only dopri5 for ddi  why? change back to dopri5
+             -> PermIterator looks to be a bad dataloder
+    - > identify as 
+- [ ] 

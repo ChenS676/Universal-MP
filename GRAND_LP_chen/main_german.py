@@ -289,18 +289,24 @@ if __name__=='__main__':
     device = torch.device(device)
     
     data, splits = get_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
+
+    print(data)
     
     if args.dataset == "ogbl-citation2":
         opt['metric'] = "MRR"
     if data.x is None:
         opt['use_feature'] = False
-
-
+    
     if opt['beltrami']:
+      print("Applying Beltrami")
       pos_encoding = apply_beltrami(data.to('cpu'), opt).to(device)
       opt['pos_enc_dim'] = pos_encoding.shape[1]
+      print(f"pos encoding is {pos_encoding}")
+      print(f"pos encoding shape is {pos_encoding.shape}")
+      print(f"pos encoding type is {type(pos_encoding)}")
     else:
       pos_encoding = None
+
     
     data = data.to(device)
     predictor = LinkPredictor(opt['hidden_dim'], opt['hidden_dim'], 1, opt['mlp_num_layers'], opt['dropout']).to(device)

@@ -126,42 +126,65 @@ class Trainer_GRAND:
         pos_test_edge = self.splits['test']['edge'].to(self.data.x.device)
         neg_test_edge = self.splits['test']['edge_neg'].to(self.data.x.device)
         
-        pos_train_pred = torch.cat([
-        self.predictor(h[pos_train_edge[perm, 0]], h[pos_train_edge[perm, 1]]).squeeze().cpu()
+        predict = []
         for perm in PermIterator(pos_train_edge.device,
-                                 pos_train_edge.shape[0], self.batch_size, False)
-        ],
-                                dim=0)
+                                 pos_train_edge.shape[0], self.batch_size, False):
+            predict.append(self.predictor(h[pos_train_edge[perm, 0]], h[pos_train_edge[perm, 1]]).squeeze().cpu().tolist()[0])
+        pos_train_pred = torch.Tensor(predict)
 
-        pos_valid_pred = torch.cat([
-        self.predictor(h[pos_valid_edge[perm, 0]], h[pos_valid_edge[perm, 1]]).squeeze().cpu()
+        predict = []
         for perm in PermIterator(pos_valid_edge.device,
-                                 pos_valid_edge.shape[0], self.batch_size, False)
-        ],
-                                dim=0)
+                                 pos_valid_edge.shape[0], self.batch_size, False):
+            predict.append(self.predictor(h[pos_valid_edge[perm, 0]], h[pos_valid_edge[perm, 1]]).squeeze().cpu().tolist()[0])
+        pos_valid_pred = torch.Tensor(predict)
 
-        neg_valid_pred = torch.cat([
-        self.predictor(h[neg_valid_edge[perm, 0]], h[neg_valid_edge[perm, 1]]).squeeze().cpu()
+
+        predict = []
         for perm in PermIterator(neg_valid_edge.device,
-                                 neg_valid_edge.shape[0], self.batch_size, False)
-        ],
-                                dim=0)
-        
-        pos_test_pred = torch.cat([
-        self.predictor(h[pos_test_edge[perm, 0]], h[pos_test_edge[perm, 1]]).squeeze().cpu()
-        for perm in PermIterator(pos_test_edge.device,
-                                 pos_test_edge.shape[0], self.batch_size, False)
-        ],
-                                dim=0)
+                                 neg_valid_edge.shape[0], self.batch_size, False):
+            predict.append(self.predictor(h[neg_valid_edge[perm, 0]], h[neg_valid_edge[perm, 1]]).squeeze().cpu().tolist()[0])
+        neg_valid_pred = torch.Tensor(predict)
 
-        neg_test_pred = torch.cat([
-        self.predictor(h[neg_test_edge[perm, 0]], h[neg_test_edge[perm, 1]]).squeeze().cpu()
+        predict = []
+        for perm in PermIterator(pos_test_edge.device,
+                                 pos_test_edge.shape[0], self.batch_size, False):
+            predict.append(self.predictor(h[pos_test_edge[perm, 0]], h[pos_test_edge[perm, 1]]).squeeze().cpu().tolist()[0])
+        pos_test_pred = torch.Tensor(predict)
+
+        predict = []
         for perm in PermIterator(neg_test_edge.device,
-                                 neg_test_edge.shape[0], self.batch_size, False)
-        ],
-                                dim=0)
+                                 neg_test_edge.shape[0], self.batch_size, False):
+            predict.append(self.predictor(h[neg_test_edge[perm, 0]], h[neg_test_edge[perm, 1]]).squeeze().cpu().tolist()[0])
+        neg_test_pred = torch.Tensor(predict)
         
-        top_neg = neg_test_pred.topk(50)  
+        
+        # pos_valid_pred = torch.cat([
+        # self.predictor(h[pos_valid_edge[perm, 0]], h[pos_valid_edge[perm, 1]]).squeeze().cpu()
+        # for perm in PermIterator(pos_valid_edge.device,
+        #                          pos_valid_edge.shape[0], self.batch_size, False)
+        # ], dim=0)
+
+        # neg_valid_pred = torch.cat([
+        # self.predictor(h[neg_valid_edge[perm, 0]], h[neg_valid_edge[perm, 1]]).squeeze().cpu()
+        # for perm in PermIterator(neg_valid_edge.device,
+        #                          neg_valid_edge.shape[0], self.batch_size, False)
+        # ], dim=0)
+
+
+              
+        # pos_test_pred = torch.cat([
+        # self.predictor(h[pos_test_edge[perm, 0]], h[pos_test_edge[perm, 1]]).squeeze().cpu()
+        # for perm in PermIterator(pos_test_edge.device,
+        #                          pos_test_edge.shape[0], self.batch_size, False)
+        # ], dim=0)
+
+        # neg_test_pred = torch.cat([
+        # self.predictor(h[neg_test_edge[perm, 0]], h[neg_test_edge[perm, 1]]).squeeze().cpu()
+        # for perm in PermIterator(neg_test_edge.device,
+        #                          neg_test_edge.shape[0], self.batch_size, False)
+        # ], dim=0)
+        # top_neg = neg_test_pred.topk(50)  
+        
         # print("Highest 50 negative preds:", top_neg.values)
         results = {}
         for K in [1, 3, 10, 20, 50, 100]:
@@ -180,8 +203,7 @@ class Trainer_GRAND:
             })[f'hits@{K}']
 
             results[f'Hits@{K}'] = (train_hits, valid_hits, test_hits)
-        
-
+    
         result_mrr_test = evaluate_mrr(pos_test_pred, neg_test_pred.repeat(pos_test_pred.size(0), 1), self.opt)  
         
         for name in ['MRR', 'mrr_hit1', 'mrr_hit3', 'mrr_hit10', 'mrr_hit20', 'mrr_hit50', 'mrr_hit100']:
