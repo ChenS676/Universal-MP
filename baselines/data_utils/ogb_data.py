@@ -95,66 +95,6 @@ def loaddataset(name: str, use_valedges_as_input: bool, load=None):
     return data, split_edge
 
 
-def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=False, load=None):
-    if name in ["Cora", "Citeseer", "Pubmed"]:
-        dataset = Planetoid(root="dataset", name=name)
-        split_edge = randomsplit(dataset)
-        data = dataset[0]
-        data.edge_index = to_undirected(split_edge["train"]["edge"].t())
-        edge_index = data.edge_index
-        data.num_nodes = data.x.shape[0]
-    elif name in ["Computers", "Photo"]:
-        dataset = Amazon(root="dataset", name=name)
-        split_edge = randomsplit(dataset)
-        data = dataset[0]
-        data.edge_index = to_undirected(split_edge["train"]["edge"].t())
-        edge_index = data.edge_index
-        data.num_nodes = data.x.shape[0]
-    else:
-        dataset = PygLinkPropPredDataset(root="dataset", name=name)
-        split_edge = dataset.get_edge_split()
-        data = dataset[0]
-        edge_index = data.edge_index
-    data.edge_weight = None 
-    
-    data.adj_t = SparseTensor.from_edge_index(edge_index, 
-                    sparse_sizes=(data.num_nodes, data.num_nodes))
-    data.adj_t = data.adj_t.to_symmetric().coalesce()
-    data.max_x = -1
-    # if name == "ogbl-collab":
-    #     data.edge_weight = data.edge_weight/2
-        
-    if name == "ogbl-ppa":
-        data.x = torch.argmax(data.x, dim=-1).unsqueeze(-1).float()
-        data.max_x = torch.max(data.x).item()
-    elif name == "ogbl-ddi":
-        data.x = torch.arange(data.num_nodes).unsqueeze(-1).float()
-        data.max_x = data.max_x = -1 # data.num_nodes
-    if load is not None:
-        data.x = torch.load(load, map_location="cpu")
-        data.max_x = -1
-    
-    print("dataset split ")
-    for key1 in split_edge:
-        for key2  in split_edge[key1]:
-            print(key1, key2, split_edge[key1][key2].shape[0])
-
-    # Use training + validation edges for inference on test set.
-    # if use_valedges_as_input:
-    #     val_edge_index = split_edge['valid']['edge'].t()
-    #     full_edge_index = torch.cat([edge_index, val_edge_index], dim=-1)
-    #     data.full_adj_t = SparseTensor.from_edge_index(full_edge_index, 
-    #                         sparse_sizes=(data.num_nodes, data.num_nodes)).coalesce()
-    #     data.full_adj_t = data.full_adj_t.to_symmetric()
-    #     if opt['rewiring'] is not None:
-    #         data.edge_index = full_edge_index.copy()
-    #         data = rewire(data, opt, root)
-    # else:
-    #     data.full_adj_t = data.adj_t
-    #     if opt['rewiring'] is not None:
-    #         data = rewire(data, opt, root)
-    return data, split_edge
-
 
 
 def graph_metrics_nx(graph: nx.Graph, name: str, use_lcc: bool) -> Dict[str, float]:
@@ -208,14 +148,24 @@ if __name__ == "__main__":
                         help='data name')
     args = parser.parse_args()
     
-    gc = [] #"ppa", "collab", "citation2", "vessel" # Citeseer, Photo, Computer
-    data,  split_edge = loaddataset(args.data_name, False)
+    if args.data_name in ["Cora", "Citeseer", "Pubmed", "ppa", "collab", "citation2", "vessel"]:
+        data,  split_edge = loaddataset(args.data_name, False)
+        
+    elif args.data_name in ["Computers", "Photo"]:
+        dataset = Amazon(root="dataset", name=args.data_name)
+        split_edge = randomsplit(dataset)
+        data = dataset[0]
+        data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+        edge_index = data.edge_index
+        data.num_nodes = data.x.shape[0]
+        
     start_time = time.time()
     m = construct_sparse_adj(data.edge_index.numpy())
     G = from_scipy_sparse_array(m)
     print(f"Time taken to create graph: {time.time() - start_time} s")
     
     if True:
+        gc = [] 
         gc.append(graph_metrics_nx(G, args.data_name, False))
         print(gc)
         

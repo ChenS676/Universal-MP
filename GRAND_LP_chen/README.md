@@ -20,12 +20,14 @@
 
 - [ ] 5. citation2 
     - default parameter commented, no reason why
-    - what to do
+    - what to do -  uncomment
 
 # How to choose hyperparameter for citation2, vessel 
     - I have an over-completed solution to calc the graph statistic with corresponding downsampling rate. 
-    - While in the same time, just use
+    - While in the same time, just use parameter of ddi, it has until now the best performance.
     - for them we set the beltrami as False first #TODO beltrami true 
+
+# Report data statistic in paper draft
 
 Running Command:
 ```

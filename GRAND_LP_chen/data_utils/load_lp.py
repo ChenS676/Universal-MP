@@ -106,7 +106,8 @@ def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=Fal
         if opt['rewiring'] is not None:
             data = rewire(data, opt, root)
     return data, split_edge
- 
+
+
 def rewire(data, opt, data_dir):
     rw = opt['rewiring']
     if rw == 'two_hop':
