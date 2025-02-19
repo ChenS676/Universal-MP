@@ -61,7 +61,7 @@ class Trainer_GRAND:
         total_loss = total_examples = 0
         indices = torch.randperm(pos_train_edge.size(0), device=pos_train_edge.device)
 
-        for start in range(0, pos_train_edge.size(0), self.batch_size):
+        for start in tqdm(range(0, pos_train_edge.size(0), self.batch_size)):
             self.optimizer.zero_grad()
             h = self.model(self.data.x, pos_encoding)
             
@@ -236,7 +236,7 @@ class Trainer_GRAND:
 
     def train(self):
         print(f"Starting training for {self.epochs} epochs...")
-        for epoch in range(1, self.epochs + 1):
+        for epoch in tqdm(range(1, self.epochs + 1)):
             start_time = time.time()
 
             # CHECK Misalignment

@@ -59,7 +59,6 @@ def merge_cmd_args(cmd_opt, opt):
     opt['not_lcc'] = False
   if cmd_opt['num_splits'] != 1:
     opt['num_splits'] = cmd_opt['num_splits']
-  
   return opt
 
 def get_optimizer(name, parameters, lr, weight_decay=0):
@@ -275,16 +274,16 @@ if __name__=='__main__':
     # to remove redundancy we delete and use best_params from yaml file
     # yaml_config = load_yaml_config(args.cfg_file)
     # opt = yaml_config[next(iter(yaml_config))]
-    opt = vars(args)
+    cmd_opt = vars(args)
     try:
-      best_opt = best_params_dict[opt['dataset']]
-      opt = {**opt, **best_opt}
-      merge_cmd_args(opt, opt)
+      best_opt = best_params_dict[cmd_opt['dataset']]
+      opt = {**cmd_opt, **best_opt}
+      merge_cmd_args(cmd_opt, opt)
+      # merge_cmd_args(opt, opt)
     except KeyError:
-      opt = opt
+      opt = cmd_opt
     
-    opt['dataset'] = args.dataset
-
+    # CHECK EPOCH AND OTHER PARAMETERS
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     
@@ -297,6 +296,7 @@ if __name__=='__main__':
         opt['use_feature'] = False
     
     if opt['beltrami']:
+      import IPython; IPython.embed()
       print("Applying Beltrami")
       pos_encoding = apply_beltrami(data.to('cpu'), opt).to(device)
       opt['pos_enc_dim'] = pos_encoding.shape[1]
