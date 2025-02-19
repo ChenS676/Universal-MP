@@ -4,7 +4,9 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
-
+import numpy as np
+import argparse
+import scipy.sparse as ssp
 from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, evaluate_hits, evaluate_mrr, evaluate_auc, Logger, init_seed, save_emb
 from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
 
@@ -22,9 +24,6 @@ from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
 import torch
 from torch_geometric.data import Data
 import numpy as np
-import argparse
-
-
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
@@ -94,6 +93,7 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     return result
 
 
+
 def train_use_hard_negative(model, score_func, train_pos, data, emb, optimizer, batch_size, pos_train_weight, remove_edge_aggre, gnn_batch_size):
     model.train()
     score_func.train()
@@ -154,6 +154,7 @@ def train_use_hard_negative(model, score_func, train_pos, data, emb, optimizer, 
     return total_loss / total_examples
 
 
+
 def train(model, score_func, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name, remove_edge_aggre):
     model.train()
     score_func.train()
@@ -204,6 +205,7 @@ def train(model, score_func, train_pos, data, emb, optimizer, batch_size, pos_tr
     return total_loss / total_examples
 
 
+
 @torch.no_grad()
 def test_edge(score_func, input_data, h, batch_size, mrr_mode=False, negative_data=None):
     preds = []
@@ -221,7 +223,6 @@ def test_edge(score_func, input_data, h, batch_size, mrr_mode=False, negative_da
             preds += [score_func(h[edge[0]], h[edge[1]]).cpu()]
         pred_all = torch.cat(preds, dim=0)
     return pred_all
-
 
 @torch.no_grad()
 def test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size):
@@ -557,7 +558,6 @@ def main():
                               f'Train: {100 * train_hits:.2f}%, '
                               f'Valid: {100 * valid_hits:.2f}%, '
                               f'Test: {100 * test_hits:.2f}%')
-                        
                 r = torch.tensor(loggers[eval_metric].results[run])
                 best_valid_current = round(r[:, 1].max().item(),4)
                 best_test = round(r[r[:, 1].argmax(), 2].item(), 4)

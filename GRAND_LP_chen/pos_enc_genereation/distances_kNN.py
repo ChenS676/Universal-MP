@@ -1,6 +1,5 @@
 import numpy as np
-from sklearn.neighbors import NearestNeighbors, KDTree, BallTree
-from sklearn.metrics import DistanceMetric
+from sklearn.neighbors import NearestNeighbors, KDTree, BallTree, DistanceMetric
 
 
 def apply_feat_KNN(x, k):

@@ -8,9 +8,9 @@ from models.base_classes import BaseGNN
 from utils.model_configurations import set_block, set_function
 
 # Define the GNN model.
-class GRAND(BaseGNN):
+class GNN(BaseGNN):
   def __init__(self, opt, data, splits, predictor, batch_size, device=torch.device('cpu')):
-    super(GRAND, self).__init__(opt, data, splits, predictor, batch_size, device)
+    super(GNN, self).__init__(opt, data, splits, predictor, batch_size, device)
     self.f = set_function(opt)
     block = set_block(opt)
     time_tensor = torch.tensor([0, self.T]).to(device)

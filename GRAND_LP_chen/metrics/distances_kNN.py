@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.neighbors import NearestNeighbors, KDTree, BallTree
+from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics import DistanceMetric
 
 
