@@ -34,7 +34,7 @@ echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 
 echo "Start time: $(date)"
 
-data_name=(Computers) 
+data_name=(Cora) 
 
 for data in "${data_name[@]}"; do
     time python ogb_data.py --data_name $data_name

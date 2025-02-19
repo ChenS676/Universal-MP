@@ -1,0 +1,2 @@
+name,num_nodes,num_edges,edge_density,degree_gini,avg_deg,avg_deg2,deg_heterogeneity,avg_shortest_path,approximate_diameter,num_triangles,avg_degree,coreness_eq_1,coreness_geq_2,coreness_geq_5,coreness_geq_10,coreness_gini,avg_cc,transitivity,cc_size,power_law_estimate
+Citeseer_False,3327.0,6374.0,0.0005760192712515776,0.4991622620304706,3.6164340610432615,3.276279558178724,0.11405791413410622,inf,inf,409.0,1.9158401489257812,0.5506462278328825,0.2897505259993989,0.009017132551848512,0.0,0.35930522608438115,0.0681867163507,0.0926527221928566,0.44454463480613166,2.1316538
