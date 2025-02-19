@@ -1,2 +1,0 @@
-name,num_nodes,num_edges,edge_density,degree_gini,avg_deg,avg_deg2,deg_heterogeneity,avg_shortest_path,approximate_diameter,num_triangles,avg_degree,coreness_eq_1,coreness_geq_2,coreness_geq_5,coreness_geq_10,coreness_gini,avg_cc,transitivity,cc_size,power_law_estimate
-Cora_False,2708.0,7392.0,0.0010083819017275089,0.44760133321582424,7.847383441213625,5.6347523022090575,0.14237038477499447,inf,inf,535.0,2.729689836502075,0.3401033973412112,0.5819793205317577,0.0,0.0,0.26965440367648585,0.12283793858811533,0.06214186154560942,0.8083456425406204,1.8868952
