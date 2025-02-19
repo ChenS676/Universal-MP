@@ -1,13 +1,11 @@
 #!/bin/bash
-#SBATCH --time=3-00:00:00
-#SBATCH --mem=501600mb
-#SBATCH --ntasks=152
+#SBATCH --time=4:00:00
 #SBATCH --partition=cpuonly
 #SBATCH --job-name=ogb_nx_stats
-#SBATCH --nodes=192
+
 #SBATCH --output=log/Universal_MPNN_%j.output
 #SBATCH --error=error/Universal_MPNN_%j.error
-#SBATCH --account=hk-project-pai00023   # specify the project group
+#SBATCH --account=hk-project-pai00001   # specify the project group
 
 #SBATCH --chdir=/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP
 
@@ -36,7 +34,7 @@ echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 
 echo "Start time: $(date)"
 
-data_name=(ppa vessel collab citation2 ddi) 
+data_name=(vessel) 
 
 for data in "${data_name[@]}"; do
     time python ogb_data.py --data_name $data_name
