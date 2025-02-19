@@ -140,7 +140,7 @@ if __name__=='__main__':
     parser.add_argument('--optimizer', type=str, default='adam', help='One from sgd, rmsprop, adam, adagrad, adamax.')
     parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
     parser.add_argument('--decay', type=float, default=5e-4, help='Weight decay for optimization')
-    parser.add_argument('--epoch', type=int, default=300, help='Number of training epochs per iteration.')
+    parser.add_argument('--epoch', type=int, default=10, help='Number of training epochs per iteration.')
     parser.add_argument('--alpha', type=float, default=1.0, help='Factor in front matrix A.')
     parser.add_argument('--alpha_dim', type=str, default='sc', help='choose either scalar (sc) or vector (vc) alpha')
     parser.add_argument('--no_alpha_sigmoid', dest='no_alpha_sigmoid', action='store_true',
@@ -291,7 +291,6 @@ if __name__=='__main__':
     data, splits = get_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
 
     print(data)
-    
     if args.dataset == "ogbl-citation2":
         opt['metric'] = "MRR"
     if data.x is None:
