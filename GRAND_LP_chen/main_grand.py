@@ -283,6 +283,8 @@ if __name__=='__main__':
     except KeyError:
       opt = cmd_opt
     
+    opt['epoch'] = 5
+    opt['beltrami'] = False
     # CHECK EPOCH AND OTHER PARAMETERS
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
@@ -296,7 +298,6 @@ if __name__=='__main__':
         opt['use_feature'] = False
     
     if opt['beltrami']:
-      import IPython; IPython.embed()
       print("Applying Beltrami")
       pos_encoding = apply_beltrami(data.to('cpu'), opt).to(device)
       opt['pos_enc_dim'] = pos_encoding.shape[1]

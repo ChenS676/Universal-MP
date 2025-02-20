@@ -27,11 +27,14 @@
 
 - [ ] measure the training and inference time of all gcns and save into txt
 - [ ] measure the training and inference time of grands
-- [ ] double check the evaluator of grand and the one from heart 
+- [ ] ### double check the evaluator of grand and the one from heart 
 - [ ] provide table draft and fill the result in paper 
 
 - [ ] Implement one random sampling method to deal with the long developement period 
-
+- [x] Submit jobs to run ppa, vessel and citation2 for 4 epochs first, 
+        - ppa epoch 1, 2, 3
+        - vessel epoch 1, 2, 4
+        - citation2 epoch 1, 2, 3
 
 # How to choose hyperparameter for citation2, vessel 
     - I have an over-completed solution to calc the graph statistic with corresponding downsampling rate. 
@@ -46,12 +49,13 @@
         - 2. ddi are very connected (function groups)
         - 3. vessel and citation2 are non-local, vessel is a mouse brain, citation2 is a collaboration network
 
+## double check the evaluator of grand and the one from heart 
 
 Running Command:
 ```
-python3 main_german.py --dataset ogbl-ppa --device 0 --no_early --beltrami 
-python3 main_german.py --dataset ogbl-collab --device 0 --no_early --beltrami 
-python3 main_german.py --dataset ogbl-ddi --device 0 --no_early --beltrami  
+python3 main_grand.py --dataset ogbl-ppa --device 0 --no_early --beltrami 
+python3 main_grand.py --dataset ogbl-collab --device 0 --no_early --beltrami 
+python3 main_grand.py --dataset ogbl-ddi --device 0 --no_early --beltrami  
 # take very long several hours for one epoch
-python main_german.py  --dataset ogbl-vessel --device 0 --no_early --beltrami
+python main_grand.py  --dataset ogbl-vessel --device 0 --no_early --beltrami
 ```

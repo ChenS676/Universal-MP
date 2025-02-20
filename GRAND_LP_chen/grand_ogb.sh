@@ -3,7 +3,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --partition=accelerated
-#SBATCH --job-name=gnn_plaintoid
+#SBATCH --job-name=grand_vessel
 
 #SBATCH --output=log/Universal_MPNN_%j.output
 #SBATCH --error=error/Universal_MPNN_%j.error
@@ -37,9 +37,9 @@ echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 
 echo "Start time: $(date)"
 
-data_name=(ddi ppa citation2sh   vessel)
+data_name=(ppa citation2 vessel)
 
-for data in $data_name; do
-    echo "Start training grand on $data"
-    python main_grand.py  --dataset ogbl-$data --device 0 --no_early --beltrami
-done
+# for data in $data_name; do
+echo "Start training grand on $data"
+python main_grand.py  --dataset ogbl-citation2 --device 0 --no_early --beltrami
+# done
