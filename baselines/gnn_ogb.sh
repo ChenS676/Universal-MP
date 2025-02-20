@@ -3,7 +3,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --partition=accelerated
-#SBATCH --job-name=gnn_ogb
+
 
 #SBATCH --output=log/Universal_MPNN_%j.output
 #SBATCH --error=error/Universal_MPNN_%j.error
@@ -38,14 +38,14 @@ echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 echo "Running command: time python  ogb_gnn.py  --data_name ppa  --gnn_model model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling"
 echo "Start time: $(date)"
 
-data_name=ppa
-
+data_name=vessel
+#SBATCH --job-name=gnn_vessel
 gnn_models=(GCN GIN SAGE GAT)
 
 for model in "${gnn_models[@]}"; do
-    time python  ogb_gnn.py  --data_name ppa  --gnn_model $model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
-    time python  ogb_gnn.py  --data_name collab  --gnn_model $model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
-    time python  ogb_gnn.py  --data_name ddi  --gnn_model $model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
-    time python  ogb_gnn.py  --data_name citation2  --gnn_model $model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
-    time python  ogb_gnn.py  --data_name vessel  --gnn_model $model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
+    # time python  ogb_gnn.py  --data_name ppa  --gnn_model $model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 200 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
+    # time python  ogb_gnn.py  --data_name collab  --gnn_model $model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 200 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
+    # time python  ogb_gnn.py  --data_name ddi  --gnn_model $model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 200 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
+    # time python  ogb_gnn.py  --data_name citation2  --gnn_model $model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 200 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
+    time python  ogb_gnn.py  --data_name vessel  --gnn_model $model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 200 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling
 done

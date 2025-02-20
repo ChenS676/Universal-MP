@@ -344,7 +344,7 @@ def main():
     
     # debug
     parser.add_argument('--debug', action='store_true', default=False)
-    parser.add_argument('--runs', type=int, default=10)
+    parser.add_argument('--runs', type=int, default=5)
     parser.add_argument('--epochs', type=int, default=9999)
     
     args = parser.parse_args()
