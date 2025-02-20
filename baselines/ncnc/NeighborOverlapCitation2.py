@@ -102,6 +102,7 @@ def test(model, predictor, data, split_edge, evaluator, batch_size):
             neg_preds += [predictor(h, adj, torch.stack((src, dst_neg))).squeeze().cpu()]
         neg_pred = torch.cat(neg_preds, dim=0).view(-1, 1000)
 
+        import IPython; IPython.embed() 
         return evaluator.eval({
             'y_pred_pos': pos_pred,
             'y_pred_neg': neg_pred,

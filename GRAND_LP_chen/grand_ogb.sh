@@ -21,8 +21,6 @@
 source /hkfs/home/project/hk-project-test-p0021478/cc7738/anaconda3/etc/profile.d/conda.sh
 
 conda activate base
-
- 
 # <<< conda initialize <<<
 module purge
 module load devel/cmake/3.18   
@@ -37,9 +35,10 @@ echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 
 echo "Start time: $(date)"
 
-data_name=(ppa citation2 vessel)
+data_name=(citation2) #ppa citation2 
 
 # for data in $data_name; do
 echo "Start training grand on $data"
-python main_grand.py  --dataset ogbl-citation2 --device 0 --no_early --beltrami
+python main_grand.py  --dataset ogbl-$data_name --device 0 --no_early --beltrami
 # done
+python main_grand.py  --dataset ogbl-citation2 --device 0 --no_early --beltrami

@@ -43,15 +43,16 @@ class Trainer_GRAND:
         self.best_epoch = 0
         self.best_metric = 0
         self.best_results = None
+        
+        # Preprocessing 
+        
 
     def train_epoch(self):
         self.predictor.train()
         self.model.train()
         
         pos_encoding = self.pos_encoding.to(self.model.device) if self.pos_encoding is not None else None
-        
         pos_train_edge = self.splits['train']['edge'].to(self.data.x.device)
-        
         neg_train_edge = negative_sampling(
             self.data.edge_index.to(pos_train_edge.device),
             num_nodes=self.data.num_nodes,
@@ -156,36 +157,37 @@ class Trainer_GRAND:
                                  neg_test_edge.shape[0], self.batch_size, False):
             predict.append(self.predictor(h[neg_test_edge[perm, 0]], h[neg_test_edge[perm, 1]]).squeeze().cpu().tolist()[0])
         neg_test_pred = torch.Tensor(predict)
-        
-        
-        # pos_valid_pred = torch.cat([
-        # self.predictor(h[pos_valid_edge[perm, 0]], h[pos_valid_edge[perm, 1]]).squeeze().cpu()
-        # for perm in PermIterator(pos_valid_edge.device,
-        #                          pos_valid_edge.shape[0], self.batch_size, False)
-        # ], dim=0)
+        """ #OLD version rasies OOM error
+        pos_train_pred = torch.cat([
+        self.predictor(h[pos_train_edge[perm, 0]], h[pos_train_edge[perm, 1]]).squeeze().cpu()
+        for perm in PermIterator(pos_train_edge.device,
+                                 pos_train_edge.shape[0], self.batch_size, False)
+        ], dim=0)
+          
+        pos_valid_pred = torch.cat([
+        self.predictor(h[pos_valid_edge[perm, 0]], h[pos_valid_edge[perm, 1]]).squeeze().cpu()
+        for perm in PermIterator(pos_valid_edge.device,
+                                 pos_valid_edge.shape[0], self.batch_size, False)
+        ], dim=0)
 
-        # neg_valid_pred = torch.cat([
-        # self.predictor(h[neg_valid_edge[perm, 0]], h[neg_valid_edge[perm, 1]]).squeeze().cpu()
-        # for perm in PermIterator(neg_valid_edge.device,
-        #                          neg_valid_edge.shape[0], self.batch_size, False)
-        # ], dim=0)
-
-
+        neg_valid_pred = torch.cat([
+        self.predictor(h[neg_valid_edge[perm, 0]], h[neg_valid_edge[perm, 1]]).squeeze().cpu()
+        for perm in PermIterator(neg_valid_edge.device,
+                                 neg_valid_edge.shape[0], self.batch_size, False)
+        ], dim=0)
               
-        # pos_test_pred = torch.cat([
-        # self.predictor(h[pos_test_edge[perm, 0]], h[pos_test_edge[perm, 1]]).squeeze().cpu()
-        # for perm in PermIterator(pos_test_edge.device,
-        #                          pos_test_edge.shape[0], self.batch_size, False)
-        # ], dim=0)
+        pos_test_pred = torch.cat([
+        self.predictor(h[pos_test_edge[perm, 0]], h[pos_test_edge[perm, 1]]).squeeze().cpu()
+        for perm in PermIterator(pos_test_edge.device,
+                                 pos_test_edge.shape[0], self.batch_size, False)
+        ], dim=0)
 
-        # neg_test_pred = torch.cat([
-        # self.predictor(h[neg_test_edge[perm, 0]], h[neg_test_edge[perm, 1]]).squeeze().cpu()
-        # for perm in PermIterator(neg_test_edge.device,
-        #                          neg_test_edge.shape[0], self.batch_size, False)
-        # ], dim=0)
-        # top_neg = neg_test_pred.topk(50)  
-        
-        # print("Highest 50 negative preds:", top_neg.values)
+        neg_test_pred = torch.cat([
+        self.predictor(h[neg_test_edge[perm, 0]], h[neg_test_edge[perm, 1]]).squeeze().cpu()
+        for perm in PermIterator(neg_test_edge.device,
+                                 neg_test_edge.shape[0], self.batch_size, False)
+        ], dim=0)
+        """
         results = {}
         for K in [1, 3, 10, 20, 50, 100]:
             evaluator.K = K
@@ -246,7 +248,6 @@ class Trainer_GRAND:
                 # self.data.edge_index = ei
                 
             loss = self.train_epoch()
-            
             print(f"Epoch {epoch}, Loss: {loss:.4f}")
             if epoch % 1 == 0:
                 results = self.test_epoch()
@@ -256,10 +257,8 @@ class Trainer_GRAND:
                     self.best_epoch = epoch
                     self.best_metric = current_metric
                     self.best_results = results
-
                 print(f"Epoch {epoch} completed in {time.time() - start_time:.2f}s")
                 print(f"Current Best {current_metric}: {self.best_metric:.4f} (Epoch {self.best_epoch})")
-
         print(f"Training completed. Best {current_metric}: {self.best_metric:.4f} (Epoch {self.best_epoch})")
         return self.best_results
 
