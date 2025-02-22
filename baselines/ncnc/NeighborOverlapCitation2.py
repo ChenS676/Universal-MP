@@ -180,7 +180,7 @@ def main():
     data = data.to(device)
 
     predfn = predictor_dict[args.predictor]
-    
+
     if args.predictor != "cn0":
         predfn = partial(predfn, cndeg=args.cndeg)
     if args.predictor in ["cn1", "incn1cn1", "scn1", "catscn1", "sincn1cn1"]:
