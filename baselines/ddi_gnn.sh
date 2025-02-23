@@ -39,15 +39,16 @@ echo ">>> Environment and modules set up successfully <<<"
 echo "Job started at: $(date)"
 
 # List of GNN models
-gnn_models=("SAGE" "GAT")
+gnn_models=("GCN" "SAGE")
 
 # Common parameters
 DATA_NAME="ogbl-ddi"
-EPOCHS=9999
+EPOCHS=400
 EVAL_STEPS=1
 KILL_CNT=100
 BATCH_SIZE=65536
 HIDDEN_CHANNELS=256
+RUNS=3
 
 # Hyperparameters per model
 declare -A LR=( ["GIN"]=0.001 ["GCN"]=0.01 ["SAGE"]=0.01 ["GAT"]=0.01 )
@@ -59,7 +60,7 @@ for model in "${gnn_models[@]}"; do
     echo "------------------------------------------------------"
     echo "Running model: $model"
     echo "Start time: $(date)"
-    CMD="python ddi_gnn.py --data_name $DATA_NAME --gnn_model $model --lr ${LR[$model]} --dropout ${DROPOUT[$model]} --num_layers ${NUM_LAYERS[$model]} --num_layers_predictor ${NUM_LAYERS_PREDICTOR[$model]} --hidden_channels $HIDDEN_CHANNELS --epochs $EPOCHS --eval_steps $EVAL_STEPS --kill_cnt $KILL_CNT --batch_size $BATCH_SIZE"
+    CMD="python ddi_gnn.py --data_name $DATA_NAME --gnn_model $model --lr ${LR[$model]} --dropout ${DROPOUT[$model]} --num_layers ${NUM_LAYERS[$model]} --num_layers_predictor ${NUM_LAYERS_PREDICTOR[$model]} --hidden_channels $HIDDEN_CHANNELS --epochs $EPOCHS --eval_steps $EVAL_STEPS --kill_cnt $KILL_CNT --batch_size $BATCH_SIZE --runs $RUNS"
     
     echo "Executing: $CMD"
     eval $CMD || { echo "Error: $model training failed"; exit 1; }

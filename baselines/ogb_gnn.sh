@@ -35,22 +35,31 @@ cd /hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines
 echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 # Print loaded modules
 
-echo "Running command: time python  ogb_gnn.py  --data_name ppa  --gnn_model model --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1  --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5  --batch_size 1024  --random_sampling"
-echo "Start time: $(date)"
 
-
-gnn_models=(GCN GIN SAGE GAT)
-
+# List of GNN models "GCN" "SAGE"
+gnn_models=("GCN" "SAGE")
 data_name="ogbl-collab"
 
-gnn_models=("GIN" "GCN")
-
+# Loop through models and run training
 for model in "${gnn_models[@]}"; do
-   time python gnn_ogb_heart.py --use_valedges_as_input --data_name "$data_name" \
-       --gnn_model "$model" --hidden_channels 256 --lr 0.001 --dropout 0.0 \
-       --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100 \
-       --batch_size 65536
+    echo "------------------------------------------------------"
+    echo "Running model: $model"
+    echo "Start time: $(date)"
+
+    CMD="python gnn_ogb_heart.py --use_valedges_as_input --data_name $data_name \
+         --gnn_model $model --hidden_channels 256 --lr 0.001 --dropout 0.0 \
+         --num_layers 3 --num_layers_predictor 3 --epochs 800 --kill_cnt 100 \
+         --batch_size 65536"
+    
+    echo "Executing: $CMD"
+    time $CMD || { echo "Error: $model training failed"; exit 1; }
+
+    echo "End time: $(date)"
+    echo "------------------------------------------------------"
 done
+
+echo ">>> All models completed successfully <<<"
+echo "Job finished at: $(date)"
 
 # TO DEBUG
 # python gnn_ogb_heart.py  --use_valedges_as_input  --data_name ogbl-ddi  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
