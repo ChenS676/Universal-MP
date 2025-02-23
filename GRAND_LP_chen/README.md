@@ -1,4 +1,6 @@
-
+## debug GCNs 
+    - [ ] save result file has a bug: name of the model is lost change the name_tag
+    - [ ] submit the job and report the result to table
 
 ## debug on ppa  UPGRADE    
     - it never ends -> 1 epoch up to 2 hours why? with slightly improvement considering assing common neighbors
@@ -7,9 +9,16 @@
     - [ ] no default parameters solved promptly, reference to statistic  -> use ddi 
     - [ ] function_laplacian_diffusion has OOM memory when running `ax = self.sparse_multiply(x)`
             - reimplement it using sparse tensor reduce epoch training time from 2.5 mins to 0.5min, but somehow some metrics have the decay.
-- [ ] 5. citation2 UPGRADE
+
+###  citation2 UPGRADE
     - default parameter commented, no reason why
     - what to do -  uncomment
+    - finalize the implementation of trainer with slight change in test_epoch only by copying the script from  NCNC OverlapCommonNeighbor
+    -
+### Temporary task
+    - 
+### Paper writing, 
+    - automatic table generation in new pipeline result - xlsx - script - latex table -overleaf
 
 # Systematic Issue of High Complexity 
 
@@ -65,6 +74,7 @@
     - default parameter commented, no reason why 
     - what to do -  uncomment
 
+
 Running Command:
 ```
 python3 main_grand.py --dataset ogbl-ppa --device 0 --no_early --beltrami 
@@ -72,30 +82,9 @@ python3 main_grand.py --dataset ogbl-collab --device 0 --no_early --beltrami
 python3 main_grand.py --dataset ogbl-ddi --device 0 --no_early --beltrami  
 # take very long several hours for one epoch
 python main_grand.py  --dataset ogbl-vessel --device 0 --no_early --beltrami
+
+python main_grand.py  --dataset Citeseer --device 0 --no_early --beltrami
+python main_grand.py  --dataset Pubmed --device 0 --no_early --beltrami
+python main_grand.py  --dataset Cora --device 0 --no_early --beltrami
 ```
 
-
-Here is one important bug, check for all evaluator hitsk
-    148 for K in [1, 3, 10, 20, 50, 100]:
-    149     evaluator.K = K
---> 150     test_hits = evaluator.eval({
-    151         'y_pred_pos': pos_pred,
-    152         'y_pred_neg': neg_pred,
-    153     })[f'hits@{K}']
-    155 return test_hits, mrr, pos_pred, neg_pred
-
-File ~/anaconda3/envs/EAsF/lib/python3.10/site-packages/ogb/linkproppred/evaluate.py:151, in Evaluator.eval(self, input_dict)
-    148 def eval(self, input_dict):
-    150     if 'hits@' in self.eval_metric:
---> 151         y_pred_pos, y_pred_neg, type_info = self._parse_and_check_input(input_dict)
-    152         return self._eval_hits(y_pred_pos, y_pred_neg, type_info)
-    153     elif self.eval_metric == 'mrr':
-
-File ~/anaconda3/envs/EAsF/lib/python3.10/site-packages/ogb/linkproppred/evaluate.py:84, in Evaluator._parse_and_check_input(self, input_dict)
-     81         raise RuntimeError('y_pred_pos must to 1-dim arrray, {}-dim array given'.format(y_pred_pos.ndim))
-     83     if not y_pred_neg.ndim == 1:
----> 84         raise RuntimeError('y_pred_neg must to 1-dim arrray, {}-dim array given'.format(y_pred_neg.ndim))
-     86     return y_pred_pos, y_pred_neg, type_info
-     88 elif 'mrr' == self.eval_metric:
-
-RuntimeError: y_pred_neg must to 1-dim arrray, 2-dim array given

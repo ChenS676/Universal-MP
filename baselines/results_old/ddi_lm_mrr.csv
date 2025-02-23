@@ -1,10 +1,10 @@
 Metric,Hits@20,Hits@50,Hits@100,AUC,AP
-_rand1.0,0.00 ± 0.00,0.00 ± 0.00,0.00 ± 0.00,50.00 ± 0.00,58.27 ± 0.00
-_rand1.0,0.00 ± 0.00,0.00 ± 0.00,0.00 ± 0.00,50.00 ± 0.00,58.27 ± 0.00
-_rand1.0,2.72 ± 2.33,3.98 ± 3.08,5.44 ± 3.85,83.78 ± 7.57,85.69 ± 8.52
-_rand1.0,2.72 ± 2.33,3.98 ± 3.08,5.44 ± 3.85,83.78 ± 7.57,85.69 ± 8.52
-_rand1.0,7.41 ± 4.61,12.23 ± 6.99,17.29 ± 9.79,87.94 ± 21.21,89.86 ± 17.66
-_rand1.0,7.41 ± 4.61,12.23 ± 6.99,17.29 ± 9.79,87.94 ± 21.21,89.86 ± 17.66
-_rand1.0,2.18 ± 3.19,3.97 ± 5.61,6.61 ± 9.22,68.72 ± 25.63,73.82 ± 21.29
-_rand1.0,1.52 ± 2.20,3.19 ± 4.66,5.83 ± 8.36,68.55 ± 25.40,73.71 ± 21.14
-Best,7.41 ± 4.61,3.98 ± 3.08,6.61 ± 9.22,87.94 ± 21.21,89.86 ± 17.66
+ddi_GCN_mlp_score_sampling1.0_rand1.0,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,58.27 ± nan
+ddi_GCN_mlp_score_sampling1.0_rand1.0,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,58.27 ± nan
+ddi_GIN_mlp_score_sampling1.0_rand1.0,3.63 ± nan,5.15 ± nan,7.25 ± nan,86.84 ± nan,89.58 ± nan
+ddi_GIN_mlp_score_sampling1.0_rand1.0,3.63 ± nan,5.15 ± nan,7.25 ± nan,86.84 ± nan,89.58 ± nan
+ddi_SAGE_mlp_score_sampling1.0_rand1.0,7.24 ± nan,11.47 ± nan,18.05 ± nan,97.01 ± nan,97.31 ± nan
+ddi_SAGE_mlp_score_sampling1.0_rand1.0,7.24 ± nan,11.47 ± nan,18.05 ± nan,97.01 ± nan,97.31 ± nan
+ddi_GAT_mlp_score_sampling1.0_rand1.0,5.15 ± nan,10.57 ± nan,18.47 ± nan,97.04 ± nan,97.34 ± nan
+ddi_GAT_mlp_score_sampling1.0_rand1.0,2.98 ± nan,6.90 ± nan,13.72 ± nan,96.99 ± nan,97.23 ± nan
+Best,7.24 ± nan,6.90 ± nan,7.25 ± nan,97.04 ± nan,97.34 ± nan

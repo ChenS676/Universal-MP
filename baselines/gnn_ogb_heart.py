@@ -468,6 +468,12 @@ def main():
             train_edge_weight = None
     else:
         train_edge_weight = None
+    
+    print(data, args.data_name)
+    import IPython; IPython.embed(header='check data')
+    if data.edge_weight is None:
+        edge_weight = torch.ones((data.edge_index.size(1), 1))
+        print(f"custom edge_weight {edge_weight.size()} added for {args.data_name}")
     data = T.ToSparseTensor()(data)
     if args.use_valedges_as_input:
         val_edge_index = split_edge['valid']['edge'].t()
@@ -575,6 +581,8 @@ def main():
         kill_cnt = 0
         best_test = 0
         step = 0
+        eval_step = 0
+        
         for epoch in range(1, 1 + args.epochs):
             if args.use_hard_negative:
                 loss = train_use_hard_negative(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.remove_edge_aggre, args.test_batch_size)
@@ -582,6 +590,7 @@ def main():
                 loss = train(model, score_func, split_edge, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
                 wandb.log({'train_loss': loss}, step = epoch)
                 step += 1
+                
             if epoch % args.eval_steps == 0:
                 if args.data_name == 'ogbl-citation2':
                     results_rank, score_emb= test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size)
@@ -591,7 +600,8 @@ def main():
                     loggers[key].add_result(run, result)
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
-                    wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                    wandb.log({f"Metrics/{key}": result[-1]}, step=eval_step)
+                    eval_step += 1 
                     
                 if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
@@ -641,18 +651,22 @@ def main():
                 loggers[key].print_statistics(run)
     
     result_all_run = {}
+    save_dict = {}
     for key in loggers.keys():
         if len(loggers[key].results[0]) > 0:
             print(key)
-            best_metric,  best_valid_mean, mean_list, var_list = loggers[key].print_statistics()
+            best_metric,  best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
             if key == eval_metric:
                 best_metric_valid_str = best_metric
                 best_valid_mean_metric = best_valid_mean
             if key == 'AUC':
                 best_auc_valid_str = best_metric
                 best_auc_metric = best_valid_mean
-
             result_all_run[key] = [mean_list, var_list]
+            save_dict[key] = test_res
+    print(f"now save {save_dict}")
+    mvari_str2csv(args.name_tag, save_dict, f'results_ogb_gnn/{args.data_name}_lm_mrr.csv')
+
     if args.runs == 1:
         print(str(best_valid_current) + ' ' + str(best_test) + ' ' + str(best_valid_auc) + ' ' + str(best_test_auc))
     else:

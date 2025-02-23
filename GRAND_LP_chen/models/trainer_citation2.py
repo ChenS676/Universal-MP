@@ -65,7 +65,9 @@ class Trainer_GRAND_Citation2:
         total_loss = total_examples = 0
         indices = torch.randperm(pos_train_edge.size(0), device=pos_train_edge.device)
 
+    
         for start in tqdm(range(0, pos_train_edge.size(0), self.batch_size)):
+            import IPython; IPython.embed()
             self.optimizer.zero_grad()
             h = self.model(self.data.x, pos_encoding)
             
