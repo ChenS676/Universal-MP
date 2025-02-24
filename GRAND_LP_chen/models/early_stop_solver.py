@@ -143,7 +143,8 @@ class EarlyStopDopri5(RKAdaptiveStepsizeODESolver):
     neg_test_pred = torch.cat(neg_test_preds, dim=0)
     print(f"Negative predictions (min, max): {neg_test_pred.min().item()}, {neg_test_pred.max().item()}")
     print(f"Negative predictions (mean, std): {neg_test_pred.mean().item()}, {neg_test_pred.std().item()}")
-    
+
+    # TODO debug and check the detail
     results = {}
     for K in [1, 3, 10, 20, 50, 100]:
         self.evaluator.K = K
@@ -212,6 +213,7 @@ class EarlyStopRK4(FixedGridODESolver):
     self.best_time = 0
     self.ode_test = self.test_OGB #if opt['dataset'] in ['ogbn-arxiv', 'ogbl-collab'] else self.test
     self.dataset = opt['dataset']
+    self.opt = opt
     if opt['dataset'].startswith('ogbl-'):
       self.evaluator = Evaluator(name=opt['dataset'])
     else:
@@ -340,7 +342,7 @@ class EarlyStopRK4(FixedGridODESolver):
     # print(f"Shape of pos_val_pred: {pos_test_pred.shape}")
     # print(f"Shape of neg_val_pred: {neg_test_pred.shape}")
 
-    result_mrr_test = evaluate_mrr(pos_test_pred, neg_test_pred)  
+    result_mrr_test = evaluate_mrr(pos_test_pred, neg_test_pred, self.opt)  
     
     for name in ['MRR', 'mrr_hit1', 'mrr_hit3', 'mrr_hit10', 'mrr_hit20', 'mrr_hit50', 'mrr_hit100']:
         results[name] = (result_mrr_test[name])

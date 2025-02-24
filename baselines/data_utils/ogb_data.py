@@ -6,7 +6,7 @@ from torch_sparse import SparseTensor
 from torch_geometric.datasets import Planetoid
 from torch_geometric.utils import train_test_split_edges, negative_sampling, to_undirected
 from torch_geometric.transforms import RandomLinkSplit
-
+from torch_geometric.datasets import Planetoid, Amazon
 from graph_stats import (construct_sparse_adj, 
                          from_scipy_sparse_array,
                          plot_all_cc_dist, 
@@ -29,7 +29,7 @@ from graph_stats import (graph_metrics_nx,
                          _largest_connected_component_size)
 import numpy as np
 from graph_stats import feat_homophily
-from data_utils.load_data_lp import  get_edge_split
+
 
 
 # random split dataset
@@ -95,6 +95,8 @@ def loaddataset(name: str, use_valedges_as_input: bool, load=None):
     return data, split_edge
 
 
+
+
 def graph_metrics_nx(graph: nx.Graph, name: str, use_lcc: bool) -> Dict[str, float]:
     """Computes graph metrics on a networkx graph object.
 
@@ -138,17 +140,48 @@ def graph_metrics_nx(graph: nx.Graph, name: str, use_lcc: bool) -> Dict[str, flo
     result['power_law_estimate'] = _power_law_estimate(degrees)
     return result
 
+
 if __name__ == "__main__":
-    gc = [] #"ppa", "collab", "citation2", "vessel"
-    for name in ["citation2"]:
+    import argparse
+    parser = argparse.ArgumentParser(description='ogb_nx_stats')
+    parser.add_argument('--data_name', dest='data_name', type=str, required=False,
+                        help='data name')
+    args = parser.parse_args()
+    
+    if args.data_name in ["Cora", "Citeseer", "Pubmed", "ppa", "collab", "citation2", "vessel"]:
+        data,  split_edge = loaddataset(args.data_name, False)
+        
+    elif args.data_name in ["Computers", "Photo"]:
+        dataset = Amazon(root="dataset", name=args.data_name)
+        split_edge = randomsplit(dataset)
+        data = dataset[0]
+        data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+        edge_index = data.edge_index
+        data.num_nodes = data.x.shape[0]
+        
+    start_time = time.time()
+    m = construct_sparse_adj(data.edge_index.numpy())
+    G = from_scipy_sparse_array(m)
+    print(f"Time taken to create graph: {time.time() - start_time} s")
+    
+    if True:
+        gc = [] 
+        gc.append(graph_metrics_nx(G, args.data_name, False))
+        print(gc)
+        
+        gc = pd.DataFrame(gc)
+        gc.to_csv(f'{args.data_name}_all_graph_metric_False.csv', index=False)
+
+"""
+if __name__ == "__main__":
+  
+    for name in ["ppa", "collab", "citation2", "vessel"]:
+        gc = [] 
         data,  split_edge = loaddataset(name, False)
         start_time = time.time()
         m = construct_sparse_adj(data.edge_index.numpy())
         G = from_scipy_sparse_array(m)
         print(f"Time taken to create graph: {time.time() - start_time} s")
-        
-        if  False:
-            plot_all_cc_dist(G, 'haha')
         
         if True:
             gc.append(graph_metrics_nx(G, name, False))
@@ -157,7 +190,7 @@ if __name__ == "__main__":
             gc = pd.DataFrame(gc)
             gc.to_csv(f'{name}_all_graph_metric_False.csv', index=False)
             
-    """
+    
     gc = [] 
     results = [] 
     for name in ["ppa", "ddi", "collab", "citation2", "vessel"]:

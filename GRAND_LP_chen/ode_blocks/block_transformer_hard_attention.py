@@ -65,7 +65,7 @@ class HardAttODEblock(ODEblock):
         mask = mean_att > threshold
         self.odefunc.edge_index = self.data_edge_index[:, mask.T]
         sampled_attention_weights = self.renormalise_attention(mean_att[mask])
-        print('retaining {} of {} edges'.format(self.odefunc.edge_index.shape[1], self.data_edge_index.shape[1]))
+        # print('retaining {} of {} edges'.format(self.odefunc.edge_index.shape[1], self.data_edge_index.shape[1]))
         self.odefunc.attention_weights = sampled_attention_weights
     else:
       self.odefunc.edge_index = self.data_edge_index

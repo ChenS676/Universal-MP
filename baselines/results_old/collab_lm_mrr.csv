@@ -1,0 +1,6 @@
+Metric,Hits@20,Hits@50,Hits@100,AUC,AP
+collab_GCN_mlp_score_sampling1.0_rand1.0,19.23 ± nan,27.13 ± nan,37.22 ± nan,98.56 ± nan,96.93 ± nan
+collab_GIN_mlp_score_sampling1.0_rand1.0,15.07 ± nan,20.45 ± nan,28.74 ± nan,96.44 ± nan,93.51 ± nan
+collab_SAGE_mlp_score_sampling1.0_rand1.0,12.71 ± nan,22.79 ± nan,32.83 ± nan,98.65 ± nan,96.92 ± nan
+collab_GAT_mlp_score_sampling1.0_rand1.0,12.17 ± nan,21.08 ± nan,31.29 ± nan,98.38 ± nan,96.49 ± nan
+Best,19.23 ± nan,27.13 ± nan,37.22 ± nan,98.65 ± nan,96.93 ± nan

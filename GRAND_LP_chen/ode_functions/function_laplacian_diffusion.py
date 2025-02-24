@@ -28,16 +28,28 @@ class LaplacianODEFunc(ODEFunc):
     self.alpha_sc = nn.Parameter(torch.ones(1))
     self.beta_sc = nn.Parameter(torch.ones(1))
 
-  def sparse_multiply(self, x):
-    if self.opt['block'] in ['attention']:  # adj is a multihead attention
-      mean_attention = self.attention_weights.mean(dim=1)
-      ax = torch_sparse.spmm(self.edge_index, mean_attention, x.shape[0], x.shape[0], x)
-    elif self.opt['block'] in ['mixed', 'hard_attention']:  # adj is a torch sparse matrix
-      ax = torch_sparse.spmm(self.edge_index, self.attention_weights, x.shape[0], x.shape[0], x)
-    else:  # adj is a torch sparse matrix
-      ax = torch_sparse.spmm(self.edge_index, self.edge_weight, x.shape[0], x.shape[0], x)
-    return ax
+  # def sparse_multiply(self, x):
+  #   if self.opt['block'] in ['attention']:  # adj is a multihead attention
+  #     mean_attention = self.attention_weights.mean(dim=1)
+  #     ax = torch_sparse.spmm(self.edge_index, mean_attention, x.shape[0], x.shape[0], x)
+  #   elif self.opt['block'] in ['mixed', 'hard_attention']:  # adj is a torch sparse matrix
+  #     ax = torch_sparse.spmm(self.edge_index, self.attention_weights, x.shape[0], x.shape[0], x)
+  #   else:  # adj is a torch sparse matrix
+  #     ax = torch_sparse.spmm(self.edge_index, self.edge_weight, x.shape[0], x.shape[0], x)
+  #   return ax
 
+  def sparse_multiply(self, x):
+      if self.opt['block'] in ['attention']:  # adj is a multihead attention
+          mean_attention = self.attention_weights.mean(dim=1)
+          sparse_adj = torch.sparse_coo_tensor(self.edge_index, mean_attention, (x.shape[0], x.shape[0]))
+      elif self.opt['block'] in ['mixed', 'hard_attention']:
+          sparse_adj = torch.sparse_coo_tensor(self.edge_index, self.attention_weights, (x.shape[0], x.shape[0]))
+      else:
+          sparse_adj = torch.sparse_coo_tensor(self.edge_index, self.edge_weight, (x.shape[0], x.shape[0]))
+
+      ax = torch.sparse.mm(sparse_adj, x)  # More memory-efficient multiplication
+      return ax
+  
   def forward(self, t, x):  # the t param is needed by the ODE solver.
     if self.nfe > self.opt["max_nfe"]:
       raise MaxNFEException

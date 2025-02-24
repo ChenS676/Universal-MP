@@ -1,7 +1,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
+# Cora, Pubmed, Citeseer, Photo, Computer
 
 import torch
 import argparse
@@ -344,11 +344,8 @@ def main():
 
     # data = dataset[0]# 
     # readdata = read_data(args.data_name, args.neg_mode)
-    if args.name_tag == 'None':
-        args.name_tag = args.gnn_model
-    else:
-        args.name_tag = args.data_name + '_' + args.gnn_model + '_' +  args.name_tag
-        
+    args.name_tag = f"{args.data_name}_gnn_{args.gnn_model}_{args.score_model}_run{args.runs}"
+
     load_data, splits = loaddataset(args.data_name, False, None) 
     data = data2dict(load_data, splits, args.data_name)
     del load_data, splits

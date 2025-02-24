@@ -11,12 +11,12 @@ from torch_geometric.utils import to_torch_coo_tensor
 from torch_sparse import SparseTensor
 import matplotlib.pyplot as plt
 from scipy.sparse import coo_matrix
-import matspy as spy  # https://github.com/alugowski/matspy
+# import matspy as spy  # https://github.com/alugowski/matspy
 import math
 import argparse
-import os.path as osp
+
 import numpy as np
-from ogb.linkproppred import PygLinkPropPredDataset
+# from ogb.linkproppred import PygLinkPropPredDataset
 import random 
 from tqdm import tqdm 
 import timeit 
@@ -28,9 +28,7 @@ from torch_geometric.data import Data
 from typing import Dict, Tuple, List, Union
 from yacs.config import CfgNode as CN
 
-from graphgps.utility.utils import get_git_repo_root_path, config_device, init_cfg_test
-from data_utils.load import load_data_lp
-from data_utils.load_data_lp import load_taglp_citationv8, load_graph_citationv8
+# from graphgps.utility.utils import get_git_repo_root_path, config_device, init_cfg_test
 from data_utils.lcc import use_lcc, get_largest_connected_component
 import networkx as nx
 import networkx
@@ -641,7 +639,7 @@ def hellinger_distance(p, q):
     return np.sqrt(np.sum((np.sqrt(p) - np.sqrt(q))**2)) / np.sqrt(2)
 
 if __name__ == '__main__':
-
+    exit(-1)
     cfg = init_cfg_test()
     cfg.device = 'cpu'
     cfg = config_device(cfg)
