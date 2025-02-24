@@ -34,21 +34,21 @@ cd /hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines
  
 echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 # Print loaded modules
-gnn_models=("SAGE" "GAT")
+
 echo ">>> Environment and modules set up successfully <<<"
 echo "Job started at: $(date)"
 
 # List of GNN models
-gnn_models=("GCN" "SAGE")
+gnn_models=("GIN")
 
 # Common parameters
 DATA_NAME="ogbl-ddi"
-EPOCHS=100
+EPOCHS=800
 EVAL_STEPS=5
 KILL_CNT=100
 BATCH_SIZE=65536
 HIDDEN_CHANNELS=256
-RUNS=2
+RUNS=10
 
 # Hyperparameters per model
 declare -A LR=( ["GIN"]=0.001 ["GCN"]=0.01 ["SAGE"]=0.01 ["GAT"]=0.01 )

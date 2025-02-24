@@ -634,7 +634,6 @@ def main():
                                 f'best test: {100*best_test_auc:.2f}%')
                 
                 print('---')
-                
                 if best_valid_current > best_valid:
                     best_valid = best_valid_current
                     kill_cnt = 0
@@ -665,6 +664,8 @@ def main():
             result_all_run[key] = [mean_list, var_list]
             save_dict[key] = test_res
     print(f"now save {save_dict}")
+    print(f"to results_ogb_gnn/{args.data_name}_lm_mrr.csv")
+    print(f"with name {args.name_tag}.")
     mvari_str2csv(args.name_tag, save_dict, f'results_ogb_gnn/{args.data_name}_lm_mrr.csv')
 
     if args.runs == 1:
