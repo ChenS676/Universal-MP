@@ -39,10 +39,10 @@ LR=0.001
 DROPOUT=0.0
 N_LAYERS=3
 N_PREDICTORS=3
-EPOCHS=10
+EPOCHS=800
 KILL_CNT=100
 BATCH_SIZE=65536
-RUNS=2
+
 # Enable debug mode if needed (set DEBUG=1 to test a single model)
 DEBUG=0
 
@@ -55,7 +55,7 @@ for model in "${gnn_models[@]}"; do
     CMD="python gnn_ogb_heart.py --data_name $data_name \
          --gnn_model $model --hidden_channels $HIDDEN_DIM --lr $LR --dropout $DROPOUT \
          --num_layers $N_LAYERS --num_layers_predictor $N_PREDICTORS --epochs $EPOCHS \
-         --kill_cnt $KILL_CNT --batch_size $BATCH_SIZE --runs $RUNS"
+         --kill_cnt $KILL_CNT --batch_size $BATCH_SIZE"
 
     echo "Executing: $CMD"
     time $CMD || { echo "Error: $model training failed"; exit 1; }
@@ -72,3 +72,8 @@ done
 
 echo ">>> All models completed successfully <<<"
 echo "Job finished at: $(date)"
+# TO DEBUG
+# python gnn_ogb_heart.py  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 800 --kill_cnt 100  --batch_size 65536 
+# python gnn_ogb_heart.py  --data_name ogbl-collab  --gnn_model GIN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 800 --kill_cnt 100  --batch_size 65536 
+# python gnn_ogb_heart.py  --data_name ogbl-collab  --gnn_model SAGE --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 800 --kill_cnt 100  --batch_size 65536 
+# python gnn_ogb_heart.py  --data_name ogbl-collab  --gnn_model GAT --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 800 --kill_cnt 100  --batch_size 65536 

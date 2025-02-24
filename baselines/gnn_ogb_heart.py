@@ -1,5 +1,6 @@
 # adopted from benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
 # python gnn_ogb_heart.py  --use_valedges_as_input  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
+# OBGL-PPA,DDI, CITATION2, VESSEL, COLLAB
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -394,9 +395,9 @@ def main():
     ### train setting
     parser.add_argument('--batch_size', type=int, default=16384)
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--epochs', type=int, default=9999)
+    parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--eval_steps', type=int, default=1)
-    parser.add_argument('--runs', type=int, default=10)
+    parser.add_argument('--runs', type=int, default=2)
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=20,    type=int,       help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
     parser.add_argument('--l2',		type=float,             default=0.0,			help='L2 Regularization for Optimizer')
@@ -441,7 +442,7 @@ def main():
     emb = None
     node_num = data.num_nodes
     split_edge = dataset.get_edge_split()
-
+    args.name_tag = f"{args.data_name}_{args.gnn_model}_{args.score_model}_epochs{args.epochs}_runs{args.runs}"
     if hasattr(data, 'x'):
         if data.x != None:
             x = data.x
@@ -470,7 +471,6 @@ def main():
         train_edge_weight = None
     
     print(data, args.data_name)
-    import IPython; IPython.embed(header='check data')
     if data.edge_weight is None:
         edge_weight = torch.ones((data.edge_index.size(1), 1))
         print(f"custom edge_weight {edge_weight.size()} added for {args.data_name}")

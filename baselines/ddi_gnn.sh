@@ -43,12 +43,12 @@ gnn_models=("GCN" "SAGE")
 
 # Common parameters
 DATA_NAME="ogbl-ddi"
-EPOCHS=400
-EVAL_STEPS=1
+EPOCHS=100
+EVAL_STEPS=5
 KILL_CNT=100
 BATCH_SIZE=65536
 HIDDEN_CHANNELS=256
-RUNS=3
+RUNS=2
 
 # Hyperparameters per model
 declare -A LR=( ["GIN"]=0.001 ["GCN"]=0.01 ["SAGE"]=0.01 ["GAT"]=0.01 )
