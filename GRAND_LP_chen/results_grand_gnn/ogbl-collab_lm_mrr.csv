@@ -1,0 +1,2 @@
+Metric,Hits@20,Hits@50,Hits@100,AUC,AP
+ogbl-collab_beltramiTrue_mlp_score_epochs100_runs1,18.51 ± nan,34.81 ± nan,42.74 ± nan,95.80 ± nan,93.74 ± nan

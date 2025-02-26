@@ -14,7 +14,7 @@
 # Notification settings:
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=cshao676@gmail.com
-#SBATCH --job-name=gnn_collab
+#SBATCH --job-name=gnn_ddi
 # Request GPU resources
 #SBATCH --gres=gpu:1
 

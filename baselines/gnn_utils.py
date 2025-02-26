@@ -775,12 +775,11 @@ class Logger(object):
             best_test_mean = round(r.mean().item(), 2)
             best_test_var = round(r.std().item(), 2)
             test_res = f'{r.mean():.2f} ± {r.std():.2f}'
+            print(f'  Final Train: {r.mean():.2f} ± {r.std():.2f}')
             print(test_res)
 
             mean_list = [best_train_mean, best_valid_mean, best_test_mean]
             var_list = [best_train_var, best_valid_var, best_test_var]
-
-
             return best_valid, best_valid_mean, mean_list, var_list, test_res
 
 

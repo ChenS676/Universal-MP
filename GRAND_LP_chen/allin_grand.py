@@ -5,8 +5,10 @@ import argparse
 import torch
 import time
 from tqdm import tqdm
+import numpy as np
+from baselines.gnn_utils import get_root_dir, evaluate_hits,evaluate_auc, Logger, init_seed
 from baselines.gnn_utils import GCN
-from data_utils.load_lp import *
+from data_utils.load_lp import get_dataset
 from data_utils.graph_rewiring import apply_KNN
 from metrics.metrics import *
 from models.base_classes import LinkPredictor
@@ -15,12 +17,18 @@ from models.GNN_KNN_early import GNNKNNEarly
 from models.GNN import GNN
 from models.GNN_early import GNNEarly
 from models.trainer import Trainer_GRAND
-
 from torch_geometric.nn import Node2Vec
 import yaml 
 from formatted_best_params import best_params_dict
 from torch_geometric.utils import negative_sampling
-
+from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
+from ogb.linkproppred import Evaluator
+from utils.utils import PermIterator
+from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
+import seaborn as sns
+  
+  
 def load_yaml_config(file_path):
     """Loads a YAML configuration file."""
     with open(file_path, 'r') as f:
@@ -36,7 +44,194 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
-      
+
+
+def visualize_predictions(pos_train_pred, neg_train_pred, 
+                          pos_valid_pred, neg_valid_pred, 
+                          pos_test_pred, neg_test_pred):
+  
+    """
+    Visualizes the distribution of positive and negative predictions for train, validation, and test sets.
+    """
+    plt.figure(figsize=(15, 5))
+    
+    datasets = [(pos_train_pred, neg_train_pred, 'Train'),
+                (pos_valid_pred, neg_valid_pred, 'Validation'),
+                (pos_test_pred, neg_test_pred, 'Test')]
+    
+    for i, (pos_pred, neg_pred, title) in enumerate(datasets):
+        plt.subplot(1, 3, i + 1)
+        sns.histplot(pos_pred, bins=50, kde=True, color='#7FCA85', stat='density', label='Positive')
+        sns.histplot(neg_pred, bins=50, kde=True, color='#BDAED2', stat='density', label='Negative', alpha=0.6)
+        plt.title(f'{title} Set')
+        plt.xlabel('Prediction Score')
+        plt.ylabel('Density')
+        plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig('visual_grand.png')
+
+
+def plot_test_sequences(test_pred, test_true):
+    """
+    Plots test_pred as a line plot with transparent circles for positive and negative samples.
+    """
+    test_pred = test_pred.detach().cpu().numpy()  
+    test_true = test_true.detach().cpu().numpy()
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(test_pred, marker='o', linestyle='-', label="Prediction Score", color='#7FCA85', alpha=0.7)
+    plt.plot(test_true, marker='o', linestyle='-', label="True Score", color='#BDAED2', alpha=0.7)
+    # Color true labels (1=Positive, 0=Negative)
+
+    plt.xlabel("Sample Index")
+    plt.ylabel("Prediction Score")
+    plt.title("Test Predictions with True Labels")
+    plt.legend()
+    plt.savefig('plot_prediction.png')
+    
+
+@torch.no_grad()
+def test_edge(score_func, input_data, h, batch_size, mrr_mode=False, negative_data=None):
+    preds = []
+    if mrr_mode:
+        source = input_data.t()[0]
+        source = source.view(-1, 1).repeat(1, 1000).view(-1)
+        target_neg = negative_data.view(-1)
+        for perm in DataLoader(range(source.size(0)), batch_size):
+            src, dst_neg = source[perm], target_neg[perm]
+            preds += [score_func(h[src], h[dst_neg]).squeeze().cpu()]
+        pred_all = torch.cat(preds, dim=0).view(-1, 1000)
+    else:
+        for perm  in DataLoader(range(input_data.size(0)), batch_size):
+            edge = input_data[perm].t()
+            preds += [score_func(h[edge[0]], h[edge[1]]).cpu()]
+        pred_all = torch.cat(preds, dim=0)
+    return pred_all
+
+def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
+
+    # result_hit = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred)
+    result = {}
+    k_list = [20, 50, 100]
+    result_hit_train = evaluate_hits(evaluator_hit, pos_train_pred, neg_val_pred, k_list)
+    result_hit_val = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, k_list)
+    result_hit_test = evaluate_hits(evaluator_hit, pos_test_pred, neg_test_pred, k_list)
+    # result_hit = {}
+    for K in k_list:
+        result[f'Hits@{K}'] = (result_hit_train[f'Hits@{K}'], result_hit_val[f'Hits@{K}'], result_hit_test[f'Hits@{K}'])
+    train_pred = torch.cat([pos_train_pred, neg_val_pred])
+    train_true = torch.cat([torch.ones(pos_train_pred.size(0), dtype=int), 
+                            torch.zeros(neg_val_pred.size(0), dtype=int)])
+    val_pred = torch.cat([pos_val_pred, neg_val_pred])
+    val_true = torch.cat([torch.ones(pos_val_pred.size(0), dtype=int), 
+                            torch.zeros(neg_val_pred.size(0), dtype=int)])
+    test_pred = torch.cat([pos_test_pred, neg_test_pred])
+    test_true = torch.cat([torch.ones(pos_test_pred.size(0), dtype=int), 
+                            torch.zeros(neg_test_pred.size(0), dtype=int)])
+    result_auc_train = evaluate_auc(train_pred, train_true)
+    result_auc_val = evaluate_auc(val_pred, val_true)
+    result_auc_test = evaluate_auc(test_pred, test_true)
+    
+    # result_auc = {}
+    result['AUC'] = (result_auc_train['AUC'], result_auc_val['AUC'], result_auc_test['AUC'])
+    result['AP'] = (result_auc_train['AP'], result_auc_val['AP'], result_auc_test['AP'])
+    return result
+  
+
+@torch.no_grad()
+def test_epoch(model, score_func, data, pos_encoding, batch_size, evaluation_edges, evaluator_hit, evaluator_mrr, use_valedges_as_input):
+    model.eval()
+    predictor.eval()
+
+    # adj_t = adj_t.transpose(1,0)
+    train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
+    x = data.x
+    
+    h = model(data.x, pos_encoding)
+    x1 = h
+
+    if use_valedges_as_input:
+        print('use_val_in_edge')
+        h = model(x, data.full_adj_t.to(x.device))
+        
+    train_val_edge = train_val_edge.to(x.device)
+    pos_valid_edge = pos_valid_edge.to(x.device) 
+    neg_valid_edge = neg_valid_edge.to(x.device)
+    pos_test_edge = pos_test_edge.to(x.device) 
+    neg_test_edge = neg_test_edge.to(x.device)
+    neg_valid_pred = test_edge(score_func, neg_valid_edge, h, batch_size)
+    pos_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size)
+    if use_valedges_as_input:
+        print('use_val_in_edge')
+        h = model(x, data.full_adj_t.to(x.device))
+    pos_test_pred = test_edge(score_func, pos_test_edge, h, batch_size)
+    neg_test_pred = test_edge(score_func, neg_test_edge, h, batch_size)
+    pos_train_pred = test_edge(score_func, train_val_edge, h, batch_size)
+    pos_train_pred = torch.flatten(pos_train_pred)
+    neg_valid_pred, pos_valid_pred = torch.flatten(neg_valid_pred),  torch.flatten(pos_valid_pred)
+    pos_test_pred, neg_test_pred = torch.flatten(pos_test_pred), torch.flatten(neg_test_pred)
+    
+    print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
+    result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
+    score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x1.cpu()]
+
+    return result, score_emb
+  
+  
+def train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_size, emb=None):
+    predictor.train()
+    model.train()
+    
+    pos_encoding = pos_encoding.to(model.device) if pos_encoding is not None else None
+    pos_train_edge = splits['train']['edge'].to(data.x.device)
+
+    if emb == None: 
+        x = data.x
+        emb_update = 0
+    else: 
+        x = emb.weight
+        emb_update = 1
+    total_loss = total_examples = 0
+    for perm in tqdm(DataLoader(range(pos_train_edge.size(0)), batch_size,
+                           shuffle=True)):
+        optimizer.zero_grad()
+        num_nodes = x.size(0)
+        
+        h = model(data.x, pos_encoding)
+        
+        edge = pos_train_edge[perm].t()
+        pos_out = predictor(h[edge[0]], h[edge[1]])
+        pos_loss = -torch.log(pos_out + 1e-15).mean()
+        edge = torch.randint(0, num_nodes, edge.size(), dtype=torch.long, device=h.device)
+            
+        neg_out = predictor(h[edge[0]], h[edge[1]])
+        neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
+        loss = pos_loss + neg_loss
+        
+        if model.odeblock.nreg > 0:
+            reg_states = tuple(torch.mean(rs) for rs in model.reg_states)
+            regularization_coeffs = model.regularization_coeffs
+            reg_loss = sum(
+                reg_state * coeff for reg_state, coeff in zip(reg_states, regularization_coeffs) if coeff != 0
+            )
+            loss = loss + reg_loss
+        
+        model.fm.update(model.getNFE())
+        model.resetNFE()
+        loss.backward()
+        # if emb_update == 1: torch.nn.utils.clip_grad_norm_(x, 1.0)
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        # torch.nn.utils.clip_grad_norm_(predictor.parameters(), 1.0)
+        optimizer.step()
+        model.bm.update(model.getNFE())
+        model.resetNFE()
+        num_examples = pos_out.size(0)
+        total_loss += loss.item() * num_examples
+        total_examples += num_examples
+        ############################
+    return total_loss / total_examples
+
 def merge_cmd_args(cmd_opt, opt):
   if cmd_opt['beltrami']:
     opt['beltrami'] = False
@@ -102,7 +297,7 @@ if __name__=='__main__':
                         help='The configuration file path.')
     ### MPLP PARAMETERS ###
     # dataset setting
-    parser.add_argument('--dataset', type=str, default='ogbl-ppa')
+    parser.add_argument('--data_name', type=str, default='ogbl-ppa')
     parser.add_argument('--dataset_dir', type=str, default='./data')
     parser.add_argument('--use_valedges_as_input', type=str2bool, default='False', help='whether to use val edges as input')
     parser.add_argument('--year', type=int, default=-1)
@@ -140,7 +335,7 @@ if __name__=='__main__':
     parser.add_argument('--optimizer', type=str, default='adam', help='One from sgd, rmsprop, adam, adagrad, adamax.')
     parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
     parser.add_argument('--decay', type=float, default=5e-4, help='Weight decay for optimization')
-    parser.add_argument('--epoch', type=int, default=10, help='Number of training epochs per iteration.')
+    parser.add_argument('--epoch', type=int, default=500, help='Number of training epochs per iteration.')
     parser.add_argument('--alpha', type=float, default=1.0, help='Factor in front matrix A.')
     parser.add_argument('--alpha_dim', type=str, default='sc', help='choose either scalar (sc) or vector (vc) alpha')
     parser.add_argument('--no_alpha_sigmoid', dest='no_alpha_sigmoid', action='store_true',
@@ -172,7 +367,7 @@ if __name__=='__main__':
     parser.add_argument("--tol_scale_adjoint", type=float, default=1.0,
                     help="multiplier for adjoint_atol and adjoint_rtol")
     parser.add_argument('--ode_blocks', type=int, default=1, help='number of ode blocks to run')
-    parser.add_argument("--max_nfe", type=int, default=1000,
+    parser.add_argument("--max_nfe", type=int, default=100,
                     help="Maximum number of function evaluations in an epoch. Stiff ODEs will hang if not set.")
     parser.add_argument("--no_early", action="store_true",
                     help="Whether or not to use early stopping of the ODE integrator when testing.")
@@ -263,31 +458,43 @@ if __name__=='__main__':
     parser.add_argument('--pos_enc_csv', action='store_true', help="Generate pos encoding as a sparse CSV")
 
     parser.add_argument('--pos_dist_quantile', type=float, default=0.001, help="percentage of N**2 edges to keep")
-
+    parser.add_argument('--cat_n2v_feat', default=False, action='store_true')
     # MY PARAMETERS
     parser.add_argument('--mlp_num_layers', type=int, default=3, help="Number of layers in MLP")
     parser.add_argument('--batch_size', type=int, default=2**12)
     parser.add_argument('--gcn', type=str2bool, default=False)
-    
+    parser.add_argument('--runs', type=int, default=1)
+    parser.add_argument('--eval_steps', type=int, default=1)
     args = parser.parse_args()
-    
+
     cmd_opt = vars(args)
     try:
-      best_opt = best_params_dict[cmd_opt['dataset']]
+      best_opt = best_params_dict[cmd_opt['data_name']]
       opt = {**cmd_opt, **best_opt}
       merge_cmd_args(cmd_opt, opt)
     except KeyError:
       opt = cmd_opt
+    args.name_tag = f"{args.data_name}_beltrami{args.beltrami}_mlp_score_epochs{args.epoch}_runs{args.runs}"
     
-    opt['epoch'] = 5
     opt['beltrami'] = False
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     
-    data, splits = get_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
-    print(data)
-    if args.dataset == "ogbl-citation2":
+    ############################ DEBUG is the dataset loader really the same
+    data, splits = get_dataset(opt['dataset_dir'], opt, opt['data_name'], opt['use_valedges_as_input'])
+    ##############################################################################
+    if args.data_name == 'ogbl-citation2': 
+        data.adj_t = data.adj_t.to_symmetric()
+        if args.gnn_model == 'GCN':
+            adj_t = data.adj_t.set_diag()
+            deg = adj_t.sum(dim=1).to(torch.float)
+            deg_inv_sqrt = deg.pow(-0.5)
+            deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+            adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
+            data.adj_t = adj_t
+            
+    if args.data_name == "ogbl-citation2":
         opt['metric'] = "MRR"
     if data.x is None:
         opt['use_feature'] = False
@@ -301,7 +508,52 @@ if __name__=='__main__':
       print(f"pos encoding type is {type(pos_encoding)}")
     else:
       pos_encoding = None
+      
+    evaluator_hit = Evaluator(name='ogbl-collab')
+    evaluator_mrr = Evaluator(name='ogbl-citation2')
 
+    loggers = {
+        'Hits@1': Logger(args.runs),
+        'Hits@3': Logger(args.runs),
+        'Hits@10': Logger(args.runs),
+        'Hits@20': Logger(args.runs),
+        'Hits@50': Logger(args.runs),
+        'Hits@100': Logger(args.runs),
+        'MRR': Logger(args.runs),
+        'AUC':Logger(args.runs),
+        'AP':Logger(args.runs),
+        'mrr_hit1':  Logger(args.runs),
+        'mrr_hit3':  Logger(args.runs),
+        'mrr_hit10':  Logger(args.runs),
+        'mrr_hit20':  Logger(args.runs),
+        'mrr_hit50':  Logger(args.runs),
+        'mrr_hit100':  Logger(args.runs),
+    }
+
+    if args.data_name =='ogbl-collab':
+        eval_metric = 'Hits@50'
+    elif args.data_name =='ogbl-ddi':
+        eval_metric = 'Hits@20'
+    elif args.data_name =='ogbl-ppa':
+        eval_metric = 'Hits@100'
+    elif args.data_name =='ogbl-citation2':
+        eval_metric = 'MRR'
+    elif args.data_name in ['Cora', 'Pubmed', 'Citeseer']:
+        eval_metric = 'Hits@100'
+
+    if args.data_name != 'ogbl-citation2':
+        pos_train_edge = splits['train']['edge']
+        pos_valid_edge = splits['valid']['edge']
+        neg_valid_edge = splits['valid']['edge_neg']
+        pos_test_edge = splits['test']['edge']
+        neg_test_edge = splits['test']['edge_neg']
+        
+    idx = torch.randperm(pos_train_edge.size(0))[:pos_valid_edge.size(0)]
+    train_val_edge = pos_train_edge[idx]
+    pos_train_edge = pos_train_edge.to(device)
+    evaluation_edges = [train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge]
+    best_valid_auc = best_test_auc = 2
+    best_auc_valid_str = 2
     
     data = data.to(device)
     predictor = LinkPredictor(opt['hidden_dim'], opt['hidden_dim'], 1, opt['mlp_num_layers'], opt['dropout']).to(device)
@@ -321,20 +573,87 @@ if __name__=='__main__':
     )
     optimizer = get_optimizer(opt['optimizer'], parameters, lr=opt['lr'], weight_decay=opt['decay'])
 
+    best_epoch = 0
+    best_metric = 0
+    best_results = None
 
-    trainer = Trainer_GRAND(
-        opt=opt,
-        model=model,
-        predictor=predictor,
-        optimizer=optimizer,
-        data=data,
-        pos_encoding=pos_encoding,
-        splits=splits,
-        batch_size=batch_size,
-        device=device,
-        log_dir='./logs'
-    )
+    idx = torch.randperm(pos_train_edge.size(0))[:pos_valid_edge.size(0)]
+    train_val_edge = pos_train_edge[idx]
+    pos_train_edge = pos_train_edge.to(device)
+    evaluation_edges = [train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge]
 
-    best_results = trainer.train()
+    for run in range(args.runs):
+      print('#################################          ', run, '          #################################')
+      import wandb
+      wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.name_tag}_{args.runs}")
+      wandb.config.update(args)
+      if args.runs == 1:
+          seed = 0
+      else:
+          seed = run
+      print('seed: ', seed)
+      init_seed(seed)
+      model.reset_parameters()
+      predictor.reset_parameters()
 
-    trainer.finalize()
+      best_valid = 0
+      kill_cnt = 0
+      best_test = 0
+      step = 0
+      eval_step = 0
+        
+      print(f"Starting training for {opt['epoch']} epochs...")
+      for epoch in tqdm(range(1, opt['epoch'] + 1)):
+          start_time = time.time()
+
+          # CHECK Misalignment
+          if opt['rewire_KNN'] and epoch % opt['rewire_KNN_epoch'] == 0 and epoch != 0:
+              ei = apply_KNN(data, pos_encoding, model, opt)
+              model.odeblock.odefunc.edge_index = ei
+              
+          loss = train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_size)
+          print(f"Epoch {epoch}, Loss: {loss:.4f}")
+          wandb.log({'train_loss': loss}, step = epoch)
+          step += 1
+          
+          if epoch % args.eval_steps == 0:
+              results, score_emb = test_epoch(model, predictor, data, pos_encoding, batch_size, evaluation_edges, evaluator_hit, evaluator_mrr, args.use_valedges_as_input)
+              
+              for key, result in results.items():
+                  loggers[key].add_result(run, result)
+                  wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                    
+              current_metric = results['Hits@100'][2]
+              if current_metric > best_metric:
+                  best_epoch = epoch
+                  best_metric = current_metric
+                  best_results = results
+              print(f"Epoch {epoch} completed in {time.time() - start_time:.2f}s")
+              print(f"Current Best {current_metric}: {best_metric:.4f} (Epoch {best_epoch})")
+      print(f"Training completed. Best {current_metric}: {best_metric:.4f} (Epoch {best_epoch})")
+
+      for key in loggers.keys():
+          if len(loggers[key].results[0]) > 0:
+              print(key)
+              loggers[key].print_statistics(run)
+
+    result_all_run = {}
+    save_dict = {}
+    for key in loggers.keys():
+        if len(loggers[key].results[0]) > 0:
+            print(key)
+            best_metric,  best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
+            if key == eval_metric:
+                best_metric_valid_str = best_metric
+                best_valid_mean_metric = best_valid_mean
+            if key == 'AUC':
+                best_auc_valid_str = best_metric
+                best_auc_metric = best_valid_mean
+            result_all_run[key] = [mean_list, var_list]
+            save_dict[key] = test_res
+    print(f"now save {save_dict}")
+    print(f"to results_ogb_gnn/{args.data_name}_lm_mrr.csv")
+    print(f"with name {args.name_tag}.")
+    mvari_str2csv(args.name_tag, save_dict, f'results_grand_gnn/{args.data_name}_lm_mrr.csv')
+
+    print(str(best_metric_valid_str) +' ' +str(best_auc_valid_str))
