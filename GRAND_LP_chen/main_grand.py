@@ -16,9 +16,11 @@ from models.GNN import GNN
 from models.GNN_early import GNNEarly
 from models.GCN import GCN
 from models.trainer import Trainer_GRAND
+from models.trainer_citation2 import Trainer_GRAND_Citation2
 from torch_geometric.nn import Node2Vec
 import yaml 
 from formatted_best_params import best_params_dict
+from torch_geometric.utils import negative_sampling
 
 def load_yaml_config(file_path):
     """Loads a YAML configuration file."""
@@ -59,7 +61,6 @@ def merge_cmd_args(cmd_opt, opt):
     opt['not_lcc'] = False
   if cmd_opt['num_splits'] != 1:
     opt['num_splits'] = cmd_opt['num_splits']
-  
   return opt
 
 def get_optimizer(name, parameters, lr, weight_decay=0):
@@ -275,21 +276,22 @@ if __name__=='__main__':
     # to remove redundancy we delete and use best_params from yaml file
     # yaml_config = load_yaml_config(args.cfg_file)
     # opt = yaml_config[next(iter(yaml_config))]
-    opt = vars(args)
+    cmd_opt = vars(args)
     try:
-      best_opt = best_params_dict[opt['dataset']]
-      opt = {**opt, **best_opt}
-      merge_cmd_args(opt, opt)
+      best_opt = best_params_dict[cmd_opt['dataset']]
+      opt = {**cmd_opt, **best_opt}
+      merge_cmd_args(cmd_opt, opt)
+      # merge_cmd_args(opt, opt)
     except KeyError:
-      opt = opt
+      opt = cmd_opt
     
-    opt['dataset'] = args.dataset
-
+    opt['epoch'] = 5
+    opt['beltrami'] = False
+    # CHECK EPOCH AND OTHER PARAMETERS
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     
     data, splits = get_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
-
     print(data)
     if args.dataset == "ogbl-citation2":
         opt['metric'] = "MRR"
@@ -320,25 +322,38 @@ if __name__=='__main__':
         print(opt["no_early"])
         model = GNN(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
 
-    
     parameters = (
       [p for p in model.parameters() if p.requires_grad] +
       [p for p in predictor.parameters() if p.requires_grad]
     )
     optimizer = get_optimizer(opt['optimizer'], parameters, lr=opt['lr'], weight_decay=opt['decay'])
-    
-    trainer = Trainer_GRAND(
-        opt=opt,
-        model=model,
-        predictor=predictor,
-        optimizer=optimizer,
-        data=data,
-        pos_encoding=pos_encoding,
-        splits=splits,
-        batch_size=batch_size,
-        device=device,
-        log_dir='./logs'
-    )
+
+    if opt['dataset'] == 'ogbl-citation2':
+      trainer = Trainer_GRAND_Citation2(
+                    opt=opt,
+                    model=model,
+                    predictor=predictor,
+                    optimizer=optimizer,
+                    data=data,
+                    pos_encoding=pos_encoding,
+                    splits=splits,
+                    batch_size=batch_size,
+                    device=device,
+                    log_dir='./logs'
+                )
+    else:
+      trainer = Trainer_GRAND(
+          opt=opt,
+          model=model,
+          predictor=predictor,
+          optimizer=optimizer,
+          data=data,
+          pos_encoding=pos_encoding,
+          splits=splits,
+          batch_size=batch_size,
+          device=device,
+          log_dir='./logs'
+      )
 
     best_results = trainer.train()
 

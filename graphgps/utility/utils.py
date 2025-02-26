@@ -1246,16 +1246,15 @@ def mvari_str2csv(name_tag, metrics, root):
     v_lst = [f'{name_tag}'] + new_lst
     new_df = pd.DataFrame([v_lst], columns=csv_columns)
     new_Data = pd.concat([Data, new_df])
+    new_Data.to_csv(root, index=False)
     
-    # best value
-    highest_values = new_Data.apply(lambda column: max(column, default=None))
-    # concat and save
-    Best_list = ['Best'] + highest_values[1:].tolist()
-    Best_df = pd.DataFrame([Best_list], columns=Data.columns)
-
-    upt_Data = pd.concat([new_Data, Best_df])
-
-    upt_Data.to_csv(root, index=False)
-    return upt_Data
+    # DEBUG best value
+    # highest_values = new_Data.apply(lambda column: max(column, default=None))
+    # # concat and save
+    # Best_list = ['Best'] + highest_values[1:].tolist()
+    # Best_df = pd.DataFrame([Best_list], columns=Data.columns)
+    # upt_Data = pd.concat([new_Data, Best_df])
+    # upt_Data.to_csv(root, index=False)
+    return new_Data
 
 

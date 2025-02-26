@@ -23,3 +23,7 @@ ogb/
 runs/
 baselines/results
 baselines/results
+
+GRAND_LP.zip
+results/
+table_content.txt

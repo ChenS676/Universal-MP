@@ -102,6 +102,7 @@ def test(model, predictor, data, split_edge, evaluator, batch_size):
             neg_preds += [predictor(h, adj, torch.stack((src, dst_neg))).squeeze().cpu()]
         neg_pred = torch.cat(neg_preds, dim=0).view(-1, 1000)
 
+        import IPython; IPython.embed() 
         return evaluator.eval({
             'y_pred_pos': pos_pred,
             'y_pred_neg': neg_pred,
@@ -179,7 +180,7 @@ def main():
     data = data.to(device)
 
     predfn = predictor_dict[args.predictor]
-    
+
     if args.predictor != "cn0":
         predfn = partial(predfn, cndeg=args.cndeg)
     if args.predictor in ["cn1", "incn1cn1", "scn1", "catscn1", "sincn1cn1"]:
