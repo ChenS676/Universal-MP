@@ -67,8 +67,13 @@ def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=Fal
         split_edge = dataset.get_edge_split()
         data = dataset[0]
         edge_index = data.edge_index
+        try:
+            data.num_nodes = data.x.shape[0]
+        except:
+            if hasattr(data, "num_nodes"):
+                print(f"use default data.num_nodes: {data.num_nodes}.")
+        
     data.edge_weight = None 
-    
     data.adj_t = SparseTensor.from_edge_index(edge_index, 
                     sparse_sizes=(data.num_nodes, data.num_nodes))
     data.adj_t = data.adj_t.to_symmetric().coalesce()
@@ -81,7 +86,7 @@ def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=Fal
         data.max_x = torch.max(data.x).item()
     elif name == "ogbl-ddi":
         data.x = torch.arange(data.num_nodes).unsqueeze(-1).float()
-        data.max_x = data.num_nodes
+        data.max_x = data.max_x = -1 # data.num_nodes
     if load is not None:
         data.x = torch.load(load, map_location="cpu")
         data.max_x = -1
@@ -106,7 +111,8 @@ def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=Fal
         if opt['rewiring'] is not None:
             data = rewire(data, opt, root)
     return data, split_edge
- 
+
+
 def rewire(data, opt, data_dir):
     rw = opt['rewiring']
     if rw == 'two_hop':

@@ -1,0 +1,12 @@
+Metric,Hits@20,Hits@50,Hits@100,AUC,AP
+vessel_GCN_mlp_score_sampling0.25_rand0.25,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,50.00 ± nan
+vessel_GIN_mlp_score_sampling0.25_rand0.25,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,50.00 ± nan
+vessel_GCN_mlp_score_sampling0.25_rand0.25,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,50.00 ± nan
+vessel_GCN_mlp_score_sampling0.25_rand0.25,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,50.00 ± nan
+vessel_GIN_mlp_score_sampling0.25_rand0.25,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,50.00 ± nan
+vessel_SAGE_mlp_score_sampling0.25_rand0.25,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,50.00 ± nan
+vessel_GIN_mlp_score_sampling0.25_rand0.25,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,50.00 ± nan
+vessel_SAGE_mlp_score_sampling0.25_rand0.25,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,50.00 ± nan
+vessel_GAT_mlp_score_sampling0.25_rand0.25,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,50.00 ± nan
+vessel_GAT_mlp_score_sampling0.25_rand0.25,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,50.00 ± nan
+Best,0.00 ± nan,0.00 ± nan,0.00 ± nan,50.00 ± nan,50.00 ± nan

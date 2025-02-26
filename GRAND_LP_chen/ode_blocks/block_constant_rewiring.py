@@ -82,8 +82,6 @@ class ConstantODEblock(ODEblock):
       elif self.opt['new_edges'] == 'random_walk' and self.odefunc.attention_weights is not None:
         self.add_rw_edges()
 
-
-
     attention_weights = self.get_attention_weights(x)
     # create attention mask
     if self.training:
@@ -98,7 +96,7 @@ class ConstantODEblock(ODEblock):
         mask = mean_att > threshold
         self.odefunc.edge_index = self.data_edge_index[:, mask.T]
         sampled_attention_weights = self.renormalise_attention(mean_att[mask])
-        print('retaining {} of {} edges'.format(self.odefunc.edge_index.shape[1], self.data_edge_index.shape[1]))
+        # print('retaining {} of {} edges'.format(self.odefunc.edge_index.shape[1], self.data_edge_index.shape[1]))
         self.odefunc.attention_weights = sampled_attention_weights
     else:
       self.odefunc.edge_index = self.data_edge_index
