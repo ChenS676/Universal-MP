@@ -27,25 +27,6 @@ PAGERANK_FILENAME = f"{ROOT_DIR}/data/ddi_features/pagerank.txt"
 DEGREE_FILENAME = f"{ROOT_DIR}/data/ddi_features/degree.pkl"
 CENTRALITY_FILENAME = f"{ROOT_DIR}/data/ddi_features/centrality.pkl"
 
-# random split dataset
-def randomsplit(dataset, val_ratio: float=0.10, test_ratio: float=0.2):
-    def removerepeated(ei):
-        ei = to_undirected(ei)
-        ei = ei[:, ei[0]<ei[1]]
-        return ei
-    data = dataset[0]
-    data.num_nodes = data.x.shape[0]
-    data = train_test_split_edges(data, test_ratio, test_ratio)
-    split_edge = {'train': {}, 'valid': {}, 'test': {}}
-    num_val = int(data.val_pos_edge_index.shape[1] * val_ratio/test_ratio)
-    data.val_pos_edge_index = data.val_pos_edge_index[:, torch.randperm(data.val_pos_edge_index.shape[1])]
-    split_edge['train']['edge'] = removerepeated(
-        torch.cat((data.train_pos_edge_index, data.val_pos_edge_index[:, :-num_val]), dim=-1)).t()
-    split_edge['valid']['edge'] = removerepeated(data.val_pos_edge_index[:, -num_val:]).t()
-    split_edge['valid']['edge_neg'] = removerepeated(data.val_neg_edge_index).t()
-    split_edge['test']['edge'] = removerepeated(data.test_pos_edge_index).t()
-    split_edge['test']['edge_neg'] = removerepeated(data.test_neg_edge_index).t()
-    return split_edge
 
 def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=False, load=None):
     if name in ["Cora", "Citeseer", "Pubmed"]:
@@ -111,6 +92,29 @@ def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=Fal
         if opt['rewiring'] is not None:
             data = rewire(data, opt, root)
     return data, split_edge
+
+
+# random split dataset
+def randomsplit(dataset, val_ratio: float=0.05, test_ratio: float=0.10):
+    def removerepeated(ei):
+        ei = to_undirected(ei)
+        ei = ei[:, ei[0]<ei[1]]
+        return ei
+    data = dataset[0]
+    data.num_nodes = data.x.shape[0]
+    data = train_test_split_edges(data, test_ratio, test_ratio)
+    split_edge = {'train': {}, 'valid': {}, 'test': {}}
+    num_val = int(data.val_pos_edge_index.shape[1] * val_ratio/test_ratio)
+    data.val_pos_edge_index = data.val_pos_edge_index[:, torch.randperm(data.val_pos_edge_index.shape[1])]
+    split_edge['train']['edge'] = removerepeated(
+        torch.cat((data.train_pos_edge_index, data.val_pos_edge_index[:, :-num_val]), dim=-1)).t()
+    split_edge['valid']['edge'] = removerepeated(data.val_pos_edge_index[:, -num_val:]).t()
+    split_edge['valid']['edge_neg'] = removerepeated(data.val_neg_edge_index).t()
+    split_edge['test']['edge'] = removerepeated(data.test_pos_edge_index).t()
+    split_edge['test']['edge_neg'] = removerepeated(data.test_neg_edge_index).t()
+    return split_edge
+
+
 
 
 def rewire(data, opt, data_dir):

@@ -5,7 +5,7 @@ import argparse
 import torch
 import time
 from tqdm import tqdm
-from baselines.gnn_utils import GCN
+
 from data_utils.load_lp import *
 from data_utils.graph_rewiring import apply_KNN
 from metrics.metrics import *
@@ -14,6 +14,7 @@ from models.GNN_KNN import GNN_KNN
 from models.GNN_KNN_early import GNNKNNEarly
 from models.GNN import GNN
 from models.GNN_early import GNNEarly
+from models.GCN import GCN
 from models.trainer import Trainer_GRAND
 
 from torch_geometric.nn import Node2Vec
@@ -271,17 +272,22 @@ if __name__=='__main__':
     
     args = parser.parse_args()
     
+    # it raises error for collab due to the wrong path of pos_encodings file
+    # to remove redundancy we delete and use best_params from yaml file
+    # yaml_config = load_yaml_config(args.cfg_file)
+    # opt = yaml_config[next(iter(yaml_config))]
     cmd_opt = vars(args)
     try:
       best_opt = best_params_dict[cmd_opt['dataset']]
       opt = {**cmd_opt, **best_opt}
       merge_cmd_args(cmd_opt, opt)
+      # merge_cmd_args(opt, opt)
     except KeyError:
       opt = cmd_opt
     
     opt['epoch'] = 5
     opt['beltrami'] = False
-
+    # CHECK EPOCH AND OTHER PARAMETERS
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     
@@ -306,6 +312,7 @@ if __name__=='__main__':
     data = data.to(device)
     predictor = LinkPredictor(opt['hidden_dim'], opt['hidden_dim'], 1, opt['mlp_num_layers'], opt['dropout']).to(device)
     batch_size = opt['batch_size']  
+    
     if opt['gcn']:
       model = GCN(opt, pos_encoding, data.x.shape[1], opt['hidden_dim'], opt['hidden_dim'], opt['dropout'], device)
     else:
@@ -321,19 +328,32 @@ if __name__=='__main__':
     )
     optimizer = get_optimizer(opt['optimizer'], parameters, lr=opt['lr'], weight_decay=opt['decay'])
 
-
-    trainer = Trainer_GRAND(
-        opt=opt,
-        model=model,
-        predictor=predictor,
-        optimizer=optimizer,
-        data=data,
-        pos_encoding=pos_encoding,
-        splits=splits,
-        batch_size=batch_size,
-        device=device,
-        log_dir='./logs'
-    )
+    if opt['dataset'] == 'ogbl-citation2':
+      trainer = Trainer_GRAND_Citation2(
+                    opt=opt,
+                    model=model,
+                    predictor=predictor,
+                    optimizer=optimizer,
+                    data=data,
+                    pos_encoding=pos_encoding,
+                    splits=splits,
+                    batch_size=batch_size,
+                    device=device,
+                    log_dir='./logs'
+                )
+    else:
+      trainer = Trainer_GRAND(
+          opt=opt,
+          model=model,
+          predictor=predictor,
+          optimizer=optimizer,
+          data=data,
+          pos_encoding=pos_encoding,
+          splits=splits,
+          batch_size=batch_size,
+          device=device,
+          log_dir='./logs'
+      )
 
     best_results = trainer.train()
 

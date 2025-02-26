@@ -1,0 +1,2 @@
+Metric,Hits@20,Hits@50,Hits@100,AUC,AP
+Cora_beltramiTrue_mlp_score_epochs10_runs1,18.22 ± nan,33.02 ± nan,44.40 ± nan,66.54 ± nan,69.68 ± nan
