@@ -5,7 +5,7 @@ import argparse
 import torch
 import time
 from tqdm import tqdm
-
+import numpy as np
 from baselines.gnn_utils import get_root_dir, evaluate_hits,evaluate_auc, Logger, init_seed
 from baselines.gnn_utils import GCN
 from data_utils.load_lp import get_dataset
@@ -140,15 +140,14 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
   
 
 @torch.no_grad()
-def test_epoch(model, score_func, data, pos_encoding, batch_size, evaluation_edges, emb, evaluator_hit, evaluator_mrr, use_valedges_as_input):
+def test_epoch(model, score_func, data, pos_encoding, batch_size, evaluation_edges, evaluator_hit, evaluator_mrr, use_valedges_as_input):
     model.eval()
     predictor.eval()
 
     # adj_t = adj_t.transpose(1,0)
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
-    if emb == None: x = data.x
-    else: x = emb.weight
-
+    x = data.x
+    
     h = model(data.x, pos_encoding)
     x1 = h
 
@@ -180,7 +179,7 @@ def test_epoch(model, score_func, data, pos_encoding, batch_size, evaluation_edg
     return result, score_emb
   
   
-def train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_size, emb):
+def train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_size, emb=None):
     predictor.train()
     model.train()
     
@@ -586,7 +585,7 @@ if __name__=='__main__':
     for run in range(args.runs):
       print('#################################          ', run, '          #################################')
       import wandb
-      wandb.init(project="GCN4LP", name=f"{args.data_name}_{args.name_tag}_{args.runs}")
+      wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.name_tag}_{args.runs}")
       wandb.config.update(args)
       if args.runs == 1:
           seed = 0
@@ -612,18 +611,17 @@ if __name__=='__main__':
               ei = apply_KNN(data, pos_encoding, model, opt)
               model.odeblock.odefunc.edge_index = ei
               
-          loss = train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_size, emb)
+          loss = train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_size)
           print(f"Epoch {epoch}, Loss: {loss:.4f}")
           wandb.log({'train_loss': loss}, step = epoch)
           step += 1
           
           if epoch % args.eval_steps == 0:
-              results, score_emb = test_epoch(model, predictor, data, pos_encoding, batch_size, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.use_valedges_as_input)
+              results, score_emb = test_epoch(model, predictor, data, pos_encoding, batch_size, evaluation_edges, evaluator_hit, evaluator_mrr, args.use_valedges_as_input)
               
               for key, result in results.items():
                   loggers[key].add_result(run, result)
-                  wandb.log({f"Metrics/{key}": result[-1]}, step=eval_step)
-                  eval_step += 1 
+                  wandb.log({f"Metrics/{key}": result[-1]}, step=step)
                     
               current_metric = results['Hits@100'][2]
               if current_metric > best_metric:
