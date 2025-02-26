@@ -81,7 +81,7 @@ def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=Fal
         data.max_x = torch.max(data.x).item()
     elif name == "ogbl-ddi":
         data.x = torch.arange(data.num_nodes).unsqueeze(-1).float()
-        data.max_x = data.num_nodes
+        data.max_x = data.max_x = -1 # data.num_nodes
     if load is not None:
         data.x = torch.load(load, map_location="cpu")
         data.max_x = -1

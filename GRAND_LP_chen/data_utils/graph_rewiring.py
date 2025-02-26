@@ -248,6 +248,7 @@ def apply_beltrami(data, opt, data_dir=f'{ROOT_DIR}/dataset'):
   pos_enc_dir = os.path.join(f"{data_dir}", "pos_encodings")
   # generate new positional encodings
   # do encodings already exist on disk?
+  
   fname = os.path.join(pos_enc_dir, f"{opt['dataset']}_{opt['pos_enc_type']}.pkl")
   print(f"[i] Looking for positional encodings in {fname}...")
 

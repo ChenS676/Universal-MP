@@ -1,4 +1,14 @@
-- [ ]  first formatten the best parameters for all datasets 
+- [x]  first formatten the best parameters for all datasets 
 - [ ]  generate nodevec for all listed dataset ogbl-ddi, ppa, vessel, citation2, collab, Cora, Citeseer, Pubmed 
 - [ ]  create link
-- [ ]  check the input and data dimension
+- [ ]  check the input and data dimension 
+- [ ]  TODO check the overlapping params betweena argparse and cfg_file for further analysis - use default value for ogbl-collab as test
+- [ ] debug on ogbl-collab, 
+    - download new version it is runnable. german has done a good job....
+    - 
+- [ ] debug on ogbl-ddi 
+    - killed -> estimation is the hidden dimension is too high wrong
+             -> check parameter integration method is only dopri5 for ddi  why? change back to dopri5
+             -> PermIterator looks to be a bad dataloder
+    - > identify as 
+- [ ] 

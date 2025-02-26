@@ -18,6 +18,7 @@ from models.GCN import GCN
 from models.trainer import Trainer_GRAND
 from torch_geometric.nn import Node2Vec
 import yaml 
+from formatted_best_params import best_params_dict
 
 def load_yaml_config(file_path):
     """Loads a YAML configuration file."""
@@ -37,7 +38,7 @@ def str2bool(v):
       
 def merge_cmd_args(cmd_opt, opt):
   if cmd_opt['beltrami']:
-    opt['beltrami'] = True
+    opt['beltrami'] = False
   if cmd_opt['function'] is not None:
     opt['function'] = cmd_opt['function']
   if cmd_opt['block'] is not None:
@@ -139,7 +140,7 @@ if __name__=='__main__':
     parser.add_argument('--optimizer', type=str, default='adam', help='One from sgd, rmsprop, adam, adagrad, adamax.')
     parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
     parser.add_argument('--decay', type=float, default=5e-4, help='Weight decay for optimization')
-    parser.add_argument('--epoch', type=int, default=300, help='Number of training epochs per iteration.')
+    parser.add_argument('--epoch', type=int, default=10, help='Number of training epochs per iteration.')
     parser.add_argument('--alpha', type=float, default=1.0, help='Factor in front matrix A.')
     parser.add_argument('--alpha_dim', type=str, default='sc', help='choose either scalar (sc) or vector (vc) alpha')
     parser.add_argument('--no_alpha_sigmoid', dest='no_alpha_sigmoid', action='store_true',
@@ -270,25 +271,41 @@ if __name__=='__main__':
     
     args = parser.parse_args()
     
-    # TODO Bug 1 dataset name is determined by opt, so loaded data is opt['dataset'], whatever argparse input is ogbl-ddi or ogbl-ppa
-    yaml_config = load_yaml_config(args.cfg_file)
-    opt = yaml_config[next(iter(yaml_config))]
+    # it raises error for collab due to the wrong path of pos_encodings file
+    # to remove redundancy we delete and use best_params from yaml file
+    # yaml_config = load_yaml_config(args.cfg_file)
+    # opt = yaml_config[next(iter(yaml_config))]
+    opt = vars(args)
+    try:
+      best_opt = best_params_dict[opt['dataset']]
+      opt = {**opt, **best_opt}
+      merge_cmd_args(opt, opt)
+    except KeyError:
+      opt = opt
     
+    opt['dataset'] = args.dataset
+
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     
     data, splits = get_dataset(opt['dataset_dir'], opt, opt['dataset'], opt['use_valedges_as_input'])
-    
+
+    print(data)
     if args.dataset == "ogbl-citation2":
         opt['metric'] = "MRR"
     if data.x is None:
         opt['use_feature'] = False
-
+    
     if opt['beltrami']:
+      print("Applying Beltrami")
       pos_encoding = apply_beltrami(data.to('cpu'), opt).to(device)
       opt['pos_enc_dim'] = pos_encoding.shape[1]
+      print(f"pos encoding is {pos_encoding}")
+      print(f"pos encoding shape is {pos_encoding.shape}")
+      print(f"pos encoding type is {type(pos_encoding)}")
     else:
       pos_encoding = None
+
     
     data = data.to(device)
     predictor = LinkPredictor(opt['hidden_dim'], opt['hidden_dim'], 1, opt['mlp_num_layers'], opt['dropout']).to(device)
@@ -309,7 +326,7 @@ if __name__=='__main__':
       [p for p in predictor.parameters() if p.requires_grad]
     )
     optimizer = get_optimizer(opt['optimizer'], parameters, lr=opt['lr'], weight_decay=opt['decay'])
-    import IPython; IPython.embed()
+    
     trainer = Trainer_GRAND(
         opt=opt,
         model=model,
@@ -326,4 +343,3 @@ if __name__=='__main__':
     best_results = trainer.train()
 
     trainer.finalize()
-
