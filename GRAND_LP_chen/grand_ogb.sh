@@ -45,3 +45,4 @@ echo "Start training grand on $data"
 # python main_grand.py  --dataset ogbl-collab --device 0 --no_early --beltrami
 
 python allin_grand.py  --data_name ogbl-collab --device 0 --no_early --beltrami --epoch 1000
+python allin_grand_original.py  --data_name ogbl-collab --device 0 --no_early --beltrami --epoch 1000

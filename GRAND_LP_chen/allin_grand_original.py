@@ -5,17 +5,19 @@ import argparse
 import torch
 import time
 from tqdm import tqdm
-import numpy as np
-from baselines.gnn_utils import get_root_dir, evaluate_hits,evaluate_auc, Logger, init_seed
-from baselines.gnn_utils import GCN
-from data_utils.load_lp import get_dataset
-from data_utils.graph_rewiring import apply_KNN, apply_beltrami
+
+from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, evaluate_hits, evaluate_mrr, evaluate_auc, Logger, init_seed, save_emb
+from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
+
+from data_utils.load_lp import *
+from data_utils.graph_rewiring import apply_KNN
 from metrics.metrics import *
 from models.base_classes import LinkPredictor
 from models.GNN_KNN import GNN_KNN
 from models.GNN_KNN_early import GNNKNNEarly
 from models.GNN import GNN
 from models.GNN_early import GNNEarly
+from models.GCN import GCN
 from models.trainer import Trainer_GRAND
 from torch_geometric.nn import Node2Vec
 import yaml 
@@ -27,8 +29,7 @@ from utils.utils import PermIterator
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import seaborn as sns
-  
-  
+
 def load_yaml_config(file_path):
     """Loads a YAML configuration file."""
     with open(file_path, 'r') as f:
@@ -140,20 +141,23 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
   
 
 @torch.no_grad()
-def test_epoch(model, score_func, data, pos_encoding, batch_size, evaluation_edges, evaluator_hit, evaluator_mrr, use_valedges_as_input):
+def test_epoch(model, score_func, data, pos_encoding, batch_size, evaluation_edges, emb, evaluator_hit, evaluator_mrr, use_valedges_as_input):
     model.eval()
     predictor.eval()
 
     # adj_t = adj_t.transpose(1,0)
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
-    x = data.x
-    
+    if emb == None: x = data.x
+    else: x = emb.weight
+
     h = model(data.x, pos_encoding)
     x1 = h
+    x2 = torch.tensor(1)
 
     if use_valedges_as_input:
         print('use_val_in_edge')
         h = model(x, data.full_adj_t.to(x.device))
+        x2 = h
         
     train_val_edge = train_val_edge.to(x.device)
     pos_valid_edge = pos_valid_edge.to(x.device) 
@@ -165,6 +169,7 @@ def test_epoch(model, score_func, data, pos_encoding, batch_size, evaluation_edg
     if use_valedges_as_input:
         print('use_val_in_edge')
         h = model(x, data.full_adj_t.to(x.device))
+        x2 = h
     pos_test_pred = test_edge(score_func, pos_test_edge, h, batch_size)
     neg_test_pred = test_edge(score_func, neg_test_edge, h, batch_size)
     pos_train_pred = test_edge(score_func, train_val_edge, h, batch_size)
@@ -174,17 +179,22 @@ def test_epoch(model, score_func, data, pos_encoding, batch_size, evaluation_edg
     
     print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
     result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
-    score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x1.cpu()]
+    score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x1.cpu(), x2.cpu()]
 
     return result, score_emb
   
   
-def train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_size, emb=None):
+def train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_size):
     predictor.train()
     model.train()
     
     pos_encoding = pos_encoding.to(model.device) if pos_encoding is not None else None
     pos_train_edge = splits['train']['edge'].to(data.x.device)
+    neg_train_edge = negative_sampling(
+        data.edge_index.to(pos_train_edge.device),
+        num_nodes=data.num_nodes,
+        num_neg_samples=pos_train_edge.size(0)
+    ).t().to(data.x.device)
 
     if emb == None: 
         x = data.x
@@ -192,20 +202,21 @@ def train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_s
     else: 
         x = emb.weight
         emb_update = 1
-    total_loss = total_examples = 0
-    for perm in tqdm(DataLoader(range(pos_train_edge.size(0)), batch_size,
-                           shuffle=True)):
-        optimizer.zero_grad()
-        num_nodes = x.size(0)
         
+    total_loss = total_examples = 0
+    # DEBUG change it into DataLoader
+    indices = torch.randperm(pos_train_edge.size(0), device=pos_train_edge.device)
+
+    for start in tqdm(range(0, pos_train_edge.size(0), batch_size)):
+
+        optimizer.zero_grad()
         h = model(data.x, pos_encoding)
         
-        edge = pos_train_edge[perm].t()
-        pos_out = predictor(h[edge[0]], h[edge[1]])
+        end = start + batch_size
+        perm = indices[start:end]
+        pos_out = predictor(h[pos_train_edge[perm, 0]], h[pos_train_edge[perm, 1]])
         pos_loss = -torch.log(pos_out + 1e-15).mean()
-        edge = torch.randint(0, num_nodes, edge.size(), dtype=torch.long, device=h.device)
-            
-        neg_out = predictor(h[edge[0]], h[edge[1]])
+        neg_out = predictor(h[neg_train_edge[perm, 0]], h[neg_train_edge[perm, 1]])
         neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
         loss = pos_loss + neg_loss
         
@@ -217,19 +228,18 @@ def train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_s
             )
             loss = loss + reg_loss
         
+        num_examples = (end - start)
+        total_loss += loss.item() * num_examples
+        total_examples += num_examples
+        
         model.fm.update(model.getNFE())
         model.resetNFE()
         loss.backward()
-        # if emb_update == 1: torch.nn.utils.clip_grad_norm_(x, 1.0)
-        # torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        # torch.nn.utils.clip_grad_norm_(predictor.parameters(), 1.0)
         optimizer.step()
         model.bm.update(model.getNFE())
         model.resetNFE()
-        num_examples = pos_out.size(0)
-        total_loss += loss.item() * num_examples
-        total_examples += num_examples
-        ############################
+        #######################
+        
     return total_loss / total_examples
 
 def merge_cmd_args(cmd_opt, opt):
@@ -367,7 +377,7 @@ if __name__=='__main__':
     parser.add_argument("--tol_scale_adjoint", type=float, default=1.0,
                     help="multiplier for adjoint_atol and adjoint_rtol")
     parser.add_argument('--ode_blocks', type=int, default=1, help='number of ode blocks to run')
-    parser.add_argument("--max_nfe", type=int, default=100,
+    parser.add_argument("--max_nfe", type=int, default=1000,
                     help="Maximum number of function evaluations in an epoch. Stiff ODEs will hang if not set.")
     parser.add_argument("--no_early", action="store_true",
                     help="Whether or not to use early stopping of the ODE integrator when testing.")
@@ -426,7 +436,7 @@ if __name__=='__main__':
     parser.add_argument('--rw_rmvR', type=float, default=0.02, help="percentage of edges to remove")
     parser.add_argument('--rewire_KNN', action='store_true', help='perform KNN rewiring every few epochs')
     parser.add_argument('--rewire_KNN_T', type=str, default="T0", help="T0, TN")
-    parser.add_argument('--rewire_KNN_epoch', type=int, default=5, help="frequency of epochs to rewire")
+    parser.add_argument('--rewire_KNN_epoch', type=int, default=1, help="frequency of epochs to rewire")
     parser.add_argument('--rewire_KNN_k', type=int, default=64, help="target degree for KNN rewire")
     parser.add_argument('--rewire_KNN_sym', action='store_true', help='make KNN symmetric')
     parser.add_argument('--KNN_space', type=str, default="pos_distance", help="Z,P,QKZ,QKp")
@@ -458,7 +468,7 @@ if __name__=='__main__':
     parser.add_argument('--pos_enc_csv', action='store_true', help="Generate pos encoding as a sparse CSV")
 
     parser.add_argument('--pos_dist_quantile', type=float, default=0.001, help="percentage of N**2 edges to keep")
-    parser.add_argument('--cat_n2v_feat', default=False, action='store_true')
+
     # MY PARAMETERS
     parser.add_argument('--mlp_num_layers', type=int, default=3, help="Number of layers in MLP")
     parser.add_argument('--batch_size', type=int, default=2**12)
@@ -481,19 +491,23 @@ if __name__=='__main__':
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     
-    ############################ DEBUG is the dataset loader really the same
     data, splits = get_dataset(opt['dataset_dir'], opt, opt['data_name'], opt['use_valedges_as_input'])
-    ##############################################################################
-    if args.data_name == 'ogbl-citation2': 
-        data.adj_t = data.adj_t.to_symmetric()
-        if args.gnn_model == 'GCN':
-            adj_t = data.adj_t.set_diag()
-            deg = adj_t.sum(dim=1).to(torch.float)
-            deg_inv_sqrt = deg.pow(-0.5)
-            deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-            adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
-            data.adj_t = adj_t
-            
+    edge_index = data.edge_index
+    print(data)
+    emb = None
+    if hasattr(data, 'x'):
+        if data.x != None:
+            x = data.x
+            data.x = data.x.to(torch.float)
+            data.x = data.x.to(device)
+            input_channel = data.x.size(1)
+        else:
+            emb = torch.nn.Embedding(data.num_nodes, args.hidden_channels).to(device)
+            input_channel = args.hidden_channels
+    else:
+        emb = torch.nn.Embedding(data.num_nodes, args.hidden_channels).to(device)
+        input_channel = args.hidden_channels
+        
     if args.data_name == "ogbl-citation2":
         opt['metric'] = "MRR"
     if data.x is None:
@@ -508,7 +522,25 @@ if __name__=='__main__':
       print(f"pos encoding type is {type(pos_encoding)}")
     else:
       pos_encoding = None
-      
+
+    print(data, args.data_name)
+    if data.edge_weight is None:
+        edge_weight = torch.ones((data.edge_index.size(1), 1))
+        print(f"custom edge_weight {edge_weight.size()} added for {args.data_name}")
+    data = T.ToSparseTensor()(data)
+    data.edge_index = edge_index
+    if args.use_valedges_as_input:
+        val_edge_index = splits['valid']['edge'].t()
+        val_edge_index = to_undirected(val_edge_index)
+        full_edge_index = torch.cat([data.edge_index, val_edge_index], dim=-1)
+        val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=torch.float)
+        edge_weight = torch.cat([edge_weight, val_edge_weight], 0)
+        A = SparseTensor.from_edge_index(full_edge_index, edge_weight.view(-1), [data.num_nodes, data.num_nodes])
+        data.full_adj_t = A
+        data.full_edge_index = full_edge_index
+        print(data.full_adj_t)
+        print(data.adj_t)
+
     evaluator_hit = Evaluator(name='ogbl-collab')
     evaluator_mrr = Evaluator(name='ogbl-citation2')
 
@@ -585,7 +617,7 @@ if __name__=='__main__':
     for run in range(args.runs):
       print('#################################          ', run, '          #################################')
       import wandb
-      wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.name_tag}_{args.runs}")
+      wandb.init(project="GCN4LP", name=f"{args.data_name}_{args.name_tag}_{args.runs}")
       wandb.config.update(args)
       if args.runs == 1:
           seed = 0
@@ -617,11 +649,12 @@ if __name__=='__main__':
           step += 1
           
           if epoch % args.eval_steps == 0:
-              results, score_emb = test_epoch(model, predictor, data, pos_encoding, batch_size, evaluation_edges, evaluator_hit, evaluator_mrr, args.use_valedges_as_input)
+              results, score_emb = test_epoch(model, predictor, data, pos_encoding, batch_size, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.use_valedges_as_input)
               
               for key, result in results.items():
                   loggers[key].add_result(run, result)
-                  wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                  wandb.log({f"Metrics/{key}": result[-1]}, step=eval_step)
+                  eval_step += 1 
                     
               current_metric = results['Hits@100'][2]
               if current_metric > best_metric:
