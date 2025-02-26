@@ -436,7 +436,7 @@ if __name__=='__main__':
     parser.add_argument('--rw_rmvR', type=float, default=0.02, help="percentage of edges to remove")
     parser.add_argument('--rewire_KNN', action='store_true', help='perform KNN rewiring every few epochs')
     parser.add_argument('--rewire_KNN_T', type=str, default="T0", help="T0, TN")
-    parser.add_argument('--rewire_KNN_epoch', type=int, default=5, help="frequency of epochs to rewire")
+    parser.add_argument('--rewire_KNN_epoch', type=int, default=1, help="frequency of epochs to rewire")
     parser.add_argument('--rewire_KNN_k', type=int, default=64, help="target degree for KNN rewire")
     parser.add_argument('--rewire_KNN_sym', action='store_true', help='make KNN symmetric')
     parser.add_argument('--KNN_space', type=str, default="pos_distance", help="Z,P,QKZ,QKp")
