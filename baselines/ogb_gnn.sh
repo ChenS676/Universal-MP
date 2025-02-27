@@ -75,7 +75,4 @@ echo ">>> All models completed successfully <<<"
 echo "Job finished at: $(date)"
 
 
-python gnn_ogb_heart.py --data_name ogbl-collab \
-    --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.0 \
-    --num_layers 3 --num_layers_predictor 3 --epochs 5 \
-    --kill_cnt 100 --batch_size 1 --runs 2
+python gnn_ogb_heart.py --data_name ogbl-collab --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.0 --num_layers 3 --num_layers_predictor 3 --epochs 5 --kill_cnt 100 --batch_size 16394 --runs 2 --device 2

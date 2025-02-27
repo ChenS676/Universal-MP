@@ -29,6 +29,7 @@ import seaborn as sns
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
+server = 'Horeka'
 
 
 def get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
@@ -502,7 +503,7 @@ def main():
     for run in range(args.runs):
         print('#################################          ', run, '          #################################')
         import wandb
-        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_{server}_{args.runs}")
         wandb.config.update(args)
         if args.runs == 1:
             seed = args.seed
