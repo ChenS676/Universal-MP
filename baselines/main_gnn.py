@@ -325,7 +325,7 @@ def main():
 
     for run in range(args.runs):
         import wandb
-        wandb.init(project="GCN4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
         wandb.config.update(args)
         print('#################################          ', run, '          #################################')
         

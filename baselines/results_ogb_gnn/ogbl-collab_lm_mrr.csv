@@ -1,2 +1,2 @@
 Metric,Hits@20,Hits@50,Hits@100,AUC,AP
-ogbl-collab_SAGE_mlp_score_epochs400_runs10,42.67 ± 0.76,51.00 ± 0.70,56.60 ± 0.41,97.09 ± 0.07,95.45 ± 0.07
+ogbl-collab_GAT_mlp_score_epochs400_runs10,36.84 ± 1.32,48.33 ± 0.61,54.82 ± 0.47,95.43 ± 0.08,94.17 ± 0.10

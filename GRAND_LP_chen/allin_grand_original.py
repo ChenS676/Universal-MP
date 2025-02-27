@@ -17,7 +17,6 @@ from models.GNN_KNN import GNN_KNN
 from models.GNN_KNN_early import GNNKNNEarly
 from models.GNN import GNN
 from models.GNN_early import GNNEarly
-from models.GCN import GCN
 from models.trainer import Trainer_GRAND
 from torch_geometric.nn import Node2Vec
 import yaml 
@@ -141,7 +140,7 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
   
 
 @torch.no_grad()
-def test_epoch(model, score_func, data, pos_encoding, batch_size, evaluation_edges, emb, evaluator_hit, evaluator_mrr, use_valedges_as_input):
+def test_epoch(opt, model, score_func, data, pos_encoding, batch_size, evaluation_edges, emb, evaluator_hit, evaluator_mrr, use_valedges_as_input):
     model.eval()
     predictor.eval()
 
@@ -149,8 +148,11 @@ def test_epoch(model, score_func, data, pos_encoding, batch_size, evaluation_edg
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
     if emb == None: x = data.x
     else: x = emb.weight
-
-    h = model(data.x, pos_encoding)
+    
+    if opt['gcn']:
+      h = model(x, data.adj_t)
+    else:
+      h = model(data.x, pos_encoding)
     x1 = h
     x2 = torch.tensor(1)
 
@@ -183,8 +185,8 @@ def test_epoch(model, score_func, data, pos_encoding, batch_size, evaluation_edg
 
     return result, score_emb
   
-  
-def train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_size):
+    
+def train_epoch(opt, predictor, model, optimizer, data, pos_encoding, splits, batch_size):
     predictor.train()
     model.train()
     
@@ -210,7 +212,10 @@ def train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_s
     for start in tqdm(range(0, pos_train_edge.size(0), batch_size)):
 
         optimizer.zero_grad()
-        h = model(data.x, pos_encoding)
+        if opt['gcn']:
+          h = model(x, data.adj_t)
+        else:
+          h = model(data.x, pos_encoding)
         
         end = start + batch_size
         perm = indices[start:end]
@@ -220,7 +225,7 @@ def train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_s
         neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
         loss = pos_loss + neg_loss
         
-        if model.odeblock.nreg > 0:
+        if (not opt['gcn']) and (model.odeblock.nreg > 0):
             reg_states = tuple(torch.mean(rs) for rs in model.reg_states)
             regularization_coeffs = model.regularization_coeffs
             reg_loss = sum(
@@ -232,12 +237,15 @@ def train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_s
         total_loss += loss.item() * num_examples
         total_examples += num_examples
         
-        model.fm.update(model.getNFE())
-        model.resetNFE()
+        if not opt['gcn']:
+          model.fm.update(model.getNFE())
+          model.resetNFE()
         loss.backward()
         optimizer.step()
-        model.bm.update(model.getNFE())
-        model.resetNFE()
+        
+        if not opt['gcn']:
+          model.bm.update(model.getNFE())
+          model.resetNFE()
         #######################
         
     return total_loss / total_examples
@@ -434,12 +442,12 @@ if __name__=='__main__':
     parser.add_argument('--threshold_type', type=str, default="topk_adj", help="topk_adj, addD_rvR")
     parser.add_argument('--rw_addD', type=float, default=0.02, help="percentage of new edges to add")
     parser.add_argument('--rw_rmvR', type=float, default=0.02, help="percentage of edges to remove")
-    parser.add_argument('--rewire_KNN', action='store_true', help='perform KNN rewiring every few epochs')
-    parser.add_argument('--rewire_KNN_T', type=str, default="T0", help="T0, TN")
-    parser.add_argument('--rewire_KNN_epoch', type=int, default=1, help="frequency of epochs to rewire")
-    parser.add_argument('--rewire_KNN_k', type=int, default=64, help="target degree for KNN rewire")
-    parser.add_argument('--rewire_KNN_sym', action='store_true', help='make KNN symmetric')
-    parser.add_argument('--KNN_space', type=str, default="pos_distance", help="Z,P,QKZ,QKp")
+    # parser.add_argument('--rewire_KNN', action='store_true', help='perform KNN rewiring every few epochs')
+    # parser.add_argument('--rewire_KNN_T', type=str, default="T0", help="T0, TN")
+    # parser.add_argument('--rewire_KNN_epoch', type=int, default=1, help="frequency of epochs to rewire")
+    # parser.add_argument('--rewire_KNN_k', type=int, default=64, help="target degree for KNN rewire")
+    # parser.add_argument('--rewire_KNN_sym', action='store_true', help='make KNN symmetric')
+    # parser.add_argument('--KNN_space', type=str, default="pos_distance", help="Z,P,QKZ,QKp")
     # beltrami args
     parser.add_argument('--beltrami', action='store_true', help='perform diffusion beltrami style')
     parser.add_argument('--fa_layer', action='store_true', help='add a bottleneck paper style layer with more edges')
@@ -472,7 +480,11 @@ if __name__=='__main__':
     # MY PARAMETERS
     parser.add_argument('--mlp_num_layers', type=int, default=3, help="Number of layers in MLP")
     parser.add_argument('--batch_size', type=int, default=2**12)
+    
+    # gcn
     parser.add_argument('--gcn', type=str2bool, default=False)
+    parser.add_argument('--num_layers', type=int, default=3)
+    
     parser.add_argument('--runs', type=int, default=1)
     parser.add_argument('--eval_steps', type=int, default=1)
     args = parser.parse_args()
@@ -591,7 +603,7 @@ if __name__=='__main__':
     predictor = LinkPredictor(opt['hidden_dim'], opt['hidden_dim'], 1, opt['mlp_num_layers'], opt['dropout']).to(device)
     batch_size = opt['batch_size']  
     if opt['gcn']:
-      model = GCN(opt, pos_encoding, data.x.shape[1], opt['hidden_dim'], opt['hidden_dim'], opt['dropout'], device)
+        model = GCN(data.x.shape[1],  opt['hidden_dim'], opt['hidden_dim'], opt['num_layers'], opt['dropout']).to(device)
     else:
       if opt['rewire_KNN'] or opt['fa_layer']:
         model = GNN_KNN(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNKNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
@@ -617,8 +629,11 @@ if __name__=='__main__':
     for run in range(args.runs):
       print('#################################          ', run, '          #################################')
       import wandb
-      wandb.init(project="GCN4LP", name=f"{args.data_name}_{args.name_tag}_{args.runs}")
-      wandb.config.update(args)
+      if opt['gcn']:
+        name_tag = f"{args.data_name}_gcn_{args.runs}"
+      else:
+        name_tag = f"{args.data_name}_grand_{args.runs}"
+      wandb.init(project="GRAND4LP", name=name_tag, config=opt)
       if args.runs == 1:
           seed = 0
       else:
@@ -632,29 +647,28 @@ if __name__=='__main__':
       kill_cnt = 0
       best_test = 0
       step = 0
-      eval_step = 0
         
       print(f"Starting training for {opt['epoch']} epochs...")
       for epoch in tqdm(range(1, opt['epoch'] + 1)):
           start_time = time.time()
 
           # CHECK Misalignment
-          if opt['rewire_KNN'] and epoch % opt['rewire_KNN_epoch'] == 0 and epoch != 0:
-              ei = apply_KNN(data, pos_encoding, model, opt)
-              model.odeblock.odefunc.edge_index = ei
-              
-          loss = train_epoch(predictor, model, optimizer, data, pos_encoding, splits, batch_size)
+          # if opt['rewire_KNN'] and epoch % opt['rewire_KNN_epoch'] == 0 and epoch != 0:
+          #     ei = apply_KNN(data, pos_encoding, model, opt)
+          #     model.odeblock.odefunc.edge_index = ei
+                 
+          loss = train_epoch(opt, predictor, model, optimizer, data, pos_encoding, splits, batch_size)
           print(f"Epoch {epoch}, Loss: {loss:.4f}")
           wandb.log({'train_loss': loss}, step = epoch)
           step += 1
           
           if epoch % args.eval_steps == 0:
-              results, score_emb = test_epoch(model, predictor, data, pos_encoding, batch_size, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.use_valedges_as_input)
+              results, score_emb = test_epoch(opt, model, predictor, data, pos_encoding, batch_size, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.use_valedges_as_input)
               
               for key, result in results.items():
                   loggers[key].add_result(run, result)
-                  wandb.log({f"Metrics/{key}": result[-1]}, step=eval_step)
-                  eval_step += 1 
+                  wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                  
                     
               current_metric = results['Hits@100'][2]
               if current_metric > best_metric:

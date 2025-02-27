@@ -462,7 +462,11 @@ if __name__=='__main__':
     # MY PARAMETERS
     parser.add_argument('--mlp_num_layers', type=int, default=3, help="Number of layers in MLP")
     parser.add_argument('--batch_size', type=int, default=2**12)
+    
+    # GCN
     parser.add_argument('--gcn', type=str2bool, default=False)
+    parser.add_argument('--num_layers', type=int, default=3)
+    
     parser.add_argument('--runs', type=int, default=1)
     parser.add_argument('--eval_steps', type=int, default=1)
     args = parser.parse_args()
@@ -559,7 +563,8 @@ if __name__=='__main__':
     predictor = LinkPredictor(opt['hidden_dim'], opt['hidden_dim'], 1, opt['mlp_num_layers'], opt['dropout']).to(device)
     batch_size = opt['batch_size']  
     if opt['gcn']:
-      model = GCN(opt, pos_encoding, data.x.shape[1], opt['hidden_dim'], opt['hidden_dim'], opt['dropout'], device)
+        import IPython; IPython.embed()
+        model = GCN(data.x.shape[1],  opt['hidden_dim'], opt['hidden_dim'], opt['num_layers'], opt['dropout'])
     else:
       if opt['rewire_KNN'] or opt['fa_layer']:
         model = GNN_KNN(opt, data, splits, predictor, batch_size, device).to(device) if opt["no_early"] else GNNKNNEarly(opt, data, splits, predictor, batch_size, device).to(device)
@@ -585,7 +590,11 @@ if __name__=='__main__':
     for run in range(args.runs):
       print('#################################          ', run, '          #################################')
       import wandb
-      wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.name_tag}_{args.runs}")
+      if opt['gcn']:
+        name_tag = f"{args.data_name}_gcn_{args.runs}"
+      else:
+        name_tag = f"{args.data_name}_grand_{args.runs}"
+      wandb.init(project="GRAND4LP", name=name_tag, config=opt)
       wandb.config.update(args)
       if args.runs == 1:
           seed = 0
