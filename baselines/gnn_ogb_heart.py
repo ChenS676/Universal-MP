@@ -29,7 +29,7 @@ import seaborn as sns
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
-
+server = 'SDIL'
 
 def get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
     k_list = [20, 50, 100]
@@ -339,7 +339,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=16384)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--eval_steps', type=int, default=5)
+    parser.add_argument('--eval_steps', type=int, default=1)
     parser.add_argument('--runs', type=int, default=2)
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=20,    type=int,       help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
@@ -502,7 +502,7 @@ def main():
     for run in range(args.runs):
         print('#################################          ', run, '          #################################')
         import wandb
-        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_Heart_{server}_{args.runs}")
         wandb.config.update(args)
         if args.runs == 1:
             seed = args.seed
@@ -525,7 +525,6 @@ def main():
         kill_cnt = 0
         best_test = 0
         step = 0
-        eval_step = 0
         
         for epoch in range(1, 1 + args.epochs):
             if args.use_hard_negative:
@@ -542,8 +541,8 @@ def main():
                     results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
-                    wandb.log({f"Metrics/{key}": result[-1]}, step=eval_step)
-                    eval_step += 1 
+                    wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                    
                     
                 if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
