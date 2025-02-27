@@ -20,6 +20,7 @@
             //         "5","--batch_size","1024","--debug"
             // "--data_name", "ppa",  "--epochs", "200",  "--batch_size", "128", "--device", "0" 
             // "--data", "ppa",  "--epochs", "200",  "--batch_size", "128", "--device", "0" 
+
             "--dataset", "ogbl-citation2", "--device", "0", "--no_early", "--beltrami" 
 
             ]

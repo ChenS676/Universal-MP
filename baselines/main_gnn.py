@@ -24,85 +24,57 @@ log_print = get_logger('testrun', 'log', get_config_dir())
     
 def read_data(data_name, neg_mode):
     data_name = data_name
-
     node_set = set()
     train_pos, valid_pos, test_pos = [], [], []
     train_neg, valid_neg, test_neg = [], [], []
-
     for split in ['train', 'test', 'valid']:
-
         if neg_mode == 'equal':
             path = dir_path+'/dataset' + '/{}/{}_pos.txt'.format(data_name, split)
-
         elif neg_mode == 'all':
             path = dir_path+'/dataset' + '/{}/allneg/{}_pos.txt'.format(data_name, split)
-
         for line in open(path, 'r'):
             sub, obj = line.strip().split('\t')
             sub, obj = int(sub), int(obj)
-            
             node_set.add(sub)
             node_set.add(obj)
-            
             if sub == obj:
                 continue
-
             if split == 'train': 
                 train_pos.append((sub, obj))
-                
-
             if split == 'valid': valid_pos.append((sub, obj))  
             if split == 'test': test_pos.append((sub, obj))
-    
     num_nodes = len(node_set)
     print('the number of nodes in ' + data_name + ' is: ', num_nodes)
-
     for split in ['test', 'valid']:
-
         if neg_mode == 'equal':
             path = dir_path+'/dataset' + '/{}/{}_neg.txt'.format(data_name, split)
-
         elif neg_mode == 'all':
             path = dir_path+'/dataset' + '/{}/allneg/{}_neg.txt'.format(data_name, split)
-
         for line in open(path, 'r'):
             sub, obj = line.strip().split('\t')
             sub, obj = int(sub), int(obj)
             # if sub == obj:
             #     continue
-            
             if split == 'valid': 
                 valid_neg.append((sub, obj))
-               
             if split == 'test': 
                 test_neg.append((sub, obj))
 
     train_edge = torch.transpose(torch.tensor(train_pos), 1, 0)
     edge_index = torch.cat((train_edge,  train_edge[[1,0]]), dim=1)
     edge_weight = torch.ones(edge_index.size(1))
-
-
     A = ssp.csr_matrix((edge_weight.view(-1), (edge_index[0], edge_index[1])), shape=(num_nodes, num_nodes)) 
-
     adj = SparseTensor.from_edge_index(edge_index, edge_weight, [num_nodes, num_nodes])
-          
-
     train_pos_tensor = torch.tensor(train_pos)
-
     valid_pos = torch.tensor(valid_pos)
     valid_neg =  torch.tensor(valid_neg)
-
     test_pos =  torch.tensor(test_pos)
     test_neg =  torch.tensor(test_neg)
-
     idx = torch.randperm(train_pos_tensor.size(0))
     idx = idx[:valid_pos.size(0)]
     train_val = train_pos_tensor[idx]
-
-
     feature_embeddings = torch.load(dir_path+'/dataset' + '/{}/{}'.format(data_name, 'gnn_feature'))
     feature_embeddings = feature_embeddings['entity_embedding']
-
     data = {}
     data['adj'] = adj
     data['train_pos'] = train_pos_tensor
@@ -112,15 +84,11 @@ def read_data(data_name, neg_mode):
     data['valid_neg'] = valid_neg
     data['test_pos'] = test_pos
     data['test_neg'] = test_neg
-
     data['x'] = feature_embeddings
-
     return data
 
 
 def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
-
-    
     # result_hit = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred)
     result = {}
     k_list = [1, 3, 10, 100]
@@ -132,32 +100,25 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     for K in [1, 3, 10, 100]:
         result[f'Hits@{K}'] = (result_hit_train[f'Hits@{K}'], result_hit_val[f'Hits@{K}'], result_hit_test[f'Hits@{K}'])
 
-
     result_mrr_train = evaluate_mrr(evaluator_mrr, pos_train_pred, neg_val_pred.repeat(pos_train_pred.size(0), 1))
     result_mrr_val = evaluate_mrr(evaluator_mrr, pos_val_pred, neg_val_pred.repeat(pos_val_pred.size(0), 1) )
     result_mrr_test = evaluate_mrr(evaluator_mrr, pos_test_pred, neg_test_pred.repeat(pos_test_pred.size(0), 1) )
-    
     # result_mrr = {}
     result['MRR'] = (result_mrr_train['MRR'], result_mrr_val['MRR'], result_mrr_test['MRR'])
     # for K in [1,3,10, 100]:
     #     result[f'mrr_hit{K}'] = (result_mrr_train[f'mrr_hit{K}'], result_mrr_val[f'mrr_hit{K}'], result_mrr_test[f'mrr_hit{K}'])
-
-   
     train_pred = torch.cat([pos_train_pred, neg_val_pred])
     train_true = torch.cat([torch.ones(pos_train_pred.size(0), dtype=int), 
                             torch.zeros(neg_val_pred.size(0), dtype=int)])
-
     val_pred = torch.cat([pos_val_pred, neg_val_pred])
     val_true = torch.cat([torch.ones(pos_val_pred.size(0), dtype=int), 
                             torch.zeros(neg_val_pred.size(0), dtype=int)])
     test_pred = torch.cat([pos_test_pred, neg_test_pred])
     test_true = torch.cat([torch.ones(pos_test_pred.size(0), dtype=int), 
                             torch.zeros(neg_test_pred.size(0), dtype=int)])
-
     result_auc_train = evaluate_auc(train_pred, train_true)
     result_auc_val = evaluate_auc(val_pred, val_true)
     result_auc_test = evaluate_auc(test_pred, test_true)
-
     # result_auc = {}
     result['AUC'] = (result_auc_train['AUC'], result_auc_val['AUC'], result_auc_test['AUC'])
     result['AP'] = (result_auc_train['AP'], result_auc_val['AP'], result_auc_test['AP'])
@@ -177,68 +138,48 @@ def train(model, score_func, train_pos, x, optimizer, batch_size):
     for perm in DataLoader(range(train_pos.size(0)), batch_size,
                            shuffle=True):
         optimizer.zero_grad()
-
-
         num_nodes = x.size(0)
-
         ######################### remove loss edges from the aggregation
         mask = torch.ones(train_pos.size(0), dtype=torch.bool).to(train_pos.device)
         mask[perm] = 0
-    
         train_edge_mask = train_pos[mask].transpose(1,0)
-
         # train_edge_mask = to_undirected(train_edge_mask)
         train_edge_mask = torch.cat((train_edge_mask, train_edge_mask[[1,0]]),dim=1)
         # edge_weight_mask = torch.cat((edge_weight_mask, edge_weight_mask), dim=0).to(torch.float)
         edge_weight_mask = torch.ones(train_edge_mask.size(1)).to(torch.float).to(train_pos.device)
-        
         adj = SparseTensor.from_edge_index(train_edge_mask, edge_weight_mask, [num_nodes, num_nodes]).to(train_pos.device)
-            
         ###################
         # print(adj)
-
         h = model(x, adj)
-
         edge = train_pos[perm].t()
-
         pos_out = score_func(h[edge[0]], h[edge[1]])
         pos_loss = -torch.log(pos_out + 1e-15).mean()
-
         # Just do some trivial random sampling.
         edge = torch.randint(0, num_nodes, edge.size(), dtype=torch.long,
                              device=h.device)
         neg_out = score_func(h[edge[0]], h[edge[1]])
         neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
-
         loss = pos_loss + neg_loss
         loss.backward()
-
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         torch.nn.utils.clip_grad_norm_(score_func.parameters(), 1.0)
-
         optimizer.step()
-
         num_examples = pos_out.size(0)
         total_loss += loss.item() * num_examples
         total_examples += num_examples
-
     return total_loss / total_examples
 
 
 
 @torch.no_grad()
 def test_edge(score_func, input_data, h, batch_size):
-
     # input_data  = input_data.transpose(1, 0)
     # with torch.no_grad():
     preds = []
     for perm  in DataLoader(range(input_data.size(0)), batch_size):
         edge = input_data[perm].t()
-    
         preds += [score_func(h[edge[0]], h[edge[1]]).cpu()]
-        
     pred_all = torch.cat(preds, dim=0)
-
     return pred_all
 
 
@@ -368,7 +309,6 @@ def main():
     score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
                     1, args.num_layers_predictor, args.dropout).to(device)
    
-    
     eval_metric = args.metric
     evaluator_hit = Evaluator(name='ogbl-collab')
     evaluator_mrr = Evaluator(name='ogbl-citation2')
@@ -385,7 +325,7 @@ def main():
 
     for run in range(args.runs):
         import wandb
-        wandb.init(project="GCN4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
         wandb.config.update(args)
         print('#################################          ', run, '          #################################')
         
@@ -438,16 +378,13 @@ def main():
                     print('---')
 
                 best_valid_current = torch.tensor(loggers[eval_metric].results[run])[:, 1].max()
-
                 if best_valid_current > best_valid:
                     best_valid = best_valid_current
                     kill_cnt = 0
                     if args.save:
                         save_emb(score_emb, save_path)
-
                 else:
                     kill_cnt += 1
-                    
                     if kill_cnt > args.kill_cnt: 
                         print("Early Stopping!!")
                         break
@@ -472,7 +409,6 @@ def main():
         save_dict[key] = test_res
         print(save_dict)
     print(best_metric_valid_str +' ' +best_auc_valid_str)
-
     mvari_str2csv(args.name_tag, save_dict, f'results/{args.data_name}_lm_mrr.csv')
     return best_valid_mean_metric, best_auc_metric, result_all_run
 

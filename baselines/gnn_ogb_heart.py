@@ -24,28 +24,42 @@ import torch
 from torch_geometric.data import Data
 import numpy as np
 import argparse
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
-
+server = 'SDIL'
 
 def get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
-    
     k_list = [20, 50, 100]
     result = {}
-
     result_mrr_train = evaluate_mrr( evaluator_mrr,  pos_train_pred, neg_val_pred)
     result_mrr_val = evaluate_mrr( evaluator_mrr, pos_val_pred, neg_val_pred )
     result_mrr_test = evaluate_mrr( evaluator_mrr, pos_test_pred, neg_test_pred )
-    
-   
     result['MRR'] = (result_mrr_train['MRR'], result_mrr_val['MRR'], result_mrr_test['MRR'])
     for K in k_list:
         result[f'mrr_hit{K}'] = (result_mrr_train[f'mrr_hit{K}'], result_mrr_val[f'mrr_hit{K}'], result_mrr_test[f'mrr_hit{K}'])
-
     return result
 
+def plot_test_sequences(test_pred, test_true):
+    """
+    Plots test_pred as a line plot with transparent circles for positive and negative samples.
+    """
+    test_pred = test_pred.detach().cpu().numpy()  
+    test_true = test_true.detach().cpu().numpy()
 
+    plt.figure(figsize=(8, 5))
+    plt.plot(test_pred, marker='o', linestyle='-', label="Prediction Score", color='#7FCA85', alpha=0.7)
+    plt.plot(test_true, marker='o', linestyle='-', label="True Score", color='#BDAED2', alpha=0.7)
+    # Color true labels (1=Positive, 0=Negative)
+
+    plt.xlabel("Sample Index")
+    plt.ylabel("Prediction Score")
+    plt.title("Test Predictions with True Labels")
+    plt.legend()
+    plt.savefig('plot_prediction.png')
+    
 def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
 
     # result_hit = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred)
@@ -54,31 +68,25 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     result_hit_train = evaluate_hits(evaluator_hit, pos_train_pred, neg_val_pred, k_list)
     result_hit_val = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, k_list)
     result_hit_test = evaluate_hits(evaluator_hit, pos_test_pred, neg_test_pred, k_list)
-
     # result_hit = {}
     for K in k_list:
         result[f'Hits@{K}'] = (result_hit_train[f'Hits@{K}'], result_hit_val[f'Hits@{K}'], result_hit_test[f'Hits@{K}'])
-
     train_pred = torch.cat([pos_train_pred, neg_val_pred])
     train_true = torch.cat([torch.ones(pos_train_pred.size(0), dtype=int), 
                             torch.zeros(neg_val_pred.size(0), dtype=int)])
-
     val_pred = torch.cat([pos_val_pred, neg_val_pred])
     val_true = torch.cat([torch.ones(pos_val_pred.size(0), dtype=int), 
                             torch.zeros(neg_val_pred.size(0), dtype=int)])
     test_pred = torch.cat([pos_test_pred, neg_test_pred])
     test_true = torch.cat([torch.ones(pos_test_pred.size(0), dtype=int), 
                             torch.zeros(neg_test_pred.size(0), dtype=int)])
-
     result_auc_train = evaluate_auc(train_pred, train_true)
     result_auc_val = evaluate_auc(val_pred, val_true)
     result_auc_test = evaluate_auc(test_pred, test_true)
-
+    
     # result_auc = {}
     result['AUC'] = (result_auc_train['AUC'], result_auc_val['AUC'], result_auc_test['AUC'])
     result['AP'] = (result_auc_train['AP'], result_auc_val['AP'], result_auc_test['AP'])
-
-    
     return result
 
         
@@ -86,92 +94,58 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
 def train_use_hard_negative(model, score_func, train_pos, data, emb, optimizer, batch_size, pos_train_weight, remove_edge_aggre, gnn_batch_size):
     model.train()
     score_func.train()
-
     # train_pos = train_pos.transpose(1, 0)
     total_loss = total_examples = 0
-
     # pos_train_edge = split_edge['train']['edge'].to(data.x.device)
-    
     if emb == None: 
         x = data.x
         emb_update = 0
     else: 
         x = emb.weight
         emb_update = 1
-
-
-    
     for perm, perm_large in zip(DataLoader(range(train_pos.size(0)), batch_size,
                            shuffle=True),  DataLoader(range(train_pos.size(0)), gnn_batch_size,
                            shuffle=True)):
-        
         optimizer.zero_grad()
-
-
         num_nodes = x.size(0)
-
         ######################### remove loss edges from the aggregation
-
-        
         if remove_edge_aggre:
-
             mask = torch.ones(train_pos.size(0), dtype=torch.bool).to(train_pos.device)
             mask[perm] = 0
-        
             train_edge_mask = train_pos[mask].transpose(1,0)
             train_edge_mask = torch.cat((train_edge_mask, train_edge_mask[[1,0]]),dim=1)
-
             if pos_train_weight != None:
                 edge_weight_mask = pos_train_weight[mask]
                 edge_weight_mask = torch.cat((edge_weight_mask, edge_weight_mask), dim=0).to(torch.float)
-            
-
             else:
                 edge_weight_mask = torch.ones(train_edge_mask.size(1)).to(torch.float).to(train_pos.device)
-        
             adj = SparseTensor.from_edge_index(train_edge_mask, edge_weight_mask, [num_nodes, num_nodes]).to(train_pos.device)
-
         else:
-           
             adj = data.adj_t 
              
         ###################
         # print(adj)
-
         h = model(x, adj)
-
         edge = train_pos[perm].t()
-
         pos_out = score_func(h[edge[0]], h[edge[1]])
         pos_loss = -torch.log(pos_out + 1e-15).mean()
-
-        
         edge_large = train_pos[perm_large].t()
         edge_large = torch.randint(0, num_nodes, edge_large.size(), dtype=torch.long, device=edge.device)
         with torch.no_grad():
-           
             neg_out_gnn_large = score_func(h[edge_large[0]], h[edge_large[1]])
             neg_large_loss = -torch.log(1 - (torch.sigmoid(neg_out_gnn_large)) + 1e-15)
             edge = edge_large[:,torch.topk(neg_large_loss.squeeze(), batch_size)[1]]
-        
-
-        
         neg_out = score_func(h[edge[0]], h[edge[1]])
         neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
-
         loss = pos_loss + neg_loss
         loss.backward()
-
         if emb_update == 1: torch.nn.utils.clip_grad_norm_(x, 1.0)
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         torch.nn.utils.clip_grad_norm_(score_func.parameters(), 1.0)
-
         optimizer.step()
-
         num_examples = pos_out.size(0)
         total_loss += loss.item() * num_examples
         total_examples += num_examples
-
     return total_loss / total_examples
 
 
@@ -179,123 +153,82 @@ def train_use_hard_negative(model, score_func, train_pos, data, emb, optimizer, 
 def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name, remove_edge_aggre):
     model.train()
     score_func.train()
-
     # train_pos = train_pos.transpose(1, 0)
     total_loss = total_examples = 0
-
     # pos_train_edge = split_edge['train']['edge'].to(data.x.device)
-    
     if emb == None: 
         x = data.x
         emb_update = 0
     else: 
         x = emb.weight
         emb_update = 1
-
-
     for perm in DataLoader(range(train_pos.size(0)), batch_size,
                            shuffle=True):
         optimizer.zero_grad()
-
-
         num_nodes = x.size(0)
-
         ######################### remove loss edges from the aggregation
-
-        
         if remove_edge_aggre:
-
             mask = torch.ones(train_pos.size(0), dtype=torch.bool).to(train_pos.device)
             mask[perm] = 0
-        
             train_edge_mask = train_pos[mask].transpose(1,0)
             train_edge_mask = torch.cat((train_edge_mask, train_edge_mask[[1,0]]),dim=1)
-
             if pos_train_weight != None:
                 edge_weight_mask = pos_train_weight[mask]
                 edge_weight_mask = torch.cat((edge_weight_mask, edge_weight_mask), dim=0).to(torch.float)
-            
-
             else:
                 edge_weight_mask = torch.ones(train_edge_mask.size(1)).to(torch.float).to(train_pos.device)
         
             adj = SparseTensor.from_edge_index(train_edge_mask, edge_weight_mask, [num_nodes, num_nodes]).to(train_pos.device)
-
         else:
-           
             adj = data.adj_t 
-             
         ###################
-
         h = model(x, adj)
-
         edge = train_pos[perm].t()
-
         pos_out = score_func(h[edge[0]], h[edge[1]])
         pos_loss = -torch.log(pos_out + 1e-15).mean()
-
-        
         edge = torch.randint(0, num_nodes, edge.size(), dtype=torch.long,
                                 device=h.device)
-            
         neg_out = score_func(h[edge[0]], h[edge[1]])
         neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
-
         loss = pos_loss + neg_loss
         loss.backward()
-
         if emb_update == 1: torch.nn.utils.clip_grad_norm_(x, 1.0)
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         torch.nn.utils.clip_grad_norm_(score_func.parameters(), 1.0)
-
         optimizer.step()
-
         num_examples = pos_out.size(0)
         total_loss += loss.item() * num_examples
         total_examples += num_examples
-
     return total_loss / total_examples
 
 
 
 @torch.no_grad()
 def test_edge(score_func, input_data, h, batch_size, mrr_mode=False, negative_data=None):
-
-    
     preds = []
-
     if mrr_mode:
         source = input_data.t()[0]
         source = source.view(-1, 1).repeat(1, 1000).view(-1)
         target_neg = negative_data.view(-1)
-
         for perm in DataLoader(range(source.size(0)), batch_size):
             src, dst_neg = source[perm], target_neg[perm]
             preds += [score_func(h[src], h[dst_neg]).squeeze().cpu()]
         pred_all = torch.cat(preds, dim=0).view(-1, 1000)
-
     else:
-
         for perm  in DataLoader(range(input_data.size(0)), batch_size):
             edge = input_data[perm].t()
-        
             preds += [score_func(h[edge[0]], h[edge[1]]).cpu()]
-            
         pred_all = torch.cat(preds, dim=0)
-
-
     return pred_all
+
 
 @torch.no_grad()
 def test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size):
     model.eval()
     score_func.eval()
-
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
-
     if emb == None: x = data.x
     else: x = emb.weight
-    
     h = model(x, data.adj_t.to(x.device))
     x1 = h
     x2 = torch.tensor(1)
@@ -305,41 +238,54 @@ def test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit
     neg_valid_edge = neg_valid_edge.to(x.device)
     pos_test_edge = pos_test_edge.to(x.device) 
     neg_test_edge = neg_test_edge.to(x.device)
-
     neg_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size, mrr_mode=True, negative_data=neg_valid_edge)
-
     pos_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size)
-
     pos_test_pred = test_edge(score_func, pos_test_edge, h, batch_size)
-
     neg_test_pred = test_edge(score_func, pos_test_edge, h, batch_size, mrr_mode=True, negative_data=neg_test_edge)
-
     pos_train_pred = test_edge(score_func, train_val_edge, h, batch_size)
-        
     pos_valid_pred = pos_valid_pred.view(-1)
     pos_test_pred =pos_test_pred.view(-1)
     pos_train_pred = pos_valid_pred.view(-1)
-    
     print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
     
     result = get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
-    
     score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x1.cpu(), x2.cpu()]
-
     return result, score_emb
 
-
+def visualize_predictions(pos_train_pred, neg_train_pred, 
+                          pos_valid_pred, neg_valid_pred, 
+                          pos_test_pred, neg_test_pred):
+  
+    """
+    Visualizes the distribution of positive and negative predictions for train, validation, and test sets.
+    """
+    plt.figure(figsize=(15, 5))
+    
+    datasets = [(pos_train_pred, neg_train_pred, 'Train'),
+                (pos_valid_pred, neg_valid_pred, 'Validation'),
+                (pos_test_pred, neg_test_pred, 'Test')]
+    
+    for i, (pos_pred, neg_pred, title) in enumerate(datasets):
+        plt.subplot(1, 3, i + 1)
+        sns.histplot(pos_pred, bins=50, kde=True, color='#7FCA85', stat='density', label='Positive')
+        sns.histplot(neg_pred, bins=50, kde=True, color='#BDAED2', stat='density', label='Negative', alpha=0.6)
+        plt.title(f'{title} Set')
+        plt.xlabel('Prediction Score')
+        plt.ylabel('Density')
+        plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig('visual_grand.png')
+    
+    
 @torch.no_grad()
 def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size, use_valedges_as_input):
     model.eval()
     score_func.eval()
-
     # adj_t = adj_t.transpose(1,0)
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
-
     if emb == None: x = data.x
     else: x = emb.weight
-    
     h = model(x, data.adj_t.to(x.device))
     x1 = h
     x2 = torch.tensor(1)
@@ -356,22 +302,19 @@ def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluato
         h = model(x, data.full_adj_t.to(x.device))
         x2 = h
     pos_test_pred = test_edge(score_func, pos_test_edge, h, batch_size)
-
     neg_test_pred = test_edge(score_func, neg_test_edge, h, batch_size)
-
     pos_train_pred = test_edge(score_func, train_val_edge, h, batch_size)
-
     pos_train_pred = torch.flatten(pos_train_pred)
     neg_valid_pred, pos_valid_pred = torch.flatten(neg_valid_pred),  torch.flatten(pos_valid_pred)
     pos_test_pred, neg_test_pred = torch.flatten(pos_test_pred), torch.flatten(neg_test_pred)
-
+    
     print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
-    
     result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
-    
-
     score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x1.cpu(), x2.cpu()]
 
+    # visualize_predictions(pos_train_pred, neg_valid_pred,
+    #                     pos_valid_pred, neg_valid_pred,
+    #                     pos_test_pred, neg_test_pred)
     return result, score_emb
 
 
@@ -459,6 +402,7 @@ def main():
     else:
         emb = torch.nn.Embedding(node_num, args.hidden_channels).to(device)
         input_channel = args.hidden_channels
+        
     if hasattr(data, 'edge_weight'):
         if data.edge_weight != None:
             edge_weight = data.edge_weight.to(torch.float)
@@ -496,9 +440,13 @@ def main():
             deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
             adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
             data.adj_t = adj_t
+            
     data = data.to(device)
     model = eval(args.gnn_model)(input_channel, args.hidden_channels,
-                    args.hidden_channels, args.num_layers, args.dropout, mlp_layer=args.gin_mlp_layer, head=args.gat_head, node_num=node_num, cat_node_feat_mf=args.cat_node_feat_mf,  data_name=args.data_name).to(device)
+                    args.hidden_channels, args.num_layers, args.dropout, 
+                    mlp_layer=args.gin_mlp_layer, head=args.gat_head, 
+                    node_num=node_num, cat_node_feat_mf=args.cat_node_feat_mf,  
+                    data_name=args.data_name).to(device)
 
     score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
                     1, args.num_layers_predictor, args.dropout).to(device)
@@ -514,7 +462,7 @@ def main():
         'MRR': Logger(args.runs),
         'AUC':Logger(args.runs),
         'AP':Logger(args.runs),
-         'mrr_hit20':  Logger(args.runs),
+        'mrr_hit20':  Logger(args.runs),
         'mrr_hit50':  Logger(args.runs),
         'mrr_hit100':  Logger(args.runs),
     }
@@ -523,10 +471,8 @@ def main():
         eval_metric = 'Hits@50'
     elif args.data_name =='ogbl-ddi':
         eval_metric = 'Hits@20'
-
     elif args.data_name =='ogbl-ppa':
         eval_metric = 'Hits@100'
-    
     elif args.data_name =='ogbl-citation2':
         eval_metric = 'MRR'
 
@@ -536,7 +482,6 @@ def main():
         neg_valid_edge = split_edge['valid']['edge_neg']
         pos_test_edge = split_edge['test']['edge']
         neg_test_edge = split_edge['test']['edge_neg']
-    
     else:
         source_edge, target_edge = split_edge['train']['source_node'], split_edge['train']['target_node']
         pos_train_edge = torch.cat([source_edge.unsqueeze(1), target_edge.unsqueeze(1)], dim=-1)
@@ -553,10 +498,11 @@ def main():
     evaluation_edges = [train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge]
     best_valid_auc = best_test_auc = 2
     best_auc_valid_str = 2
+    
     for run in range(args.runs):
         print('#################################          ', run, '          #################################')
         import wandb
-        wandb.init(project="GCN4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_Heart_{server}_{args.runs}")
         wandb.config.update(args)
         if args.runs == 1:
             seed = args.seed
@@ -565,8 +511,6 @@ def main():
         print('seed: ', seed)
         init_seed(seed)
         save_path = args.output_dir+'/lr'+str(args.lr) + '_drop' + str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+str(args.hidden_channels) + '_'+ 'best_run_'+str(seed)
-        # save_valid = args.output_dir+'/lr'+str(args.lr) + '_drop' + str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+str(args.hidden_channels) + '_'+ 'valid_output'+str(run)
-        # save_valid = args.output_dir+'/lr'+str(args.lr) + '_drop' + str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+str(args.hidden_channels) + '_'+ 'valid_output'+str(run)
         if emb != None:
             torch.nn.init.xavier_uniform_(emb.weight)
         model.reset_parameters()
@@ -581,7 +525,6 @@ def main():
         kill_cnt = 0
         best_test = 0
         step = 0
-        eval_step = 0
         
         for epoch in range(1, 1 + args.epochs):
             if args.use_hard_negative:
@@ -598,10 +541,8 @@ def main():
                     results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
-                for key, result in results_rank.items():
-                    loggers[key].add_result(run, result)
-                    wandb.log({f"Metrics/{key}": result[-1]}, step=eval_step)
-                    eval_step += 1 
+                    wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                    
                     
                 if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
@@ -634,7 +575,6 @@ def main():
                                 f'best test: {100*best_test_auc:.2f}%')
                 
                 print('---')
-                
                 if best_valid_current > best_valid:
                     best_valid = best_valid_current
                     kill_cnt = 0
@@ -665,6 +605,8 @@ def main():
             result_all_run[key] = [mean_list, var_list]
             save_dict[key] = test_res
     print(f"now save {save_dict}")
+    print(f"to results_ogb_gnn/{args.data_name}_lm_mrr.csv")
+    print(f"with name {args.name_tag}.")
     mvari_str2csv(args.name_tag, save_dict, f'results_ogb_gnn/{args.data_name}_lm_mrr.csv')
 
     if args.runs == 1:

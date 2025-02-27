@@ -88,3 +88,4 @@ python main_grand.py  --dataset Pubmed --device 0 --no_early --beltrami
 python main_grand.py  --dataset Cora --device 0 --no_early --beltrami
 ```
 
+python3 allin_grand.py --dataset ogbl-collab --device 0 --no_early --beltrami 

@@ -3,7 +3,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --partition=accelerated
-#SBATCH --job-name=grand_vessel
+#SBATCH --job-name=grand_collab
 
 #SBATCH --output=log/Universal_MPNN_%j.output
 #SBATCH --error=error/Universal_MPNN_%j.error
@@ -35,10 +35,15 @@ echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 
 echo "Start time: $(date)"
 
-data_name=(citation2) #ppa citation2 
+data_name=(ppa) #ppa citation2 
 
 # for data in $data_name; do
 echo "Start training grand on $data"
-python main_grand.py  --dataset ogbl-$data_name --device 0 --no_early --beltrami
-# done
-python main_grand.py  --dataset ogbl-citation2 --device 0 --no_early --beltrami
+# python main_grand.py  --dataset ogbl-$data_name --device 0 --no_early --beltrami
+# # done
+# python main_grand.py  --dataset ogbl-citation2 --device 0 --no_early --beltrami
+# python main_grand.py  --dataset ogbl-collab --device 0 --no_early --beltrami
+
+python allin_grand.py  --data_name ogbl-collab --device 0 --no_early --beltrami --epoch 1000
+python allin_grand_original.py  --data_name ogbl-collab --device 0 --no_early --beltrami --epoch 1000
+python allin_grand_original.py  --data_name ogbl-collab --device 0 --gcn True --epoch 1000
