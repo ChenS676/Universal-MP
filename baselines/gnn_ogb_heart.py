@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
 
-from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, evaluate_hits, evaluate_mrr, evaluate_auc, Logger, init_seed, save_emb
+from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, Logger, init_seed, save_emb
 from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
 
 # from logger import Logger
@@ -606,7 +606,6 @@ def main():
                 best_auc_metric = best_valid_mean
             result_all_run[key] = [mean_list, var_list]
             save_dict[key] = test_res
-    print(f"now save {save_dict}")
     print(f"to results_ogb_gnn/{args.data_name}_lm_mrr.csv")
     print(f"with name {args.name_tag}.")
     mvari_str2csv(args.name_tag, save_dict, f'results_ogb_gnn/{args.data_name}_lm_mrr.csv')
