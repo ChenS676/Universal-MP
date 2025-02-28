@@ -1,41 +1,36 @@
+import os
 import sys
 import math
 from tqdm import tqdm
-import random
 import numpy as np
 import scipy.sparse as ssp
-from scipy.sparse.csgraph import shortest_path
 import torch
-from torch_sparse import spspmm
-import torch_geometric
 from torch_geometric.data import DataLoader
-from torch_geometric.data import Data
-from torch_geometric.utils import (negative_sampling, add_self_loops,
-                                   train_test_split_edges)
-# adapted from https://github.com/jcatw/scnn
-import torch
-import random
-from torch_geometric.datasets import Planetoid
-import torch_geometric.transforms as T 
-from sklearn.preprocessing import normalize
-import json
-from torch_geometric.transforms import RandomLinkSplit
 import pandas as pd
-from torch_geometric.data import Data, InMemoryDataset
-import matplotlib.pyplot as plt
-import scipy.sparse as ssp
-from typing import Dict
-from torch_geometric.data import Dataset
-import torch
-from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
-import scipy.sparse as ssp
-from torch_geometric.utils import to_undirected, train_test_split_edges
-from torch_geometric.data import Data
-from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
-from tqdm import tqdm
 import argparse
-from gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
+from torch_geometric.datasets import Planetoid, Amazon
+from torch_geometric.utils import to_undirected, train_test_split_edges
+from ogb.linkproppred import Evaluator
+from gnn_utils import evaluate_hits, evaluate_auc, evaluate_mrr
 
+def randomsplit(dataset, val_ratio: float=0.10, test_ratio: float=0.2):
+    def removerepeated(ei):
+        ei = to_undirected(ei)
+        ei = ei[:, ei[0]<ei[1]]
+        return ei
+    data = dataset[0]
+    data.num_nodes = data.x.shape[0]
+    data = train_test_split_edges(data, test_ratio, test_ratio)
+    split_edge = {'train': {}, 'valid': {}, 'test': {}}
+    num_val = int(data.val_pos_edge_index.shape[1] * val_ratio/test_ratio)
+    data.val_pos_edge_index = data.val_pos_edge_index[:, torch.randperm(data.val_pos_edge_index.shape[1])]
+    split_edge['train']['edge'] = removerepeated(
+        torch.cat((data.train_pos_edge_index, data.val_pos_edge_index[:, :-num_val]), dim=-1)).t()
+    split_edge['valid']['edge'] = removerepeated(data.val_pos_edge_index[:, -num_val:]).t()
+    split_edge['valid']['edge_neg'] = removerepeated(data.val_neg_edge_index).t()
+    split_edge['test']['edge'] = removerepeated(data.test_pos_edge_index).t()
+    split_edge['test']['edge_neg'] = removerepeated(data.test_neg_edge_index).t()
+    return split_edge
 
 def CN(A, edge_index, batch_size=100000):
     # The Common Neighbor heuristic score.
@@ -145,65 +140,56 @@ def get_metric_score(evaluator_hit, pos_test_pred, neg_test_pred):
     result['AP'] = result_auc_test['AP']
     return result
 
-        
-
-def main(args):
-    dataset = PygLinkPropPredDataset(name=args.data_name)
-    data = dataset[0]
+def run_experiment(dataset_name):
+    if dataset_name in ["Cora", "Citeseer", "Pubmed"]:
+        dataset = Planetoid(root="dataset", name=dataset_name)
+    elif dataset_name in ["Computers", "Photo"]:
+        dataset = Amazon(root="dataset", name=dataset_name)
+    else:
+        raise ValueError("Unsupported dataset")
     
-    if args.data_name == 'ogbl-citation2':
-        edge_index = data.edge_index 
-    else:   
-        edge_index = to_undirected(data.edge_index)
-    num_nodes = data.num_nodes
-    adj = get_adj_matrix(edge_index, num_nodes)
+    split_edge = randomsplit(dataset)
+    data = dataset[0]
+    data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+    num_nodes = data.x.shape[0]
+    adj = get_adj_matrix(data.edge_index, num_nodes)
+    
     evaluator_hit = Evaluator(name='ogbl-collab')
     evaluator_mrr = Evaluator(name='ogbl-citation2')
     
-    split_edge = dataset.get_edge_split()
-    if args.data_name != 'ogbl-citation2':
-        test_pos_edge = split_edge["edge"].T
-        test_neg_edge = split_edge["edge_neg"].T
-    else:
-        source, target = split_edge['test']['source_node'],  split_edge['test']['target_node']
-        test_pos_edge = torch.cat([source.unsqueeze(1), target.unsqueeze(1)], dim=-1)
-        test_neg_edge = split_edge['test']['target_node_neg']
+    test_pos_edge = split_edge['test']["edge"].T
+    test_neg_edge = split_edge['test']["edge_neg"].T
     
-    # Compute heuristic scores
-    test_pos_pred_CN = CN(adj, test_pos_edge)
-    test_neg_pred_CN = CN(adj, test_neg_edge)
-
-    test_pos_pred_RA = RA(adj, test_pos_edge)
-    test_neg_pred_RA = RA(adj, test_neg_edge)
-
-    test_pos_pred_AA = AA(adj, test_pos_edge)
-    test_neg_pred_AA = AA(adj, test_neg_edge)
-
-    # Evaluate heuristics
-    if args.data_name == 'ogbl-citation2':
-        CN_metric = evaluate_mrr( evaluator_mrr, test_pos_pred_CN, test_pos_pred_CN)
-        RA_metric = evaluate_mrr( evaluator_mrr, test_pos_pred_RA, test_pos_pred_RA)
-        AA_metric = evaluate_mrr( evaluator_mrr, test_pos_pred_AA, test_pos_pred_AA)
-    else:
+    metrics_list = []
+    
+    for _ in range(10):  # Run 10 times
+        test_pos_pred_CN = CN(adj, test_pos_edge)
+        test_neg_pred_CN = CN(adj, test_neg_edge)
+        test_pos_pred_RA = RA(adj, test_pos_edge)
+        test_neg_pred_RA = RA(adj, test_neg_edge)
+        test_pos_pred_AA = AA(adj, test_pos_edge)
+        test_neg_pred_AA = AA(adj, test_neg_edge)
+        
+        CN_mrr = evaluate_mrr(evaluator_mrr, test_pos_pred_CN, test_pos_pred_CN)
+        RA_mrr = evaluate_mrr(evaluator_mrr, test_pos_pred_RA, test_pos_pred_RA)
+        AA_mrr = evaluate_mrr(evaluator_mrr, test_pos_pred_AA, test_pos_pred_AA)
+        
         CN_metric = get_metric_score(evaluator_hit, test_pos_pred_CN, test_neg_pred_CN)
         RA_metric = get_metric_score(evaluator_hit, test_pos_pred_RA, test_neg_pred_RA)
         AA_metric = get_metric_score(evaluator_hit, test_pos_pred_AA, test_neg_pred_AA)
-
-    # Convert metric results into a DataFrame
-    metrics_data = {
-        "Metric": list(CN_metric.keys()),
-        "CN": list(CN_metric.values()),
-        "RA": list(RA_metric.values()),
-        "AA": list(AA_metric.values())
-    }
-
-    df_metrics = pd.DataFrame(metrics_data)
-    # Save results to CSV
-    df_metrics.to_csv(f"{args.data_name}_heuristic.csv", index=False)
-
+        
+        metrics = {**CN_metric, **RA_metric, **AA_metric, **CN_mrr, **RA_mrr, **AA_mrr}
+        metrics_list.append(metrics)
+    
+    metrics_array = np.array([[m[key] for key in metrics_list[0].keys()] for m in metrics_list])
+    mean_metrics = np.mean(metrics_array, axis=0)
+    var_metrics = np.var(metrics_array, axis=0)
+    
+    df = pd.DataFrame({"Metric": list(metrics_list[0].keys()), "Mean": mean_metrics, "Variance": var_metrics})
+    df.to_csv(f"{dataset_name}_heuristic_results.csv", index=False)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default='ogbl-citation2')
+    parser = argparse.ArgumentParser(description='Run experiments')
+    parser.add_argument('--data_name', type=str, default='Computers')
     args = parser.parse_args()
-    main(args)
+    run_experiment(args.data_name)
