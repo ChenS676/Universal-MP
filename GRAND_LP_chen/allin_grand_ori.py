@@ -5,11 +5,25 @@ import argparse
 import torch
 import time
 from tqdm import tqdm
+from torch_geometric.utils import (add_self_loops, degree,
+                                   from_scipy_sparse_matrix, index_to_mask,
+                                   is_undirected, negative_sampling,
+                                   to_undirected, train_test_split_edges, coalesce)
+from torch_geometric.datasets import Planetoid, Amazon
+from torch_geometric.utils import negative_sampling
+from ogb.linkproppred import Evaluator
+from torch.utils.data import DataLoader
+from ogb.linkproppred import PygLinkPropPredDataset
+from torch_sparse import SparseTensor
+import matplotlib.pyplot as plt
+import seaborn as sns
+import yaml 
 
 from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, evaluate_hits, evaluate_mrr, evaluate_auc, Logger, init_seed, save_emb
 from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
-
-from data_utils.load_lp import *
+from data_utils.load_lp import randomsplit 
+import torch_geometric.transforms as T
+# from data_utils.load_lp import get_dataset
 from data_utils.graph_rewiring import apply_KNN
 from metrics.metrics import *
 from models.base_classes import LinkPredictor
@@ -19,15 +33,81 @@ from models.GNN import GNN
 from models.GNN_early import GNNEarly
 from models.trainer import Trainer_GRAND
 from torch_geometric.nn import Node2Vec
-import yaml 
 from formatted_best_params import best_params_dict
-from torch_geometric.utils import negative_sampling
 from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
-from ogb.linkproppred import Evaluator
+from data_utils.graph_rewiring import rewire, apply_beltrami
 from utils.utils import PermIterator
-from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
+
+
+server = 'SDIL'
+
+def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=False, load=None):
+    if name in ["Cora", "Citeseer", "Pubmed"]:
+        dataset = Planetoid(root="dataset", name=name)
+        split_edge = randomsplit(dataset)
+        data = dataset[0]
+        data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+        edge_index = data.edge_index
+        data.num_nodes = data.x.shape[0]
+    elif name in ["Computers", "Photo"]:
+        dataset = Amazon(root="dataset", name=name)
+        split_edge = randomsplit(dataset)
+        data = dataset[0]
+        data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+        edge_index = data.edge_index
+        data.num_nodes = data.x.shape[0]
+    else:
+        dataset = PygLinkPropPredDataset(root="dataset", name=name)
+        split_edge = dataset.get_edge_split()
+        data = dataset[0]
+        edge_index = data.edge_index
+        try:
+            data.num_nodes = data.x.shape[0]
+        except:
+            if hasattr(data, "num_nodes"):
+                print(f"use default data.num_nodes: {data.num_nodes}.")
+        
+    data.edge_weight = None 
+    data.adj_t = SparseTensor.from_edge_index(edge_index, 
+                    sparse_sizes=(data.num_nodes, data.num_nodes))
+    data.adj_t = data.adj_t.to_symmetric().coalesce()
+    data.max_x = -1
+    # if name == "ogbl-collab":
+    #     data.edge_weight = data.edge_weight/2
+        
+    if name == "ogbl-ppa":
+        data.x = torch.argmax(data.x, dim=-1).unsqueeze(-1).float()
+        data.max_x = torch.max(data.x).item()
+    elif name == "ogbl-ddi":
+        data.x = torch.arange(data.num_nodes).unsqueeze(-1).float()
+        data.max_x = data.max_x = -1 # data.num_nodes
+    if load is not None:
+        data.x = torch.load(load, map_location="cpu")
+        data.max_x = -1
+    
+    print("dataset split ")
+    for key1 in split_edge:
+        for key2  in split_edge[key1]:
+            print(key1, key2, split_edge[key1][key2].shape[0])
+
+    # Use training + validation edges for inference on test set.
+    if use_valedges_as_input:
+        val_edge_index = split_edge['valid']['edge'].t()
+        full_edge_index = torch.cat([edge_index, val_edge_index], dim=-1)
+        data.full_adj_t = SparseTensor.from_edge_index(full_edge_index, 
+                            sparse_sizes=(data.num_nodes, data.num_nodes)).coalesce()
+        data.full_adj_t = data.full_adj_t.to_symmetric()
+        if opt['rewiring'] is not None:
+            data.edge_index = full_edge_index.copy()
+            data = rewire(data, opt, root)
+    else:
+        data.full_adj_t = data.adj_t
+        if opt['rewiring'] is not None:
+            data = rewire(data, opt, root)
+    return data, split_edge
+
+
 
 def load_yaml_config(file_path):
     """Loads a YAML configuration file."""
@@ -241,6 +321,9 @@ def train_epoch(opt, predictor, model, optimizer, data, pos_encoding, splits, ba
           model.fm.update(model.getNFE())
           model.resetNFE()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(
+            list(model.parameters()) + list(predictor.parameters()), 1.0
+        )
         optimizer.step()
         
         if not opt['gcn']:
@@ -306,7 +389,7 @@ def set_seed(seed=42):
     torch.backends.cudnn.deterministic = True  # Опционально: делаем вычисления детерминированными
     torch.backends.cudnn.benchmark = False  # Отключаем автооптимизации для детерминированности
 
-set_seed(42)
+set_seed(999)
       
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='OGBL-DDI (GNN)')
@@ -499,7 +582,13 @@ if __name__=='__main__':
     args.name_tag = f"{args.data_name}_beltrami{args.beltrami}_mlp_score_epochs{args.epoch}_runs{args.runs}"
     
     opt['beltrami'] = False
+    if opt['gcn']:
+      opt['hidden_dim'] = 256
+      opt['lr'] = 0.001
+      opt['batch_size'] = 16394
+    
 
+    init_seed(999)
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     
@@ -630,9 +719,9 @@ if __name__=='__main__':
       print('#################################          ', run, '          #################################')
       import wandb
       if opt['gcn']:
-        name_tag = f"{args.data_name}_gcn_{args.runs}"
+        name_tag = f"{args.data_name}_gcn_{server}_{args.runs}"
       else:
-        name_tag = f"{args.data_name}_grand_{args.runs}"
+        name_tag = f"{args.data_name}_grand_{server}_{args.runs}"
       wandb.init(project="GRAND4LP", name=name_tag, config=opt)
       if args.runs == 1:
           seed = 0
@@ -669,7 +758,6 @@ if __name__=='__main__':
                   loggers[key].add_result(run, result)
                   wandb.log({f"Metrics/{key}": result[-1]}, step=step)
                   
-                    
               current_metric = results['Hits@100'][2]
               if current_metric > best_metric:
                   best_epoch = epoch
