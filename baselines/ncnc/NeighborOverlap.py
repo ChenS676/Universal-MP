@@ -242,7 +242,7 @@ def main():
     device = torch.device(f'cuda' if torch.cuda.is_available() else 'cpu')
     data, split_edge = loaddataset(args.dataset, args.use_valedges_as_input, args.load)
     data = data.to(device)
-
+    
     predfn = predictor_dict[args.predictor]
     if args.predictor != "cn0":
         predfn = partial(predfn, cndeg=args.cndeg)
@@ -337,7 +337,7 @@ def main():
     ret = np.array(ret)
     print(ret)
     print(f"Final result: val {np.average(ret[:, 0]):.4f} {np.std(ret[:, 0]):.4f} tst {np.average(ret[:, 1]):.4f} {np.std(ret[:, 1]):.4f}")
-
+    
 
 if __name__ == "__main__":
     main()

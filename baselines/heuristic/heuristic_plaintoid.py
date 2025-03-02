@@ -153,64 +153,134 @@ def get_metric_score(evaluator_hit, pos_test_pred, neg_test_pred):
     return result
 
 
-def main(args):
-    if args.data_name in ["Cora", "Citeseer", "Pubmed"]:
-        dataset = Planetoid(root="dataset", name=args.data_name)
-        split_edge = randomsplit(dataset)
-        data = dataset[0]
-        data.edge_index = to_undirected(split_edge["train"]["edge"].t())
-        edge_index = data.edge_index
-        data.num_nodes = data.x.shape[0]
-    elif args.data_name in ["Computers", "Photo"]:
-        dataset = Amazon(root="dataset", name=args.data_name)
-        split_edge = randomsplit(dataset)
-        data = dataset[0]
-        data.edge_index = to_undirected(split_edge["train"]["edge"].t())
-        edge_index = data.edge_index
-        data.num_nodes = data.x.shape[0]
+# def main(args):
+#     if args.data_name in ["Cora", "Citeseer", "Pubmed"]:
+#         dataset = Planetoid(root="dataset", name=args.data_name)
+#         split_edge = randomsplit(dataset)
+#         data = dataset[0]
+#         data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+#         edge_index = data.edge_index
+#         data.num_nodes = data.x.shape[0]
+#     elif args.data_name in ["Computers", "Photo"]:
+#         dataset = Amazon(root="dataset", name=args.data_name)
+#         split_edge = randomsplit(dataset)
+#         data = dataset[0]
+#         data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+#         edge_index = data.edge_index
+#         data.num_nodes = data.x.shape[0]
         
-    num_nodes = data.num_nodes
-    adj = get_adj_matrix(edge_index, num_nodes)
-    evaluator_hit = Evaluator(name='ogbl-collab')
-    evaluator_mrr = Evaluator(name='ogbl-citation2')
+#     num_nodes = data.num_nodes
+#     adj = get_adj_matrix(edge_index, num_nodes)
+#     evaluator_hit = Evaluator(name='ogbl-collab')
+#     evaluator_mrr = Evaluator(name='ogbl-citation2')
 
-    test_pos_edge = split_edge['test']["edge"].T
-    test_neg_edge = split_edge['test']["edge_neg"].T
+#     test_pos_edge = split_edge['test']["edge"].T
+#     test_neg_edge = split_edge['test']["edge_neg"].T
 
-    # Compute heuristic scores
-    test_pos_pred_CN = CN(adj, test_pos_edge)
-    test_neg_pred_CN = CN(adj, test_neg_edge)
+#     # Compute heuristic scores
+#     test_pos_pred_CN = CN(adj, test_pos_edge)
+#     test_neg_pred_CN = CN(adj, test_neg_edge)
 
-    test_pos_pred_RA = RA(adj, test_pos_edge)
-    test_neg_pred_RA = RA(adj, test_neg_edge)
+#     test_pos_pred_RA = RA(adj, test_pos_edge)
+#     test_neg_pred_RA = RA(adj, test_neg_edge)
 
-    test_pos_pred_AA = AA(adj, test_pos_edge)
-    test_neg_pred_AA = AA(adj, test_neg_edge)
+#     test_pos_pred_AA = AA(adj, test_pos_edge)
+#     test_neg_pred_AA = AA(adj, test_neg_edge)
 
-    # Evaluate heuristics
-    CN_mrr = evaluate_mrr( evaluator_mrr, test_pos_pred_CN, test_pos_pred_CN)
-    RA_mrr = evaluate_mrr( evaluator_mrr, test_pos_pred_RA, test_pos_pred_RA)
-    AA_mrr = evaluate_mrr( evaluator_mrr, test_pos_pred_AA, test_pos_pred_AA)
+#     # Evaluate heuristics
+#     CN_mrr = evaluate_mrr( evaluator_mrr, test_pos_pred_CN, test_pos_pred_CN)
+#     RA_mrr = evaluate_mrr( evaluator_mrr, test_pos_pred_RA, test_pos_pred_RA)
+#     AA_mrr = evaluate_mrr( evaluator_mrr, test_pos_pred_AA, test_pos_pred_AA)
 
-    CN_metric = get_metric_score(evaluator_hit, test_pos_pred_CN, test_neg_pred_CN)
-    RA_metric = get_metric_score(evaluator_hit, test_pos_pred_RA, test_neg_pred_RA)
-    AA_metric = get_metric_score(evaluator_hit, test_pos_pred_AA, test_neg_pred_AA)
+#     CN_metric = get_metric_score(evaluator_hit, test_pos_pred_CN, test_neg_pred_CN)
+#     RA_metric = get_metric_score(evaluator_hit, test_pos_pred_RA, test_neg_pred_RA)
+#     AA_metric = get_metric_score(evaluator_hit, test_pos_pred_AA, test_neg_pred_AA)
 
-    # Convert metric results into a DataFrame
-    metrics_data = {
-        "Metric": list(CN_metric.keys())+list(CN_mrr.keys()),
-        "CN": list(CN_metric.values())+ list(CN_mrr.values()),
-        "RA": list(RA_metric.values())+ list(RA_mrr.values()),
-        "AA": list(AA_metric.values())+ list(AA_mrr.values()),
+#     # Convert metric results into a DataFrame
+#     metrics_data = {
+#         "Metric": list(CN_metric.keys())+list(CN_mrr.keys()),
+#         "CN": list(CN_metric.values())+ list(CN_mrr.values()),
+#         "RA": list(RA_metric.values())+ list(RA_mrr.values()),
+#         "AA": list(AA_metric.values())+ list(AA_mrr.values()),
+#     }
+
+#     df_metrics = pd.DataFrame(metrics_data)
+#     # Save results to CSV
+#     df_metrics.to_csv(f"{args.data_name}_heuristic.csv", index=False)
+
+def main(args):
+    results = []
+    
+    for _ in range(10):
+        if args.data_name in ["Cora", "Citeseer", "Pubmed"]:
+            dataset = Planetoid(root="dataset", name=args.data_name)
+            split_edge = randomsplit(dataset)
+            data = dataset[0]
+            data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+            edge_index = data.edge_index
+            data.num_nodes = data.x.shape[0]
+        elif args.data_name in ["Computers", "Photo"]:
+            dataset = Amazon(root="dataset", name=args.data_name)
+            split_edge = randomsplit(dataset)
+            data = dataset[0]
+            data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+            edge_index = data.edge_index
+            data.num_nodes = data.x.shape[0]
+
+        num_nodes = data.num_nodes
+        adj = get_adj_matrix(edge_index, num_nodes)
+        evaluator_hit = Evaluator(name='ogbl-collab')
+        evaluator_mrr = Evaluator(name='ogbl-citation2')
+
+        test_pos_edge = split_edge['test']["edge"].T
+        test_neg_edge = split_edge['test']["edge_neg"].T
+
+        # Compute heuristic scores
+        test_pos_pred_CN = CN(adj, test_pos_edge)
+        test_neg_pred_CN = CN(adj, test_neg_edge)
+
+        test_pos_pred_RA = RA(adj, test_pos_edge)
+        test_neg_pred_RA = RA(adj, test_neg_edge)
+
+        test_pos_pred_AA = AA(adj, test_pos_edge)
+        test_neg_pred_AA = AA(adj, test_neg_edge)
+
+        # Evaluate heuristics
+        CN_mrr = evaluate_mrr(evaluator_mrr, test_pos_pred_CN, test_pos_pred_CN)
+        RA_mrr = evaluate_mrr(evaluator_mrr, test_pos_pred_RA, test_pos_pred_RA)
+        AA_mrr = evaluate_mrr(evaluator_mrr, test_pos_pred_AA, test_pos_pred_AA)
+
+        CN_metric = get_metric_score(evaluator_hit, test_pos_pred_CN, test_neg_pred_CN)
+        RA_metric = get_metric_score(evaluator_hit, test_pos_pred_RA, test_neg_pred_RA)
+        AA_metric = get_metric_score(evaluator_hit, test_pos_pred_AA, test_neg_pred_AA)
+
+        results.append({
+            "CN": list(CN_metric.values()) + list(CN_mrr.values()),
+            "RA": list(RA_metric.values()) + list(RA_mrr.values()),
+            "AA": list(AA_metric.values()) + list(AA_mrr.values()),
+        })
+    
+    # Compute mean and variance
+    CN_results = np.array([res["CN"] for res in results])
+    RA_results = np.array([res["RA"] for res in results])
+    AA_results = np.array([res["AA"] for res in results])
+    
+    mean_results = {
+        "Metric": list(CN_metric.keys()) + list(CN_mrr.keys()),
+        "CN_mean": np.mean(CN_results, axis=0),
+        "RA_mean": np.mean(RA_results, axis=0),
+        "AA_mean": np.mean(AA_results, axis=0),
+        "CN_var": np.var(CN_results, axis=0),
+        "RA_var": np.var(RA_results, axis=0),
+        "AA_var": np.var(AA_results, axis=0),
     }
-
-    df_metrics = pd.DataFrame(metrics_data)
-    # Save results to CSV
-    df_metrics.to_csv(f"{args.data_name}_heuristic.csv", index=False)
+    
+    df_mean = pd.DataFrame(mean_results)
+    df_mean.to_csv(f"{args.data_name}_heuristic_mean_variance.csv", index=False)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default='Computers')
+    parser.add_argument('--data_name', type=str, default='Citeseer')
     args = parser.parse_args()
     main(args)

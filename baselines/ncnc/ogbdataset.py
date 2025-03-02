@@ -12,8 +12,9 @@ from torch_sparse import SparseTensor
 # random split for Planetoid 70-10-20 percent train-val-test
 def randomsplit(dataset: Planetoid, 
                 use_valedges_as_input: bool,  
-                val_ratio: float=0.1, 
-                test_ratio: float=0.2):
+                val_ratio: float=0.05, 
+                test_ratio: float=0.15):
+    
     def removerepeated(ei):
         ei = to_undirected(ei)
         ei = ei[:, ei[0]<ei[1]]
