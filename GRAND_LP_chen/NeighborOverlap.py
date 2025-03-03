@@ -277,7 +277,6 @@ def main():
             keys = predictor.load_state_dict(torch.load(f"gmodel/{args.dataset}_{args.model}_cn1_{args.hiddim}_{run}.pre.pt", map_location="cpu"), strict=False)
             print("unmatched params", keys, flush=True)
         
-
         optimizer = torch.optim.Adam([{'params': model.parameters(), "lr": args.gnnlr}, 
            {'params': predictor.parameters(), 'lr': args.prelr}])
         

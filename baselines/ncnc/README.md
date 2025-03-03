@@ -1,5 +1,11 @@
 This repository contains the official code for the paper [Neural Common Neighbor with Completion for Link Prediction](https://arxiv.org/pdf/2302.00890.pdf).
 
+TESTED RESULT CHEN 2.3.2025
+data, metric, Validation Mean,Validation Std,Test Mean,Test Std
+ogbl-collab, 0.6586695293256108,0.000857133346647998,0.6618964363573572,0.004942908329556017
+Final result: val 0.6587 0.0009 tst 0.6619 0.0049
+Results saved to results.csv
+
 **Environment**
 
 Tested Combination:
@@ -49,7 +55,7 @@ python NeighborOverlap.py   --xdp 0.3 --tdp 0.0 --pt 0.5 --gnnedp 0.0 --preedp 0
 
 collab
 ```
-python NeighborOverlap.py   --xdp 0.25 --tdp 0.05 --pt 0.1 --gnnedp 0.25 --preedp 0.0 --predp 0.3 --gnndp 0.1  --probscale 2.5 --proboffset 6.0 --alpha 1.05  --gnnlr 0.0082 --prelr 0.0037  --batch_size 65536  --ln --lnnn --predictor incn1cn1 --dataset collab  --epochs 100 --runs 10 --model gcn --hiddim 64 --mplayers 1  --testbs 131072  --maskinput --use_valedges_as_input   --res  --use_xlin  --tailact 
+python NeighborOverlap.py   --xdp 0.25 --tdp 0.05 --pt 0.1 --gnnedp 0.25 --preedp 0.0 --predp 0.3 --gnndp 0.1  --probscale 2.5 --proboffset 6.0 --alpha 1.05  --gnnlr 0.0082 --prelr 0.0037  --batch_size 65536  --ln --lnnn --predictor incn1cn1 --dataset collab  --epochs 100 --runs 2 --model gcn --hiddim 64 --mplayers 1  --testbs 131072  --maskinput --use_valedges_as_input   --res  --use_xlin  --tailact 
 ```
 
 ppa

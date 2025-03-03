@@ -1,6 +1,8 @@
 # adopted from benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
 # python gnn_ogb_heart.py  --use_valedges_as_input  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
 # OBGL-PPA,DDI, CITATION2, VESSEL, COLLAB
+# basic idea is to replace diffusion operator in mpnn and say whether it works better in ogbl-collab and citation2
+# and then expand to synthetic graph
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

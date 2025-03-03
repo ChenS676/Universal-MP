@@ -301,7 +301,6 @@ if __name__=='__main__':
       print(f"pos encoding type is {type(pos_encoding)}")
     else:
       pos_encoding = None
-
     
     data = data.to(device)
     predictor = LinkPredictor(opt['hidden_dim'], opt['hidden_dim'], 1, opt['mlp_num_layers'], opt['dropout']).to(device)
