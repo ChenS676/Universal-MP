@@ -850,7 +850,6 @@ class CNLinkPredictor(nn.Module):
         xi = x[tar_ei[0]]
         xj = x[tar_ei[1]]
         # optimized node features 
-        import IPython; IPython.embed()
         x = x + self.xlin(x)
         cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
         xcns = [spmm_add(cn, x)]
