@@ -845,10 +845,12 @@ class CNLinkPredictor(nn.Module):
                            tar_ei,
                            filled1: bool = False,
                            cndropprobs: Iterable[float] = []):
+        
         adj = self.dropadj(adj)
         xi = x[tar_ei[0]]
         xj = x[tar_ei[1]]
         # optimized node features 
+        import IPython; IPython.embed()
         x = x + self.xlin(x)
         cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
         xcns = [spmm_add(cn, x)]
@@ -861,6 +863,7 @@ class CNLinkPredictor(nn.Module):
 
     def forward(self, x, adj, tar_ei, filled1: bool = False):
         return self.multidomainforward(x, adj, tar_ei, filled1, [])
+
 
 # GAE predictor for ablation study
 class CN0LinkPredictor(nn.Module):

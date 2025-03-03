@@ -25,6 +25,7 @@ from data_utils.graph_rewiring import apply_beltrami
 from torch_geometric.utils import (negative_sampling,
                                    to_undirected, train_test_split_edges)
 import numpy as np
+import torch.nn.functional as F
 
 #TODO test wether rewire has an effect
 server = 'SDIL'
@@ -179,7 +180,7 @@ def plot_test_sequences(test_pred, test_true):
     
 
 @torch.no_grad()
-def test_edge(score_func, input_data, h, batch_size, mrr_mode=False, negative_data=None):
+def test_edge(score_func, input_data, h, data, batch_size, mrr_mode=False, negative_data=None):
     preds = []
     if mrr_mode:
         source = input_data.t()[0]
@@ -187,12 +188,17 @@ def test_edge(score_func, input_data, h, batch_size, mrr_mode=False, negative_da
         target_neg = negative_data.view(-1)
         for perm in DataLoader(range(source.size(0)), batch_size):
             src, dst_neg = source[perm], target_neg[perm]
-            preds += [score_func(h[src], h[dst_neg]).squeeze().cpu()]
+            # DEBUG
+            preds += [score_func(h,
+                    data.adj_t,
+                    edge).cpu()]
         pred_all = torch.cat(preds, dim=0).view(-1, 1000)
     else:
         for perm  in DataLoader(range(input_data.size(0)), batch_size):
             edge = input_data[perm].t()
-            preds += [score_func(h[edge[0]], h[edge[1]]).cpu()]
+            preds += [score_func(h,
+                        data.adj_t,
+                        edge).cpu()]
         pred_all = torch.cat(preds, dim=0)
     return pred_all
 
@@ -227,7 +233,17 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
   
 
 @torch.no_grad()
-def test_epoch(opt, model, score_func, data, pos_encoding, batch_size, evaluation_edges, emb, evaluator_hit, evaluator_mrr, use_valedges_as_input):
+def test_epoch(opt, 
+               model, 
+               score_func, 
+               data, 
+               pos_encoding, 
+               batch_size, 
+               evaluation_edges, 
+               emb, 
+               evaluator_hit, 
+               evaluator_mrr, 
+               use_valedges_as_input):
     model.eval()
     predictor.eval()
 
@@ -236,10 +252,7 @@ def test_epoch(opt, model, score_func, data, pos_encoding, batch_size, evaluatio
     if emb == None: x = data.x
     else: x = emb.weight
     
-    if opt['gcn']:
-      h = model(x, data.adj_t)
-    else:
-      h = model(data.x, pos_encoding)
+    h = model(data.x, pos_encoding)
     x1 = h
     x2 = torch.tensor(1)
 
@@ -253,15 +266,16 @@ def test_epoch(opt, model, score_func, data, pos_encoding, batch_size, evaluatio
     neg_valid_edge = neg_valid_edge.to(x.device)
     pos_test_edge = pos_test_edge.to(x.device) 
     neg_test_edge = neg_test_edge.to(x.device)
-    neg_valid_pred = test_edge(score_func, neg_valid_edge, h, batch_size)
-    pos_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size)
+    
+    neg_valid_pred = test_edge(score_func, neg_valid_edge, h, data, batch_size)
+    pos_valid_pred = test_edge(score_func, pos_valid_edge, h, data, batch_size)
     if use_valedges_as_input:
         print('use_val_in_edge')
         h = model(x, data.full_adj_t.to(x.device))
         x2 = h
-    pos_test_pred = test_edge(score_func, pos_test_edge, h, batch_size)
-    neg_test_pred = test_edge(score_func, neg_test_edge, h, batch_size)
-    pos_train_pred = test_edge(score_func, train_val_edge, h, batch_size)
+    pos_test_pred = test_edge(score_func, pos_test_edge, h, data, batch_size)
+    neg_test_pred = test_edge(score_func, neg_test_edge, h, data, batch_size)
+    pos_train_pred = test_edge(score_func, train_val_edge, h, data, batch_size)
     pos_train_pred = torch.flatten(pos_train_pred)
     neg_valid_pred, pos_valid_pred = torch.flatten(neg_valid_pred),  torch.flatten(pos_valid_pred)
     pos_test_pred, neg_test_pred = torch.flatten(pos_test_pred), torch.flatten(neg_test_pred)
@@ -304,26 +318,30 @@ def train_epoch(opt,
     indices = torch.randperm(pos_train_edge.size(0), device=pos_train_edge.device)
 
     for start in tqdm(range(0, pos_train_edge.size(0), batch_size)):
-
+        
+        
         optimizer.zero_grad()
         h = model(data.x, pos_encoding)
         
         end = start + batch_size
         perm = indices[start:end]
-        edge = pos_train_edge[perm]
+        edge = pos_train_edge[perm].t()
         
         # h: 576289, 162,  
         pos_out = predictor.multidomainforward(h,
                                                 data.adj_t,
                                                 edge,
                                                 cndropprobs=[])
-        pos_loss = -torch.log(pos_out + 1e-15).mean()
-        edge = neg_train_edge[perm]
+        pos_loss = -F.logsigmoid(pos_out).mean()
+
+        edge = neg_train_edge[perm].t()
         neg_out = predictor.multidomainforward(h,
                                                 data.adj_t,
                                                 edge,
                                                 cndropprobs=[])
-        neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
+
+        neg_loss =  -F.logsigmoid(-neg_out).mean()
+        
         loss = pos_loss + neg_loss
         if model.odeblock.nreg > 0:
             reg_states = tuple(torch.mean(rs) for rs in model.reg_states)
@@ -416,9 +434,8 @@ if __name__=='__main__':
                         help='The configuration file path.')
     ### MPLP PARAMETERS ###
     # dataset setting
-    parser.add_argument('--data_name', type=str, default='ogbl-ppa')
+    parser.add_argument('--data_name', type=str, default='ogbl-collab')
     parser.add_argument('--dataset_dir', type=str, default='./data')
-    parser.add_argument('--use_valedges_as_input', type=str2bool, default='False', help='whether to use val edges as input')
     parser.add_argument('--year', type=int, default=-1)
 
     parser.add_argument('--device', type=int, default=0)
@@ -445,7 +462,7 @@ if __name__=='__main__':
     parser.add_argument('--planetoid_split', action='store_true',
                     help='use planetoid splits for Cora/Citeseer/Pubmed')
     # GNN args
-    parser.add_argument('--hidden_dim', type=int, default=16, help='Hidden dimension.')
+    # parser.add_argument('--hidden_dim', type=int, default=16, help='Hidden dimension.')
     parser.add_argument('--fc_out', dest='fc_out', action='store_true',
                     help='Add a fully connected layer to the decoder.')
     parser.add_argument('--input_dropout', type=float, default=0.5, help='Input dropout rate.')
@@ -454,7 +471,6 @@ if __name__=='__main__':
     parser.add_argument('--optimizer', type=str, default='adam', help='One from sgd, rmsprop, adam, adagrad, adamax.')
     parser.add_argument('--decay', type=float, default=5e-4, help='Weight decay for optimization')
     parser.add_argument('--epoch', type=int, default=500, help='Number of training epochs per iteration.')
-    parser.add_argument('--alpha', type=float, default=1.0, help='Factor in front matrix A.')
     parser.add_argument('--alpha_dim', type=str, default='sc', help='choose either scalar (sc) or vector (vc) alpha')
     parser.add_argument('--no_alpha_sigmoid', dest='no_alpha_sigmoid', action='store_true',
                     help='apply sigmoid before multiplying by alpha')
@@ -571,12 +587,64 @@ if __name__=='__main__':
 
     parser.add_argument('--pos_dist_quantile', type=float, default=0.001, help="percentage of N**2 edges to keep")
 
+    #NCNC params
+    parser.add_argument('--use_valedges_as_input', action='store_true', help="whether to add validation edges to the input adjacency matrix of gnn")
+    parser.add_argument('--epochs', type=int, default=40, help="number of epochs")
+    parser.add_argument('--dataset', type=str, default="collab")
+    parser.add_argument('--testbs', type=int, default=8192, help="batch size for test")
+    parser.add_argument('--maskinput', action="store_true", help="whether to use target link removal")
+
+    parser.add_argument('--mplayers', type=int, default=1, help="number of message passing layers")
+    parser.add_argument('--nnlayers', type=int, default=3, help="number of mlp layers")
+    parser.add_argument('--hidden_dim', type=int, default=32, help="hidden dimension")
+    parser.add_argument('--ln', action="store_true", help="whether to use layernorm in MPNN")
+    parser.add_argument('--lnnn', action="store_true", help="whether to use layernorm in mlp")
+    parser.add_argument('--res', action="store_true", help="whether to use residual connection")
+    parser.add_argument('--jk', action="store_true", help="whether to use JumpingKnowledge connection")
+    parser.add_argument('--gnndp', type=float, default=0.3, help="dropout ratio of gnn")
+    parser.add_argument('--xdp', type=float, default=0.3, help="dropout ratio of gnn")
+    parser.add_argument('--tdp', type=float, default=0.3, help="dropout ratio of gnn")
+    parser.add_argument('--gnnedp', type=float, default=0.3, help="edge dropout ratio of gnn")
+    parser.add_argument('--predp', type=float, default=0.3, help="dropout ratio of predictor")
+    parser.add_argument('--preedp', type=float, default=0.3, help="edge dropout ratio of predictor")
+    parser.add_argument('--prelr', type=float, default=0.0003, help="learning rate of predictor")
+    # detailed hyperparameters
+    parser.add_argument('--beta', type=float, default=1)
+    
+    parser.add_argument('--splitsize', type=int, default=-1, help="split some operations inner the model. Only speed and GPU memory consumption are affected.")
+
+    # parameters used to calibrate the edge existence probability in NCNC
+    parser.add_argument('--probscale', type=float, default=5)
+    parser.add_argument('--proboffset', type=float, default=3)
+    parser.add_argument('--pt', type=float, default=0.5)
+    parser.add_argument("--learnpt", action="store_true")
+
+    # For scalability, NCNC samples neighbors to complete common neighbor. 
+    parser.add_argument('--trndeg', type=int, default=-1, help="maximum number of sampled neighbors during the training process. -1 means no sample")
+    # NCN can sample common neighbors for scalability. Generally not used. 
+    parser.add_argument('--cndeg', type=int, default=-1)
+    
+    # predictor used, such as NCN, NCNC
+    parser.add_argument("--depth", type=int, default=1, help="number of completion steps in NCNC")
+    # gnn used, such as gin, gcn.
+
+    parser.add_argument('--save_gemb', action="store_true", help="whether to save node representations produced by GNN")
+    parser.add_argument('--load', type=str, help="where to load node representations produced by GNN")
+    parser.add_argument("--loadmod", action="store_true", help="whether to load trained models")
+    parser.add_argument("--savemod", action="store_true", help="whether to save trained models")
+    
+    parser.add_argument("--savex", action="store_true", help="whether to save trained node embeddings")
+    parser.add_argument("--loadx", action="store_true", help="whether to load trained node embeddings")
+    parser.add_argument("--use_xlin", action="store_true")
+    
+    # not used in experiments
+    parser.add_argument('--cnprob', type=float, default=0)
+    
     # MY PARAMETERS
     parser.add_argument('--mlp_num_layers', type=int, default=3, help="Number of layers in MLP")
     parser.add_argument('--batch_size', type=int, default=2**12)
 
     # optimizer
-    parser.add_argument('--prelr', type=float, default=0.0003, help="learning rate of predictor")
     
     # gcn
     parser.add_argument('--gcn', type=str2bool, default=False)
@@ -589,24 +657,11 @@ if __name__=='__main__':
     parser.add_argument('--predictor', choices=predictor_dict.keys())
     
     # depth, splitsize, probscale, proboffset, trndeg, tstdeg, pt, learnpt, alpha
-    parser.add_argument("--depth", type=int, default=1, help="number of completion steps in NCNC")
-    parser.add_argument('--splitsize', type=int, default=-1, help="split some operations inner the model. Only speed and GPU memory consumption are affected.")
-    parser.add_argument('--probscale', type=float, default=5)
-    parser.add_argument('--proboffset', type=float, default=3)
-    parser.add_argument('--trndeg', type=int, default=-1, help="maximum number of sampled neighbors during the training process. -1 means no sample")
     parser.add_argument('--tstdeg', type=int, default=-1, help="maximum number of sampled neighbors during the test process")
-    parser.add_argument("--learnpt", action="store_true")
-    parser.add_argument('--cndeg', type=int, default=-1)
-    parser.add_argument("--use_xlin", action="store_true")
     parser.add_argument("--tailact", action="store_true")
     parser.add_argument("--twolayerlin", action="store_true")
     parser.add_argument("--increasealpha", action="store_true")
-    parser.add_argument('--beta', type=float, default=1)
-    parser.add_argument('--pt', type=float, default=0.5)
-    parser.add_argument('--predp', type=float, default=0.3, help="dropout ratio of predictor")
-    parser.add_argument('--preedp', type=float, default=0.3, help="edge dropout ratio of predictor")
-    parser.add_argument('--lnnn', action="store_true", help="whether to use layernorm in mlp")
-    parser.add_argument('--gnnlr', type=float, default=0.0003, help="learning rate of gnn")
+    parser.add_argument('--gnnlr', type=float, default=0.01, help="learning rate of gnn")
 
     args = parser.parse_args()
 
@@ -731,7 +786,7 @@ if __name__=='__main__':
         predfn = partial(predfn, depth=args.depth, splitsize=args.splitsize, scale=args.probscale, offset=args.proboffset, trainresdeg=args.trndeg, testresdeg=args.tstdeg, pt=args.pt, learnablept=args.learnpt, alpha=args.alpha)
 
     data = data.to(device)
-    predictor = predfn(input_channel, args.hidden_dim, 1, args.num_layers,
+    predictor = predfn( args.hidden_dim, args.hidden_dim, 1, args.num_layers,
                            args.predp, args.preedp, args.lnnn).to(device)
         
     batch_size = opt['batch_size']  
@@ -784,13 +839,31 @@ if __name__=='__main__':
       for epoch in tqdm(range(1, opt['epoch'] + 1)):
           start_time = time.time()
                  
-          loss = train_epoch(opt, predictor, model, optimizer, data, pos_encoding, splits, batch_size)
+          loss = train_epoch(opt, 
+                             predictor, 
+                             model, 
+                             optimizer, 
+                             data, 
+                             pos_encoding, 
+                             splits, 
+                             batch_size)
+          
           print(f"Epoch {epoch}, Loss: {loss:.4f}")
           wandb.log({'train_loss': loss}, step = epoch)
           step += 1
           
           if epoch % args.eval_steps == 0:
-              results, score_emb = test_epoch(opt, model, predictor, data, pos_encoding, batch_size, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.use_valedges_as_input)
+              results, score_emb = test_epoch(opt, 
+                                              model, 
+                                              predictor, 
+                                              data, 
+                                              pos_encoding, 
+                                              batch_size, 
+                                              evaluation_edges, 
+                                              emb, 
+                                              evaluator_hit,
+                                              evaluator_mrr, 
+                                              args.use_valedges_as_input)
               
               for key, result in results.items():
                   loggers[key].add_result(run, result)

@@ -15,7 +15,8 @@ from utils import PermIterator
 import time
 from ogbdataset import loaddataset
 from typing import Iterable
-
+import wandb
+server = 'Horeka'
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -77,6 +78,7 @@ def train(model,
 
         total_loss.append(loss)
     total_loss = np.average([_.item() for _ in total_loss])
+    
     return total_loss
 
 
@@ -95,27 +97,23 @@ def test(model, predictor, data, split_edge, evaluator, batch_size,
     adj = data.adj_t
     h = model(data.x, adj)
 
-    
     pos_train_pred = torch.cat([
         predictor(h, adj, pos_train_edge[perm].t()).squeeze().cpu()
         for perm in PermIterator(pos_train_edge.device,
                                  pos_train_edge.shape[0], batch_size, False)
-    ],
-                               dim=0)
+    ], dim=0)
 
 
     pos_valid_pred = torch.cat([
         predictor(h, adj, pos_valid_edge[perm].t()).squeeze().cpu()
         for perm in PermIterator(pos_valid_edge.device,
                                  pos_valid_edge.shape[0], batch_size, False)
-    ],
-                               dim=0)
+    ],  dim=0)
     neg_valid_pred = torch.cat([
         predictor(h, adj, neg_valid_edge[perm].t()).squeeze().cpu()
         for perm in PermIterator(neg_valid_edge.device,
                                  neg_valid_edge.shape[0], batch_size, False)
-    ],
-                               dim=0)
+    ],  dim=0)
     if use_valedges_as_input:
         adj = data.full_adj_t
         h = model(data.x, adj)
@@ -124,15 +122,13 @@ def test(model, predictor, data, split_edge, evaluator, batch_size,
         predictor(h, adj, pos_test_edge[perm].t()).squeeze().cpu()
         for perm in PermIterator(pos_test_edge.device, pos_test_edge.shape[0],
                                  batch_size, False)
-    ],
-                              dim=0)
+    ],  dim=0)
 
     neg_test_pred = torch.cat([
         predictor(h, adj, neg_test_edge[perm].t()).squeeze().cpu()
         for perm in PermIterator(neg_test_edge.device, neg_test_edge.shape[0],
                                  batch_size, False)
-    ],
-                              dim=0)
+    ],  dim=0)
 
     results = {}
     for K in [20, 50, 100]:
@@ -254,6 +250,9 @@ def main():
     ret = []
 
     for run in range(0, args.runs):
+        name_tag = f"{args.dataset}_grand_{server}_{args.runs}"
+        wandb.init(project="GRAND4LP", name=name_tag, config=vars(args))
+        
         set_seed(run)
         if args.dataset in ["Cora", "Citeseer", "Pubmed"]:
             data, split_edge = loaddataset(args.dataset, args.use_valedges_as_input, args.load) # get a new split of dataset
@@ -287,6 +286,8 @@ def main():
             loss = train(model, predictor, data, split_edge, optimizer,
                          args.batch_size, args.maskinput, [], alpha)
             print(f"trn time {time.time()-t1:.2f} s", flush=True)
+            wandb.log({'train_loss': loss}, step = epoch)
+            
             if True:
                 t1 = time.time()
                 results, h = test(model, predictor, data, split_edge, evaluator,
@@ -313,6 +314,8 @@ def main():
                             if args.savemod:
                                 torch.save(model.state_dict(), f"gmodel/{args.dataset}_{args.model}_{args.predictor}_{args.hiddim}_{run}.pt")
                                 torch.save(predictor.state_dict(), f"gmodel/{args.dataset}_{args.model}_{args.predictor}_{args.hiddim}_{run}.pre.pt")
+                        
+                        wandb.log({f"Metrics/{key}": bestscore[key][-1]}, step=epoch)
                         print(key)
                         print(f'Run: {run + 1:02d}, '
                               f'Epoch: {epoch:02d}, '
@@ -321,6 +324,7 @@ def main():
                               f'Valid: {100 * valid_hits:.2f}%, '
                               f'Test: {100 * test_hits:.2f}%')
                     print('---', flush=True)
+                    
                     
         print(f"best {bestscore}")
         if args.dataset == "collab":
