@@ -46,4 +46,17 @@ echo "Start training grand on $data"
 
 python allin_grand.py  --data_name ogbl-collab --device 0 --no_early --beltrami --epoch 1000
 python allin_grand_original.py  --data_name ogbl-collab --device 0 --no_early --beltrami --epoch 1000
-python allin_grand_original.py  --data_name ogbl-collab --device 0 --gcn True --epoch 1000
+python allin_grand_original.py  --data_name ogbl-collab --device 1 --gcn True --epoch 1000
+
+to sum up 
+
+for grand
+`python allin_grand_original.py  --data_name ogbl-collab --device 0 --no_early --beltrami --epoch 1000``
+
+for gcn
+`python allin_grand_original.py  --data_name ogbl-collab --device 1 --gcn True --epoch 1000`
+
+for comparison with the same hidden channels
+`
+python gnn_ogb_heart.py --data_name ogbl-collab --gnn_model GCN --hidden_channels 18 --lr 0.001 --dropout 0.0 --num_layers 3 --num_layers_predictor 3 --epochs 800 --kill_cnt 100 --batch_size 16394 --runs 2 --device 2
+`

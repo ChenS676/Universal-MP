@@ -1,12 +1,14 @@
 # adopted from benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
 # python gnn_ogb_heart.py  --use_valedges_as_input  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
 # OBGL-PPA,DDI, CITATION2, VESSEL, COLLAB
+# basic idea is to replace diffusion operator in mpnn and say whether it works better in ogbl-collab and citation2
+# and then expand to synthetic graph
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
 
-from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, evaluate_hits, evaluate_mrr, evaluate_auc, Logger, init_seed, save_emb
+from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, Logger, init_seed, save_emb
 from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
 
 # from logger import Logger
@@ -29,7 +31,7 @@ import seaborn as sns
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
-server = 'SDIL'
+
 
 def get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
     k_list = [20, 50, 100]
@@ -502,7 +504,7 @@ def main():
     for run in range(args.runs):
         print('#################################          ', run, '          #################################')
         import wandb
-        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_Heart_{server}_{args.runs}")
+        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
         wandb.config.update(args)
         if args.runs == 1:
             seed = args.seed
@@ -604,7 +606,6 @@ def main():
                 best_auc_metric = best_valid_mean
             result_all_run[key] = [mean_list, var_list]
             save_dict[key] = test_res
-    print(f"now save {save_dict}")
     print(f"to results_ogb_gnn/{args.data_name}_lm_mrr.csv")
     print(f"with name {args.name_tag}.")
     mvari_str2csv(args.name_tag, save_dict, f'results_ogb_gnn/{args.data_name}_lm_mrr.csv')

@@ -404,3 +404,14 @@ class GDCWrapper(GDC):
 
     return to_dense_adj(edge_index,
                         edge_attr=edge_weight).squeeze()
+
+def rewire(data, opt, data_dir):
+    rw = opt['rewiring']
+    if rw == 'two_hop':
+        data = get_two_hop(data)
+    elif rw == 'gdc':
+        data = apply_gdc(data, opt)
+    # Didn't works
+    elif rw == 'pos_enc_knn':
+        data = apply_pos_dist_rewire(data, opt, data_dir)
+    return data

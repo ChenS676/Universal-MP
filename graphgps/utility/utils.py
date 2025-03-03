@@ -1247,7 +1247,7 @@ def mvari_str2csv(name_tag, metrics, root):
     new_df = pd.DataFrame([v_lst], columns=csv_columns)
     new_Data = pd.concat([Data, new_df])
     new_Data.to_csv(root, index=False)
-    
+    print(f"save {new_Data}")
     # DEBUG best value
     # highest_values = new_Data.apply(lambda column: max(column, default=None))
     # # concat and save

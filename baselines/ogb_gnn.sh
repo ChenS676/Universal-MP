@@ -11,7 +11,7 @@
 #SBATCH --chdir=/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=cshao676@gmail.com
-#SBATCH --job-name=gnn_collab
+#SBATCH --job-name=gnn_ppa
 
 # Exit script on any error
 set -e
@@ -40,10 +40,10 @@ LR=0.001
 DROPOUT=0.0
 N_LAYERS=3
 N_PREDICTORS=3
-EPOCHS=400
+EPOCHS=2
 KILL_CNT=100
 BATCH_SIZE=16384
-RUNS=10
+RUNS=2
 # Enable debug mode if needed (set DEBUG=1 to test a single model)
 DEBUG=0
 
@@ -75,7 +75,3 @@ echo ">>> All models completed successfully <<<"
 echo "Job finished at: $(date)"
 
 
-python gnn_ogb_heart.py --data_name ogbl-collab \
-    --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.0 \
-    --num_layers 3 --num_layers_predictor 3 --epochs 5 \
-    --kill_cnt 100 --batch_size 1 --runs 2
