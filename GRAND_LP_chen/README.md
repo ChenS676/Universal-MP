@@ -91,3 +91,22 @@ python main_grand.py  --dataset Cora --device 0 --no_early --beltrami
 CUDA_LAUNCH_BLOCKING=1 python allin_grand_ncnc.py --data_name ogbl-collab --device 0  --beltrami --predictor cn1
 
 python allin_grand_ncnc.py   --xdp 0.25 --tdp 0.05 --pt 0.1 --gnnedp 0.25 --preedp 0.0 --predp 0.3 --gnndp 0.1  --probscale 2.5 --proboffset 6.0 --alpha 1.05  --gnnlr 0.0082 --prelr 0.0037  --batch_size 65536  --ln --lnnn --predictor cn1 --dataset collab  --epochs 100 --runs 2 --hiddim 64 --mplayers 1  --testbs 131072  --maskinput --use_valedges_as_input   --res  --use_xlin  --tailact 
+
+
+with this mail I would like to submit my code to you:
+my latest implementation is /hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/GRAND_LP_chen/allin_grand_ncnc.py
+my modifed implementation of your grand is /hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/GRAND_LP_chen/allin_grand_ori.py
+
+allin_old is a backup file (ignore)
+
+I have several best params files, to balance the human readability best_params.py is required.
+
+main_grand.py is your original implementation. 
+model.py NeighborOverlap.py includes necessary modules from NCNC. 
+
+The useful commands are:
+
+`
+CUDA_LAUNCH_BLOCKING=1 python allin_grand_ncnc.py --data_name ogbl-collab --device 0  --beltrami --predictor cn1
+
+`
