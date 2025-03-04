@@ -35,7 +35,7 @@ from data_utils.graph_rewiring import rewire, apply_beltrami
 import numpy as np
 
 
-server = 'SDIL'
+server = 'SDIL_Chen'
 
 def get_dataset(root: str, opt: dict, name: str, use_valedges_as_input: bool=False, load=None):
     if name in ["Cora", "Citeseer", "Pubmed"]:

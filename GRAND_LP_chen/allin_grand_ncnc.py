@@ -462,7 +462,6 @@ if __name__=='__main__':
     parser.add_argument('--planetoid_split', action='store_true',
                     help='use planetoid splits for Cora/Citeseer/Pubmed')
     # GNN args
-    # parser.add_argument('--hidden_dim', type=int, default=16, help='Hidden dimension.')
     parser.add_argument('--fc_out', dest='fc_out', action='store_true',
                     help='Add a fully connected layer to the decoder.')
     parser.add_argument('--input_dropout', type=float, default=0.5, help='Input dropout rate.')
@@ -897,6 +896,7 @@ if __name__=='__main__':
     print(f"now save {save_dict}")
     print(f"to results_ogb_gnn/{args.data_name}_lm_mrr.csv")
     print(f"with name {args.name_tag}.")
+    
     mvari_str2csv(args.name_tag, save_dict, f'results_grand_gnn/{args.data_name}_lm_mrr.csv')
 
     print(str(best_metric_valid_str) +' ' +str(best_auc_valid_str))
