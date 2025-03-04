@@ -92,21 +92,54 @@ CUDA_LAUNCH_BLOCKING=1 python allin_grand_ncnc.py --data_name ogbl-collab --devi
 
 python allin_grand_ncnc.py   --xdp 0.25 --tdp 0.05 --pt 0.1 --gnnedp 0.25 --preedp 0.0 --predp 0.3 --gnndp 0.1  --probscale 2.5 --proboffset 6.0 --alpha 1.05  --gnnlr 0.0082 --prelr 0.0037  --batch_size 65536  --ln --lnnn --predictor cn1 --dataset collab  --epochs 100 --runs 2 --hiddim 64 --mplayers 1  --testbs 131072  --maskinput --use_valedges_as_input   --res  --use_xlin  --tailact 
 
+python allin_grand_ncnc.py   
+Here is the table formatted in Markdown:
 
-with this mail I would like to submit my code to you:
-my latest implementation is /hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/GRAND_LP_chen/allin_grand_ncnc.py
-my modifed implementation of your grand is /hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/GRAND_LP_chen/allin_grand_ori.py
 
-allin_old is a backup file (ignore)
+| **Keyword**               | **Interpretation** |
+|--------------------------|------------------|
+| `use_valedges_as_input`  | Whether to add validation edges to the input adjacency matrix of GNN. |
+| `epochs`                | Number of training epochs. |
+| `dataset`               | Name of the dataset used. |
+| `testbs`                | Batch size for testing. |
+| `maskinput`             | Whether to remove target links. |
+| `mplayers`              | Number of message passing layers in GNN. |
+| `nnlayers`              | Number of MLP layers. |
+| `hidden_dim`            | Hidden dimension size. |
+| `ln`                    | Whether to use layer normalization in MPNN. |
+| `lnnn`                  | Whether to use layer normalization in MLP. |
+| `res`                   | Whether to use residual connections. |
+| `jk`                    | Whether to use Jumping Knowledge connections. |
+| `gnndp`                 | Dropout ratio for GNN. |
+| `xdp`, `tdp`            | Dropout ratios for different parts of GNN. |
+| `gnnedp`                | Edge dropout ratio for GNN. |
+| `predp`                 | Dropout ratio for predictor. |
+| `preedp`                | Edge dropout ratio for predictor. |
+| `prelr`                 | Learning rate for predictor. |
+| `beta`                  | A detailed hyperparameter (purpose unspecified). |
+| `splitsize`             | Splitting operations inside the model for memory and speed optimization. |
+| `probscale`, `proboffset`, `pt`, `learnpt` | Parameters for calibrating edge existence probability in NCNC. |
+| `trndeg`                | Maximum number of sampled neighbors during training (-1 means no sampling). |
+| `cndeg`                 | Maximum number of sampled common neighbors (generally not used). |
+| `depth`                 | Number of completion steps in NCNC. |
+| `save_gemb`             | Whether to save GNN-generated node embeddings. |
+| `load`                  | Path to load precomputed node embeddings. |
+| `loadmod`, `savemod`    | Whether to load or save trained models. |
+| `savex`, `loadx`        | Whether to save or load trained node embeddings. |
+| `use_xlin`              | (Unspecified function, likely a linear transformation on `x`). |
+| `cnprob`                | Common neighbor probability (unused in experiments). |
+| `mlp_num_layers`        | Number of layers in MLP. |
+| `batch_size`            | Training batch size. |
+| `gcn`                   | Whether to use GCN (Graph Convolutional Network). |
+| `num_layers`            | Number of layers in GCN. |
+| `runs`                  | Number of independent runs for experiments. |
+| `eval_steps`            | Frequency of evaluation during training. |
+| `predictor`             | Type of predictor used (e.g., NCN, NCNC). |
+| `tstdeg`                | Maximum number of sampled neighbors during testing. |
+| `tailact`               | Whether to use a specific tail activation function. |
+| `twolayerlin`           | Whether to use a two-layer linear transformation. |
+| `increasealpha`         | Whether to increase the alpha parameter. |
+| `gnnlr`                 | Learning rate for GNN. |
 
-I have several best params files, to balance the human readability best_params.py is required.
+You can copy and paste this into a Markdown editor or a GitHub README, and it will render properly. Let me know if you need any refinements!
 
-main_grand.py is your original implementation. 
-model.py NeighborOverlap.py includes necessary modules from NCNC. 
-
-The useful commands are:
-
-`
-CUDA_LAUNCH_BLOCKING=1 python allin_grand_ncnc.py --data_name ogbl-collab --device 0  --beltrami --predictor cn1
-
-`

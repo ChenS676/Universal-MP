@@ -60,3 +60,53 @@ for comparison with the same hidden channels
 `
 python gnn_ogb_heart.py --data_name ogbl-collab --gnn_model GCN --hidden_channels 18 --lr 0.001 --dropout 0.0 --num_layers 3 --num_layers_predictor 3 --epochs 800 --kill_cnt 100 --batch_size 16394 --runs 2 --device 2
 `
+
+
+with this mail I would like to submit my code to you:
+## Proposed Method
+my latest implementation is /hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/GRAND_LP_chen/allin_grand_ncnc.py
+in main branch with comment id 281be59
+  
+The useful commands are:
+
+` for pretest
+CUDA_LAUNCH_BLOCKING=1 python allin_grand_ncnc.py --data_name ogbl-collab --device 0  --beltrami --predictor cn1
+for run
+python allin_grand_ncnc.py  --data_name ogbl-collab 
+--xdp 0.25 
+--tdp 0.05 
+--pt 0.1 
+--gnnedp 0.25 
+--preedp 0.0 
+--predp 0.3 
+--gnndp 0.1  
+--probscale 2.5 
+--proboffset 6.0 
+--alpha 1.05  
+--gnnlr 0.0082 
+--prelr 0.0037  
+--batch_size 65536  
+--ln 
+--lnnn 
+--predictor cn1 
+--dataset collab 
+--epochs 100 
+--runs 2 
+--hidden_dim 128 
+--mplayers 3
+--testbs 131072  
+--maskinput 
+--use_valedges_as_input   
+--res  
+--use_xlin  
+--tailact 
+`
+
+## Description for reference files
+main_grand.py is your original implementation. 
+model.py NeighborOverlap.py includes necessary modules from NCNC. 
+
+## Other Info
+my modifed implementation of your grand is /hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/GRAND_LP_chen/allin_grand_ori.py
+allin_old is a backup file (ignore)
+I have several best params files, to balance the human readability best_params.py is required.

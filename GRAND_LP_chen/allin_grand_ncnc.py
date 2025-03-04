@@ -503,9 +503,6 @@ if __name__=='__main__':
     parser.add_argument('--ode_blocks', type=int, default=1, help='number of ode blocks to run')
     parser.add_argument("--max_nfe", type=int, default=1000,
                     help="Maximum number of function evaluations in an epoch. Stiff ODEs will hang if not set.")
-    # parser.add_argument("--no_early", action="store_true",
-    #                 help="Whether or not to use early stopping of the ODE integrator when testing.")
-    # parser.add_argument('--earlystopxT', type=float, default=3, help='multiplier for T used to evaluate best model')
     parser.add_argument("--max_test_steps", type=int, default=100,
                     help="Maximum number steps for the dopri5Early test integrator. "
                         "used if getting OOM errors at test time")
@@ -601,8 +598,8 @@ if __name__=='__main__':
     parser.add_argument('--lnnn', action="store_true", help="whether to use layernorm in mlp")
     parser.add_argument('--res', action="store_true", help="whether to use residual connection")
     parser.add_argument('--jk', action="store_true", help="whether to use JumpingKnowledge connection")
-    parser.add_argument('--gnndp', type=float, default=0.3, help="dropout ratio of gnn")
-    parser.add_argument('--xdp', type=float, default=0.3, help="dropout ratio of gnn")
+    parser.add_argument('--gnndp', type=float, default=0.0, help="dropout ratio of gnn")
+    parser.add_argument('--xdp', type=float, default=0.0, help="dropout ratio of gnn")
     parser.add_argument('--tdp', type=float, default=0.3, help="dropout ratio of gnn")
     parser.add_argument('--gnnedp', type=float, default=0.3, help="edge dropout ratio of gnn")
     parser.add_argument('--predp', type=float, default=0.3, help="dropout ratio of predictor")
@@ -661,7 +658,7 @@ if __name__=='__main__':
     parser.add_argument("--tailact", action="store_true")
     parser.add_argument("--twolayerlin", action="store_true")
     parser.add_argument("--increasealpha", action="store_true")
-    parser.add_argument('--gnnlr', type=float, default=0.01, help="learning rate of gnn")
+    parser.add_argument('--gnnlr', type=float, default=0.001, help="learning rate of gnn")
 
     args = parser.parse_args()
 
