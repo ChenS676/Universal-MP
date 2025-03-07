@@ -1,5 +1,4 @@
 import os, sys
-
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import argparse
 import torch
@@ -16,22 +15,184 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import yaml 
 from functools import partial
-from baselines.gnn_utils import evaluate_hits, evaluate_auc, Logger, init_seed
 import torch_geometric.transforms as T
 from metrics.metrics import *
-from models.GNN import GNN
-from model import predictor_dict
-from formatted_best_params import best_params_dict
-from data_utils.graph_rewiring import apply_beltrami
+import torch.nn as nn
+import torch.nn.functional as F
+import torch
+from torch_sparse.matmul import spmm_max, spmm_mean, spmm_add
+from torch_sparse import SparseTensor
+from typing import Iterable, Final
 from torch_geometric.utils import (negative_sampling,
                                    to_undirected, train_test_split_edges)
-import numpy as np
-import torch.nn.functional as F
 import pandas as pd
 import wandb
+import torch
+from torch_sparse import SparseTensor
+from baselines.gnn_utils import evaluate_hits, evaluate_auc, Logger, init_seed
+from models.GNN import GNN
+from model import (CN0LinkPredictor, 
+                   CatSCNLinkPredictor, 
+                   SCNLinkPredictor, 
+                   IncompleteSCN1Predictor, 
+                   CNhalf2LinkPredictor, 
+                   CNResLinkPredictor, 
+                   IncompleteCN1Predictor, 
+                   CN2LinkPredictor)
 
-#TODO test wether rewire has an effect
+from formatted_best_params import best_params_dict
+from data_utils.graph_rewiring import apply_beltrami
+import torch_sparse
+from model import DropAdj, adjoverlap
+import numpy as np
+
 server = 'SDIL'
+
+"""
+python lp_cn.py --data_name ogbl-collab --xdp 0.25 --tdp 0.05 --pt 0.1 --preedp 0.0 --predp 0.3  --probscale 2.5 --proboffset 6.0 \
+                            --alpha 1.05 --prelr 0.0037  --batch_size 65536  --ln --lnnn --predictor cn1 \
+                            --epochs 2 --runs 1 --hidden_dim 128 --mplayers 1  --testbs 131072  --maskinput  \
+                            --use_valedges_as_input  --res  --use_xlin  --tailact 
+"""
+
+# NCN predictor
+class CNLinkPredictor(nn.Module):
+    cndeg: Final[int]
+    def __init__(self,
+                 in_channels,
+                 hidden_channels,
+                 out_channels,
+                 num_layers,
+                 dropout,
+                 edrop=0.0,
+                 ln=False,
+                 cndeg=-1,
+                 use_xlin=False,
+                 tailact=False,
+                 twolayerlin=False,
+                 beta=1.0):
+        super().__init__()
+
+        self.register_parameter("beta", nn.Parameter(beta*torch.ones((1))))
+        self.dropadj = DropAdj(edrop)
+        lnfn = lambda dim, ln: nn.LayerNorm(dim) if ln else nn.Identity()
+
+        self.xlin = nn.Sequential(nn.Linear(in_channels, hidden_channels),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, in_channels),
+            lnfn(in_channels, ln), nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True)) if use_xlin else lambda x: 0
+        self.xcnlin = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels),
+            lnfn(hidden_channels, ln), nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True), nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity())
+        self.xijlin = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels), lnfn(hidden_channels, ln),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity())
+        self.lin = nn.Sequential(nn.Linear(hidden_channels, hidden_channels),
+                                 lnfn(hidden_channels, ln),
+                                 nn.Dropout(dropout, inplace=True),
+                                 nn.ReLU(inplace=True),
+                                 nn.Linear(hidden_channels, hidden_channels) if twolayerlin else nn.Identity(),
+                                 lnfn(hidden_channels, ln) if twolayerlin else nn.Identity(),
+                                 nn.Dropout(dropout, inplace=True) if twolayerlin else nn.Identity(),
+                                 nn.ReLU(inplace=True) if twolayerlin else nn.Identity(),
+                                 nn.Linear(hidden_channels, out_channels))
+        self.cndeg = cndeg
+
+    def multidomainforward(self,
+                           x,
+                           adj,
+                           tar_ei,
+                           filled1: bool = False,
+                           cndropprobs: Iterable[float] = []):
+        
+        adj = self.dropadj(adj)
+        xi = x[tar_ei[0]]
+        xj = x[tar_ei[1]]
+        x = x + self.xlin(x)
+        cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
+        xcns = [spmm_add(cn, x)]
+        
+        xij = self.xijlin(xi * xj)
+        
+        xs = torch.cat(
+            [self.lin(self.xcnlin(xcn) * self.beta + xij) for xcn in xcns],
+            dim=-1)
+        return xs
+
+    def forward(self, x, adj, tar_ei, filled1: bool = False):
+        return self.multidomainforward(x, adj, tar_ei, filled1, [])
+
+
+# NCN with higher order neighborhood overlaps than NCN-2
+class CN2LinkPredictor(nn.Module):
+
+    def __init__(self,
+                 in_channels,
+                 hidden_channels,
+                 out_channels,
+                 num_layers,
+                 dropout,
+                 edrop=0.0,
+                 ln=False,
+                 cndeg=-1):
+        super().__init__()
+
+        self.lins = nn.Sequential()
+
+        self.register_parameter("alpha", nn.Parameter(torch.ones((3))))
+        self.register_parameter("beta", nn.Parameter(torch.ones((1))))
+        lnfn = lambda dim, ln: nn.LayerNorm(dim) if ln else nn.Identity()
+
+        self.xcn1lin = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels),
+            lnfn(hidden_channels, ln), nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True), nn.Linear(hidden_channels, hidden_channels))
+        self.xcn2lin = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels),
+            lnfn(hidden_channels, ln), nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True), nn.Linear(hidden_channels, hidden_channels))
+        self.xcn4lin = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels),
+            lnfn(hidden_channels, ln), nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True), nn.Linear(hidden_channels, hidden_channels))
+        self.xijlin = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels), lnfn(hidden_channels, ln),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels))
+        self.lin = nn.Sequential(nn.Linear(hidden_channels, hidden_channels),
+                                 lnfn(hidden_channels, ln),
+                                 nn.Dropout(dropout, inplace=True),
+                                 nn.ReLU(inplace=True),
+                                 nn.Linear(hidden_channels, out_channels))
+
+    def forward(self, x, adj: SparseTensor, tar_ei, filled1: bool = False):
+        spadj = adj.to_torch_sparse_coo_tensor()
+        adj2 = SparseTensor.from_torch_sparse_coo_tensor(spadj @ spadj, False)
+        cn1 = adjoverlap(adj, adj, tar_ei, filled1)
+        cn2 = adjoverlap(adj, adj2, tar_ei, filled1)
+        cn3 = adjoverlap(adj2, adj, tar_ei, filled1)
+        cn4 = adjoverlap(adj2, adj2, tar_ei, filled1)
+        xij = self.xijlin(x[tar_ei[0]] * x[tar_ei[1]])
+        xcn1 = self.xcn1lin(spmm_add(cn1, x))
+        xcn2 = self.xcn2lin(spmm_add(cn2, x))
+        xcn3 = self.xcn2lin(spmm_add(cn3, x))
+        xcn4 = self.xcn4lin(spmm_add(cn4, x))
+        alpha = torch.sigmoid(self.alpha).cumprod(-1)
+        x = self.lin(alpha[0] * xcn1 + alpha[1] * xcn2 * xcn3 +
+                     alpha[2] * xcn4 + self.beta * xij)
+        return x
+
+
 
 # random split dataset
 def randomsplit(dataset, val_ratio: float=0.05, test_ratio: float=0.10):
@@ -190,7 +351,7 @@ def test_edge(score_func, input_data, h, data, batch_size, mrr_mode=False, negat
         source = source.view(-1, 1).repeat(1, 1000).view(-1)
         target_neg = negative_data.view(-1)
         for perm in DataLoader(range(source.size(0)), batch_size):
-            src, dst_neg = source[perm], target_neg[perm]
+            # src, dst_neg = source[perm], target_neg[perm]
             # DEBUG
             preds += [score_func(h,
                     data.adj_t,
@@ -240,20 +401,16 @@ def process_value(v):
 
 
 def save_parmet_tune(name_tag, metrics, root):
-    
     csv_columns = ['Metric'] + list(metrics)
-
     try:
         Data = pd.read_csv(root)[:-1]
     except:
         Data = pd.DataFrame(None, columns=csv_columns)
         Data.to_csv(root, index=False)
-
     new_lst = [process_value(v) for k, v in metrics.items()]
     v_lst = [f'{name_tag}'] + new_lst
     new_df = pd.DataFrame([v_lst], columns=csv_columns)
     new_Data = pd.concat([Data, new_df])
-    
     # best value
     highest_values = {}
     for column in new_Data.columns:
@@ -261,93 +418,70 @@ def save_parmet_tune(name_tag, metrics, root):
             highest_values[column] = new_Data[column].max()
         except:
             highest_values[column] = None
-
     # concat and save
     Best_list = ['Best'] + pd.Series(highest_values).tolist()[1:]
     # print(Best_list)
     Best_df = pd.DataFrame([Best_list], columns=Data.columns)
-
     upt_Data = pd.concat([new_Data, Best_df])
-
     upt_Data.to_csv(root,index=False)
     return upt_Data
 
 
-
-@torch.no_grad()
-def test_epoch(opt, 
-               model, 
+                
+def test_epoch(
                score_func, 
                data, 
                pos_encoding, 
                batch_size, 
                evaluation_edges, 
-               emb, 
                evaluator_hit, 
                evaluator_mrr, 
                use_valedges_as_input):
-    model.eval()
     predictor.eval()
 
     # adj_t = adj_t.transpose(1,0)
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
     if emb == None: x = data.x
     else: x = emb.weight
-    
-    h = model(data.x, pos_encoding)
-    x1 = h
-    x2 = torch.tensor(1)
-
-    if use_valedges_as_input:
-        print('use_val_in_edge')
-        h = model(x, data.full_adj_t.to(x.device))
-        x2 = h
+    h = data.x
         
-    train_val_edge = train_val_edge.to(x.device)
-    pos_valid_edge = pos_valid_edge.to(x.device) 
-    neg_valid_edge = neg_valid_edge.to(x.device)
-    pos_test_edge = pos_test_edge.to(x.device) 
-    neg_test_edge = neg_test_edge.to(x.device)
+    train_val_edge = train_val_edge.to(h.device)
+    pos_valid_edge = pos_valid_edge.to(h.device) 
+    neg_valid_edge = neg_valid_edge.to(h.device)
+    pos_test_edge = pos_test_edge.to(h.device) 
+    neg_test_edge = neg_test_edge.to(h.device)
     
     neg_valid_pred = test_edge(score_func, neg_valid_edge, h, data, batch_size)
     pos_valid_pred = test_edge(score_func, pos_valid_edge, h, data, batch_size)
-    if use_valedges_as_input:
-        print('use_val_in_edge')
-        h = model(x, data.full_adj_t.to(x.device))
-        x2 = h
     pos_test_pred = test_edge(score_func, pos_test_edge, h, data, batch_size)
     neg_test_pred = test_edge(score_func, neg_test_edge, h, data, batch_size)
     pos_train_pred = test_edge(score_func, train_val_edge, h, data, batch_size)
+    
     pos_train_pred = torch.flatten(pos_train_pred)
     neg_valid_pred, pos_valid_pred = torch.flatten(neg_valid_pred),  torch.flatten(pos_valid_pred)
     pos_test_pred, neg_test_pred = torch.flatten(pos_test_pred), torch.flatten(neg_test_pred)
     
     print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
     result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
-    score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x1.cpu(), x2.cpu()]
 
-    return result, score_emb
+    return result
   
     
-def train_epoch(opt, 
+def train_epoch(
                 predictor, 
-                model, 
                 optimizer, 
                 data, 
                 pos_encoding, 
                 splits, 
                 batch_size):
     predictor.train()
-    model.train()
-    
-    pos_encoding = pos_encoding.to(model.device) if pos_encoding is not None else None
+
     pos_train_edge = splits['train']['edge'].to(data.x.device)
     neg_train_edge = negative_sampling(
         data.edge_index.to(pos_train_edge.device),
         num_nodes=data.num_nodes,
         num_neg_samples=pos_train_edge.size(0)
     ).t().to(data.x.device)
-
     if emb == None: 
         x = data.x
         emb_update = 0
@@ -356,58 +490,35 @@ def train_epoch(opt,
         emb_update = 1
         
     total_loss = total_examples = 0
-    # DEBUG change it into DataLoader
-    indices = torch.randperm(pos_train_edge.size(0), device=pos_train_edge.device)
-
     
-    for start in tqdm(range(0, pos_train_edge.size(0), batch_size)):
+    # indices = torch.randperm(pos_train_edge.size(0), device=pos_train_edge.device)
+    # for start in tqdm(range(0, pos_train_edge.size(0), batch_size)):
+    for perm in DataLoader(range(pos_train_edge.size(0)), batch_size,
+                           shuffle=True):
         optimizer.zero_grad()
-        h = model(data.x, pos_encoding)
-        
-        end = start + batch_size
-        perm = indices[start:end]
+
         edge = pos_train_edge[perm].t()
-        
-        # h: 576289, 162,  
-        pos_out = predictor.multidomainforward(h,
+        pos_out = predictor.multidomainforward(data.x,
                                                 data.adj_t,
                                                 edge,
                                                 cndropprobs=[])
         pos_loss = -F.logsigmoid(pos_out).mean()
-
         edge = neg_train_edge[perm].t()
-        neg_out = predictor.multidomainforward(h,
+        neg_out = predictor.multidomainforward(data.x,
                                                 data.adj_t,
                                                 edge,
                                                 cndropprobs=[])
 
         neg_loss =  -F.logsigmoid(-neg_out).mean()
-        
         loss = pos_loss + neg_loss
-        if model.odeblock.nreg > 0:
-            reg_states = tuple(torch.mean(rs) for rs in model.reg_states)
-            regularization_coeffs = model.regularization_coeffs
-            reg_loss = sum(
-                reg_state * coeff for reg_state, coeff in zip(reg_states, regularization_coeffs) if coeff != 0
-            )
-            loss = loss + reg_loss
+        total_loss += loss.item() *  batch_size
+        total_examples += batch_size
         
-        num_examples = (end - start)
-        total_loss += loss.item() * num_examples
-        total_examples += num_examples
-        
-        model.fm.update(model.getNFE())
-        model.resetNFE()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(
-            list(model.parameters()) + list(predictor.parameters()), 1.0
+           list(predictor.parameters()), 1.0
         )
         optimizer.step()
-        
-        model.bm.update(model.getNFE())
-        model.resetNFE()
-        #######################
-        
     return total_loss / total_examples
 
 def merge_cmd_args(cmd_opt, opt):
@@ -475,7 +586,7 @@ if __name__=='__main__':
                         help='The configuration file path.')
     ### MPLP PARAMETERS ###
     # dataset setting
-    parser.add_argument('--data_name', type=str, default='ogbl-collab')
+    parser.add_argument('--data_name', type=str, default='Cora')
     parser.add_argument('--dataset_dir', type=str, default='./data')
     parser.add_argument('--year', type=int, default=-1)
 
@@ -484,150 +595,7 @@ if __name__=='__main__':
     parser.add_argument('--metric', type=str, default='Hits@50', help='main evaluation metric')
 
     parser.add_argument('--print_summary', type=str, default='')
-
-    ### GRAND PARAMETERS ###
-    parser.add_argument('--use_cora_defaults', action='store_true',
-                    help='Whether to run with best params for cora. Overrides the choice of dataset')
-    # data args
-    parser.add_argument('--data_norm', type=str, default='rw',
-                    help='rw for random walk, gcn for symmetric gcn norm')
-    parser.add_argument('--self_loop_weight', type=float, default=1.0, help='Weight of self-loops.')
-    parser.add_argument('--use_labels', dest='use_labels', action='store_true', help='Also diffuse labels')
-    parser.add_argument('--geom_gcn_splits', dest='geom_gcn_splits', action='store_true',
-                    help='use the 10 fixed splits from '
-                        'https://arxiv.org/abs/2002.05287')
-    parser.add_argument('--num_splits', type=int, dest='num_splits', default=1,
-                    help='the number of splits to repeat the results on')
-    parser.add_argument('--label_rate', type=float, default=0.5,
-                    help='% of training labels to use when --use_labels is set.')
-    parser.add_argument('--planetoid_split', action='store_true',
-                    help='use planetoid splits for Cora/Citeseer/Pubmed')
-    # GNN args
-    # parser.add_argument('--hidden_dim', type=int, default=16, help='Hidden dimension.')
-    parser.add_argument('--fc_out', dest='fc_out', action='store_true',
-                    help='Add a fully connected layer to the decoder.')
-    parser.add_argument('--input_dropout', type=float, default=0.5, help='Input dropout rate.')
-    parser.add_argument('--dropout', type=float, default=0.0, help='Dropout rate.')
-    parser.add_argument("--batch_norm", dest='batch_norm', action='store_true', help='search over reg params')
-    parser.add_argument('--optimizer', type=str, default='adam', help='One from sgd, rmsprop, adam, adagrad, adamax.')
-    parser.add_argument('--decay', type=float, default=5e-4, help='Weight decay for optimization')
-    parser.add_argument('--epoch', type=int, default=20, help='Number of training epochs per iteration.')
-    parser.add_argument('--alpha_dim', type=str, default='sc', help='choose either scalar (sc) or vector (vc) alpha')
-    parser.add_argument('--no_alpha_sigmoid', dest='no_alpha_sigmoid', action='store_true',
-                    help='apply sigmoid before multiplying by alpha')
-    parser.add_argument('--beta_dim', type=str, default='sc', help='choose either scalar (sc) or vector (vc) beta')
-    parser.add_argument('--block', type=str, default='constant', help='constant, mixed, attention, hard_attention')
-    parser.add_argument('--function', type=str, default='laplacian', help='laplacian, transformer, dorsey, GAT')
-    parser.add_argument('--use_mlp', dest='use_mlp', action='store_true',
-                    help='Add a fully connected layer to the encoder.')
-    parser.add_argument('--add_source', dest='add_source', action='store_true',
-                    help='If try get rid of alpha param and the beta*x0 source term')
-    parser.add_argument('--cgnn', dest='cgnn', action='store_true', help='Run the baseline CGNN model from ICML20')
-
-    # ODE args
-    parser.add_argument('--time', type=float, default=1.0, help='End time of ODE integrator.')
-    parser.add_argument('--augment', action='store_true',
-                    help='double the length of the feature vector by appending zeros to stabilist ODE learning')
-    parser.add_argument('--method', type=str, help="set the numerical solver: dopri5, euler, rk4, midpoint")
-    parser.add_argument('--step_size', type=float, default=1,
-                    help='fixed step size when using fixed step solvers e.g. rk4')
-    parser.add_argument('--max_iters', type=float, default=100, help='maximum number of integration steps')
-    parser.add_argument("--adjoint_method", type=str, default="adaptive_heun",
-                    help="set the numerical solver for the backward pass: dopri5, euler, rk4, midpoint")
-    parser.add_argument('--adjoint', dest='adjoint', action='store_true',
-                    help='use the adjoint ODE method to reduce memory footprint')
-    parser.add_argument('--adjoint_step_size', type=float, default=1,
-                    help='fixed step size when using fixed step adjoint solvers e.g. rk4')
-    parser.add_argument('--tol_scale', type=float, default=1., help='multiplier for atol and rtol')
-    parser.add_argument("--tol_scale_adjoint", type=float, default=1.0,
-                    help="multiplier for adjoint_atol and adjoint_rtol")
-    parser.add_argument('--ode_blocks', type=int, default=1, help='number of ode blocks to run')
-    parser.add_argument("--max_nfe", type=int, default=1000,
-                    help="Maximum number of function evaluations in an epoch. Stiff ODEs will hang if not set.")
-    # parser.add_argument("--no_early", action="store_true",
-    #                 help="Whether or not to use early stopping of the ODE integrator when testing.")
-    # parser.add_argument('--earlystopxT', type=float, default=3, help='multiplier for T used to evaluate best model')
-    parser.add_argument("--max_test_steps", type=int, default=100,
-                    help="Maximum number steps for the dopri5Early test integrator. "
-                        "used if getting OOM errors at test time")
-
-    # Attention args
-    parser.add_argument('--leaky_relu_slope', type=float, default=0.2,
-                    help='slope of the negative part of the leaky relu used in attention')
-    parser.add_argument('--attention_dropout', type=float, default=0., help='dropout of attention weights')
-    parser.add_argument('--heads', type=int, default=4, help='number of attention heads')
-    parser.add_argument('--attention_norm_idx', type=int, default=0, help='0 = normalise rows, 1 = normalise cols')
-    parser.add_argument('--attention_dim', type=int, default=64,
-                    help='the size to project x to before calculating att scores')
-    parser.add_argument('--mix_features', dest='mix_features', action='store_true',
-                    help='apply a feature transformation xW to the ODE')
-    parser.add_argument('--reweight_attention', dest='reweight_attention', action='store_true',
-                    help="multiply attention scores by edge weights before softmax")
-    parser.add_argument('--attention_type', type=str, default="scaled_dot",
-                    help="scaled_dot,cosine_sim,pearson, exp_kernel")
-    parser.add_argument('--square_plus', action='store_true', help='replace softmax with square plus')
-
-    # regularisation args
-    parser.add_argument('--jacobian_norm2', type=float, default=None, help="int_t ||df/dx||_F^2")
-    parser.add_argument('--total_deriv', type=float, default=None, help="int_t ||df/dt||^2")
-
-    parser.add_argument('--kinetic_energy', type=float, default=None, help="int_t ||f||_2^2")
-    parser.add_argument('--directional_penalty', type=float, default=None, help="int_t ||(df/dx)^T f||^2")
-
-    # rewiring args
-    parser.add_argument("--not_lcc", action="store_false", help="don't use the largest connected component")
-    parser.add_argument('--rewiring', type=str, default=None, help="two_hop, gdc")
-    parser.add_argument('--gdc_method', type=str, default='ppr', help="ppr, heat, coeff")
-    # topk is not implemented in the original implementation
-    parser.add_argument('--gdc_sparsification', type=str, default='threshold', help="threshold, topk")
-    parser.add_argument('--gdc_k', type=int, default=64, help="number of neighbours to sparsify to when using topk")
-    parser.add_argument('--gdc_threshold', type=float, default=0.0001,
-                    help="obove this edge weight, keep edges when using threshold")
-    parser.add_argument('--gdc_avg_degree', type=int, default=64,
-                    help="if gdc_threshold is not given can be calculated by specifying avg degree")
-    parser.add_argument('--ppr_alpha', type=float, default=0.05, help="teleport probability")
-    parser.add_argument('--heat_time', type=float, default=3., help="time to run gdc heat kernal diffusion for")
-    parser.add_argument('--att_samp_pct', type=float, default=1,
-                    help="float in [0,1). The percentage of edges to retain based on attention scores")
-    parser.add_argument('--use_flux', dest='use_flux', action='store_true',
-                    help='incorporate the feature grad in attention based edge dropout')
-    parser.add_argument("--exact", action="store_true",
-                    help="for small datasets can do exact diffusion. If dataset is too big for matrix inversion then you can't")
-    parser.add_argument('--M_nodes', type=int, default=64, help="new number of nodes to add")
-    parser.add_argument('--new_edges', type=str, default="random", help="random, random_walk, k_hop")
-    parser.add_argument('--sparsify', type=str, default="S_hat", help="S_hat, recalc_att")
-    parser.add_argument('--threshold_type', type=str, default="topk_adj", help="topk_adj, addD_rvR")
-    parser.add_argument('--rw_addD', type=float, default=0.02, help="percentage of new edges to add")
-    parser.add_argument('--rw_rmvR', type=float, default=0.02, help="percentage of edges to remove")
-
-    parser.add_argument('--beltrami', action='store_true', help='perform diffusion beltrami style')
-    parser.add_argument('--fa_layer', action='store_true', help='add a bottleneck paper style layer with more edges')
-    parser.add_argument('--pos_enc_type', type=str, default="DW64",
-                    help='positional encoder either GDC, DW64, DW128, DW256')
-    parser.add_argument('--pos_enc_orientation', type=str, default="row", help="row, col")
-    parser.add_argument('--feat_hidden_dim', type=int, default=64, help="dimension of features in beltrami")
-    parser.add_argument('--pos_enc_hidden_dim', type=int, default=32, help="dimension of position in beltrami")
-    parser.add_argument('--edge_sampling', action='store_true', help='perform edge sampling rewiring')
-    parser.add_argument('--edge_sampling_T', type=str, default="T0", help="T0, TN")
-    parser.add_argument('--edge_sampling_epoch', type=int, default=5, help="frequency of epochs to rewire")
-    parser.add_argument('--edge_sampling_add', type=float, default=0.64, help="percentage of new edges to add")
-    parser.add_argument('--edge_sampling_add_type', type=str, default="importance",
-                    help="random, ,anchored, importance, degree")
-    parser.add_argument('--edge_sampling_rmv', type=float, default=0.32, help="percentage of edges to remove")
-    parser.add_argument('--edge_sampling_sym', action='store_true', help='make KNN symmetric')
-    parser.add_argument('--edge_sampling_online', action='store_true', help='perform rewiring online')
-    parser.add_argument('--edge_sampling_online_reps', type=int, default=4, help="how many online KNN its")
-    parser.add_argument('--edge_sampling_space', type=str, default="attention",
-                    help="attention,pos_distance, z_distance, pos_distance_QK, z_distance_QK")
-    parser.add_argument('--symmetric_attention', action='store_true',
-                    help='maks the attention symmetric for rewring in QK space')
-
-    parser.add_argument('--fa_layer_edge_sampling_rmv', type=float, default=0.8, help="percentage of edges to remove")
-    parser.add_argument('--gpu', type=int, default=0, help="GPU to run on (default 0)")
-    parser.add_argument('--pos_enc_csv', action='store_true', help="Generate pos encoding as a sparse CSV")
-
-    parser.add_argument('--pos_dist_quantile', type=float, default=0.001, help="percentage of N**2 edges to keep")
-
+  
     #NCNC params
     parser.add_argument('--use_valedges_as_input', action='store_true', help="whether to add validation edges to the input adjacency matrix of gnn")
     parser.add_argument('--epochs', type=int, default=40, help="number of epochs")
@@ -653,7 +621,6 @@ if __name__=='__main__':
     parser.add_argument('--beta', type=float, default=1)
     
     parser.add_argument('--splitsize', type=int, default=-1, help="split some operations inner the model. Only speed and GPU memory consumption are affected.")
-
     # parameters used to calibrate the edge existence probability in NCNC
     parser.add_argument('--probscale', type=float, default=5)
     parser.add_argument('--proboffset', type=float, default=3)
@@ -662,10 +629,7 @@ if __name__=='__main__':
 
     # For scalability, NCNC samples neighbors to complete common neighbor. 
     parser.add_argument('--trndeg', type=int, default=-1, help="maximum number of sampled neighbors during the training process. -1 means no sample")
-    # NCN can sample common neighbors for scalability. Generally not used. 
     parser.add_argument('--cndeg', type=int, default=-1)
-    
-    # predictor used, such as NCN, NCNC
     parser.add_argument("--depth", type=int, default=1, help="number of completion steps in NCNC")
     # gnn used, such as gin, gcn.
 
@@ -677,7 +641,7 @@ if __name__=='__main__':
     parser.add_argument("--savex", action="store_true", help="whether to save trained node embeddings")
     parser.add_argument("--loadx", action="store_true", help="whether to load trained node embeddings")
     parser.add_argument("--use_xlin", action="store_true")
-    
+    parser.add_argument('--beltrami', action='store_true', help='perform diffusion beltrami style')
     # not used in experiments
     parser.add_argument('--cnprob', type=float, default=0)
     
@@ -695,8 +659,8 @@ if __name__=='__main__':
     parser.add_argument('--eval_steps', type=int, default=1)
     
     # ncnc decoder
-    parser.add_argument('--predictor', choices=predictor_dict.keys())
-    
+    parser.add_argument('--predictor', type=str, default='nc1')
+    parser.add_argument('--alpha', type=float, default=1.0, help='Factor in front matrix A.')
     # depth, splitsize, probscale, proboffset, trndeg, tstdeg, pt, learnpt, alpha
     parser.add_argument('--tstdeg', type=int, default=-1, help="maximum number of sampled neighbors during the test process")
     parser.add_argument("--tailact", action="store_true")
@@ -713,7 +677,7 @@ if __name__=='__main__':
       merge_cmd_args(cmd_opt, opt)
     except KeyError:
       opt = cmd_opt
-    args.name_tag = f"{args.data_name}_beltrami{args.beltrami}_mlp_score_epochs{args.epoch}_runs{args.runs}"
+    args.name_tag = f"{args.data_name}_beltrami{args.beltrami}_mlp_score_epochs{args.epochs}_runs{args.runs}"
     
     opt['beltrami'] = False
 
@@ -817,11 +781,23 @@ if __name__=='__main__':
     best_valid_auc = best_test_auc = 2
     best_auc_valid_str = 2
 
+    predictor_dict = {
+        "cn0": CN0LinkPredictor,
+        "catscn1": CatSCNLinkPredictor,
+        "scn1": SCNLinkPredictor,
+        "sincn1cn1": IncompleteSCN1Predictor,
+        "cn1": CNLinkPredictor,
+        "cn1.5": CNhalf2LinkPredictor,
+        "cn1res": CNResLinkPredictor,
+        "cn2": CN2LinkPredictor,
+        "incn1cn1": IncompleteCN1Predictor
+    }
     # predictor 
     predfn = predictor_dict[args.predictor]
     if args.predictor != "cn0":
         predfn = partial(predfn, cndeg=args.cndeg)
     if args.predictor in ["cn1", "incn1cn1", "scn1", "catscn1", "sincn1cn1"]:
+        # cn1: CNLinkPredictor
         predfn = partial(predfn, use_xlin=args.use_xlin, tailact=args.tailact, 
                          twolayerlin=args.twolayerlin, beta=args.beta)
     if args.predictor == "incn1cn1":
@@ -830,15 +806,13 @@ if __name__=='__main__':
                          pt=args.pt, learnablept=args.learnpt, alpha=args.alpha)
 
     data = data.to(device)
-    predictor = predfn( args.hidden_dim, args.hidden_dim, 1, args.num_layers,
-                           args.predp, args.preedp, args.lnnn).to(device)
     
-    model = GNN(opt, data, splits, device).to(device) 
+    predictor = predfn(data.x.size(1), args.hidden_dim, 1, args.num_layers,
+                           args.predp, args.preedp, args.lnnn).to(device)
+
     parameters = (
-      [p for p in model.parameters() if p.requires_grad] +
       [p for p in predictor.parameters() if p.requires_grad]
     )
-    print_model_params(model)
     print_model_params(predictor)
     
     best_epoch = 0
@@ -856,23 +830,21 @@ if __name__=='__main__':
     #                         "batch_size": [256, 512, 1024, 2048], "gnnlr": [0.001, 0.0001], "prelr": [0.001, 0.0001]}
     # print_logger.info(f"hypersearch space: {hyperparameter_search}")
     
-    hyperparameter_search = {
-                            "batch_size": [2**14, 2**13, 2**12], 
-                            "gnnlr": [0.0001], # Learning rate for GNN.
-                            "prelr": [0.1, 0.01, 0.001, 0.0001]} # Learning rate for predictor.
+    hyperparameter_search = {"prelr": [0.01, 0.001, 0.003], 
+                            "probscale": [1, 2, 3, 0.5, 0.1], 
+                            "proboffset": [1, 2, 3, 4, 5, 0.5, 0.1]} 
     print(f"hypersearch space: {hyperparameter_search}")
     tune_id = wandb.util.generate_id()
     tune_res = {}    
-    for batch_size, gnnlr, prelr in itertools.product(*hyperparameter_search.values()):
-        args.batch_size = batch_size
-        args.gnnlr = gnnlr
+    for prelr, probescale, probeoffset in itertools.product(*hyperparameter_search.values()):
         args.prelr = prelr
+        args.probescale = probescale
+        args.probeoffset = probeoffset
         id = wandb.util.generate_id()
         tune_res[str(id)] = {}   
-        tune_res[str(id)]['batch_size'] = batch_size
-        tune_res[str(id)]['gnnlr'] = gnnlr
+        tune_res[str(id)]['probescale'] = probescale
+        tune_res[str(id)]['probeoffset'] = probeoffset
         tune_res[str(id)]['prelr'] = prelr
-
         
         # optimizer = torch.optim.Adam([{'params': model.parameters(), "lr": args.gnnlr}, 
         #     {'params': predictor.parameters(), 'lr': args.prelr}])
@@ -886,50 +858,44 @@ if __name__=='__main__':
             
         print(tune_res)
         time.sleep(20)
-        wandb.init(project="GRAND4LP", name=f"{id}_gnn{args.gnnlr}_pre{args.prelr}_bs{args.batch_size}", config=opt)
+        wandb.init(project="GRAND4NC", name=f"{id}_gnn{args.gnnlr}_pre{args.prelr}_bs{args.batch_size}", config=opt)
         seed = 0
         print('seed: ', seed)
         init_seed(seed)
-        model.reset_parameters()
 
         best_valid = 0
         kill_cnt = 0
         best_test = 0
         step = 0
-            
-        print(f"Starting training for {opt['epoch']} epochs...")
-        for epoch in tqdm(range(1, opt['epoch'] + 1)):
+
+        for epoch in tqdm(range(1, opt['epochs'] + 1)):
             start_time = time.time()
             
-            loss = train_epoch(opt, 
-                                predictor, 
-                                model, 
+            loss = train_epoch( predictor, 
                                 optimizer, 
                                 data, 
                                 pos_encoding, 
                                 splits, 
-                                batch_size)
-            
+                                args.batch_size)
+                
             print(f"Epoch {epoch}, Loss: {loss:.4f}")
-            
+            wandb.log({'train_loss': loss}, step = epoch)
             step += 1
             
             if epoch % args.eval_steps == 0:
-                results, score_emb = test_epoch(opt, 
-                                                model, 
-                                                predictor, 
-                                                data, 
-                                                pos_encoding, 
-                                                batch_size, 
-                                                evaluation_edges, 
-                                                emb, 
-                                                evaluator_hit,
-                                                evaluator_mrr, 
-                                                args.use_valedges_as_input)
-                
+                results = test_epoch(
+                            predictor, 
+                            data, 
+                            pos_encoding, 
+                            args.batch_size, 
+                            evaluation_edges, 
+                            evaluator_hit,
+                            evaluator_mrr, 
+                            args.use_valedges_as_input)
+                    
                 for key, result in results.items():
                     loggers[key].add_result(0, result)
-                    
+                    wandb.log({f"Metrics/{key}": result[-1]}, step=epoch)
                     
                 current_metric = results[eval_metric][2]
                 if current_metric > best_metric:
@@ -944,13 +910,3 @@ if __name__=='__main__':
     df.to_csv( f'results_grand_gnn/tune{tune_id}_{args.data_name}_lm_mrr.csv', index=False)  
     print(f"Training completed. Best {current_metric}: {best_metric:.4f} (Epoch {best_epoch})")
 
-    """python allin_grand_ncnc.py   
-    --xdp 0.25 --tdp 0.05 --pt 0.1 --gnnedp 0.25 
-    --preedp 0.0 --predp 0.3 --gnndp 0.1  
-    --probscale 2.5 --proboffset 6.0 --alpha 1.05  
-    --gnnlr 0.0082 --prelr 0.0037  --batch_size 65536  
-    --ln --lnnn --predictor cn1 --dataset collab  
-    --epochs 20 --runs 1 --hidden_dim 128 --mplayers 1  
-    --testbs 131072  --maskinput --use_valedges_as_input   
-    --res  --use_xlin  --tailact 
-    """

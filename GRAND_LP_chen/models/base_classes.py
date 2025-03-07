@@ -100,7 +100,7 @@ class ODEFunc(MessagePassing):
 
 
 class BaseGNN(MessagePassing):
-  def __init__(self, opt, data, splits, predictor, batch_size, device=torch.device('cpu')):
+  def __init__(self, opt, data, splits, device=torch.device('cpu')):
     super(BaseGNN, self).__init__()
     self.opt = opt
     self.T = opt['time']
@@ -111,8 +111,7 @@ class BaseGNN(MessagePassing):
     self.bm = Meter()
     
     self.splits = splits
-    self.predictor = predictor
-    self.batch_size = batch_size
+    
     
     if opt['beltrami']:
       self.mx = nn.Linear(self.num_features, opt['feat_hidden_dim'])
