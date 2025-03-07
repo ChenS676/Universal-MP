@@ -899,7 +899,7 @@ if __name__=='__main__':
             if best_epoch < epoch - 4:
                 kill_cnt += 1
             if kill_cnt > 3:
-                break
+                continue
             tune_res[eval_metric] = best_metric
             df = pd.DataFrame([tune_res])  
             df.to_csv( f'results_grand_gnn/tune{tune_id}_{args.data_name}_lm_mrr.csv', index=False)  
