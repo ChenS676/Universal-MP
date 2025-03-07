@@ -168,14 +168,14 @@ def init_pyg_regtil(N: int,
                     g_type: RegularTilling,
                     seed: int,
                     undirected = True,
-                    val_pct = 0.15,
-                    test_pct = 0.05,
+                    val_pct = 0.05,
+                    test_pct = 0.15,
                     split_labels = True, 
                     include_negatives = True) -> Tuple[Data, Data, Data]:
     
     G, _, _ = init_regular_tilling(N, g_type, seed)
     data = from_networkx(G)
-    
+
     data.edge_index, _ = coalesce(data.edge_index, None, num_nodes=data.num_nodes)
     data.edge_index, _ = remove_self_loops(data.edge_index)
     
@@ -233,7 +233,7 @@ def init_regular_tilling(N, type=RegularTilling.SQUARE_GRID, seed=None):
 
 
 if __name__ == '__main__':
-    N = 40
+    N = 6000
     for i, g_type in enumerate([
                              RegularTilling.TRIANGULAR, 
                              RegularTilling.HEXAGONAL, 
@@ -249,6 +249,6 @@ if __name__ == '__main__':
                 test_pct = 0.05,
                 split_labels = True, 
                 include_negatives = True)
-    
-    print(data)
-    print(splits)
+        import pdb; pdb.set_trace() 
+        print(data)
+        print(splits)

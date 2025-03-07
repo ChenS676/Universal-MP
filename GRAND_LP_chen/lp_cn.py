@@ -830,9 +830,7 @@ if __name__=='__main__':
     #                         "batch_size": [256, 512, 1024, 2048], "gnnlr": [0.001, 0.0001], "prelr": [0.001, 0.0001]}
     # print_logger.info(f"hypersearch space: {hyperparameter_search}")
     
-    hyperparameter_search = {"prelr": [0.01, 0.001, 0.003], 
-                            "probscale": [1, 2, 3, 0.5, 0.1], 
-                            "proboffset": [1, 2, 3, 4, 5, 0.5, 0.1]} 
+    hyperparameter_search = {"prelr": [0.01, 0.001, 0.003]} 
     print(f"hypersearch space: {hyperparameter_search}")
     tune_id = wandb.util.generate_id()
     tune_res = {}    
@@ -842,8 +840,6 @@ if __name__=='__main__':
         args.probeoffset = probeoffset
         id = wandb.util.generate_id()
         tune_res[str(id)] = {}   
-        tune_res[str(id)]['probescale'] = probescale
-        tune_res[str(id)]['probeoffset'] = probeoffset
         tune_res[str(id)]['prelr'] = prelr
         
         # optimizer = torch.optim.Adam([{'params': model.parameters(), "lr": args.gnnlr}, 
