@@ -60,13 +60,13 @@ echo "Start training grand on $data"
 # `
 # python gnn_ogb_heart.py --data_name ogbl-collab --gnn_model GCN --hidden_channels 18 --lr 0.001 --dropout 0.0 --num_layers 3 --num_layers_predictor 3 --epochs 800 --kill_cnt 100 --batch_size 16394 --runs 2 --device 2
 # `
-python grand_ncnc_tune.py --data_name ogbl-collab --xdp 0.25 --tdp 0.05 --pt 0.1 \
-                            --gnnedp 0.25  --preedp 0.0 --predp 0.3 --gnndp 0.1   --probscale 2.5 --proboffset 6.0 \
-                            --alpha 1.05  --gnnlr 0.0082 --prelr 0.0037  --batch_size 65536  --ln --lnnn --predictor cn1 \
-                            --epochs 2 --runs 1 --hidden_dim 128 --mplayers 1  --testbs 131072  --maskinput  \
-                            --use_valedges_as_input  --res  --use_xlin  --tailact 
-
-
+python lp_cn.py  --data_name ogbl-collab --xdp 0 --tdp 0 --pt 0 --preedp 0.0 --predp 0  \
+            --device 0 --prelr 0.001 --batch_size 16384 --num_layers 3 \
+            --ln --lnnn --predictor cn1 \
+            --epochs 20 --runs 1     --hidden_dim 128 \
+            --testbs 131072 \
+            --maskinput --use_valedges_as_input \
+            --res  --use_xlin  --tailact    
 #TODO understand better the parameter roles, and the model structure
 #TODO analyse the result of prediction w.r.t correlation, error analyse w.r.t. degree distribution and node feature difference 
 #PRETEST synthetic graph visualization, parameters description and intial result with increasing number of node, edge distribution  

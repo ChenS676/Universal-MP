@@ -9,8 +9,8 @@ from utils.model_configurations import set_block, set_function
 
 # Define the GNN model.
 class GNN(BaseGNN):
-  def __init__(self, opt, data, splits, batch_size, device=torch.device('cpu')):
-    super(GNN, self).__init__(opt, data, splits, batch_size, device)
+  def __init__(self, opt, data, splits, device=torch.device('cpu')):
+    super(GNN, self).__init__(opt, data, splits, device)
     self.f = set_function(opt)
     block = set_block(opt)
     time_tensor = torch.tensor([0, self.T]).to(device)

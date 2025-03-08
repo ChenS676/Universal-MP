@@ -23,8 +23,18 @@
 
             // "--dataset", "ogbl-citation2", "--device", "0", "--no_early", "--beltrami" 
 
-            "--dataset", "ogbl-citation2", "--device", "0", "--no_early", "--beltrami" 
-            ]
+            // "--dataset", "ogbl-citation2", "--device", "0", "--no_early", "--beltrami" 
+            // "--data_name", "Cora", "--xdp", "0.25", "--tdp", "0.05", "--pt", "0.1",
+            // "--preedp", "0.0", "--predp", "0.3", 
+            // "--probscale", "2.5", "--proboffset", "6.0", 
+            // "--alpha", "1.05", "--prelr", "0.0037", "--batch_size", "65536",
+            // "--ln", "--lnnn", "--predictor", "cn1",
+            // "--epochs", "10", "--runs", "1",
+            // "--hidden_dim", "128", "--mplayers", "3",
+            // "--testbs", "131072",
+            // "--maskinput", "--use_valedges_as_input",
+            // "--res",  "--use_xlin",  "--tailact"    
+        ]
         }
     ]
 }

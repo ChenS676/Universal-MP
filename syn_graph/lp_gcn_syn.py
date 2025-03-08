@@ -19,7 +19,6 @@ import torch_geometric.transforms as T
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
 from torch_geometric.utils import negative_sampling
-import os
 from tqdm import tqdm 
 from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
 import torch
@@ -28,127 +27,11 @@ import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
+from syn_random import init_pyg_regtil, RegularTilling
+
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
-DATASET_PATH = '/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines/dataset'
-
-def get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
-    k_list = [1, 10, 20, 50, 100]
-    result = {}
-    result_mrr_train = evaluate_mrr( evaluator_mrr,  pos_train_pred, neg_val_pred)
-    result_mrr_val = evaluate_mrr( evaluator_mrr, pos_val_pred, neg_val_pred )
-    result_mrr_test = evaluate_mrr( evaluator_mrr, pos_test_pred, neg_test_pred )
-    result['MRR'] = (result_mrr_train['MRR'], result_mrr_val['MRR'], result_mrr_test['MRR'])
-    for K in k_list:
-        result[f'mrr_hit{K}'] = (result_mrr_train[f'mrr_hit{K}'], result_mrr_val[f'mrr_hit{K}'], result_mrr_test[f'mrr_hit{K}'])
-    return result
-
-def plot_test_sequences(test_pred, test_true):
-    """
-    Plots test_pred as a line plot with transparent circles for positive and negative samples.
-    """
-    test_pred = test_pred.detach().cpu().numpy()  
-    test_true = test_true.detach().cpu().numpy()
-
-    plt.figure(figsize=(8, 5))
-    plt.plot(test_pred, marker='o', linestyle='-', label="Prediction Score", color='#7FCA85', alpha=0.7)
-    plt.plot(test_true, marker='o', linestyle='-', label="True Score", color='#BDAED2', alpha=0.7)
-    # Color true labels (1=Positive, 0=Negative)
-
-    plt.xlabel("Sample Index")
-    plt.ylabel("Prediction Score")
-    plt.title("Test Predictions with True Labels")
-    plt.legend()
-    plt.savefig('plot_prediction.png')
-    
-def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
-
-    # result_hit = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred)
-    result = {}
-    k_list = [20, 50, 100]
-    result_hit_train = evaluate_hits(evaluator_hit, pos_train_pred, neg_val_pred, k_list)
-    result_hit_val = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, k_list)
-    result_hit_test = evaluate_hits(evaluator_hit, pos_test_pred, neg_test_pred, k_list)
-    # result_hit = {}
-    for K in k_list:
-        result[f'Hits@{K}'] = (result_hit_train[f'Hits@{K}'], result_hit_val[f'Hits@{K}'], result_hit_test[f'Hits@{K}'])
-    train_pred = torch.cat([pos_train_pred, neg_val_pred])
-    train_true = torch.cat([torch.ones(pos_train_pred.size(0), dtype=int), 
-                            torch.zeros(neg_val_pred.size(0), dtype=int)])
-    val_pred = torch.cat([pos_val_pred, neg_val_pred])
-    val_true = torch.cat([torch.ones(pos_val_pred.size(0), dtype=int), 
-                            torch.zeros(neg_val_pred.size(0), dtype=int)])
-    test_pred = torch.cat([pos_test_pred, neg_test_pred])
-    test_true = torch.cat([torch.ones(pos_test_pred.size(0), dtype=int), 
-                            torch.zeros(neg_test_pred.size(0), dtype=int)])
-    result_auc_train = evaluate_auc(train_pred, train_true)
-    result_auc_val = evaluate_auc(val_pred, val_true)
-    result_auc_test = evaluate_auc(test_pred, test_true)
-    
-    # result_auc = {}
-    result['AUC'] = (result_auc_train['AUC'], result_auc_val['AUC'], result_auc_test['AUC'])
-    result['AP'] = (result_auc_train['AP'], result_auc_val['AP'], result_auc_test['AP'])
-    return result
-
-        
-
-def train_use_hard_negative(model, score_func, train_pos, data, emb, optimizer, batch_size, pos_train_weight, remove_edge_aggre, gnn_batch_size):
-    model.train()
-    score_func.train()
-    # train_pos = train_pos.transpose(1, 0)
-    total_loss = total_examples = 0
-    # pos_train_edge = split_edge['train']['edge'].to(data.x.device)
-    if emb == None: 
-        x = data.x
-        emb_update = 0
-    else: 
-        x = emb.weight
-        emb_update = 1
-    for perm, perm_large in zip(DataLoader(range(train_pos.size(0)), batch_size,
-                           shuffle=True),  DataLoader(range(train_pos.size(0)), gnn_batch_size,
-                           shuffle=True)):
-        optimizer.zero_grad()
-        num_nodes = x.size(0)
-        ######################### remove loss edges from the aggregation
-        if remove_edge_aggre:
-            mask = torch.ones(train_pos.size(0), dtype=torch.bool).to(train_pos.device)
-            mask[perm] = 0
-            train_edge_mask = train_pos[mask].transpose(1,0)
-            train_edge_mask = torch.cat((train_edge_mask, train_edge_mask[[1,0]]),dim=1)
-            if pos_train_weight != None:
-                edge_weight_mask = pos_train_weight[mask]
-                edge_weight_mask = torch.cat((edge_weight_mask, edge_weight_mask), dim=0).to(torch.float)
-            else:
-                edge_weight_mask = torch.ones(train_edge_mask.size(1)).to(torch.float).to(train_pos.device)
-            adj = SparseTensor.from_edge_index(train_edge_mask, edge_weight_mask, [num_nodes, num_nodes]).to(train_pos.device)
-        else:
-            adj = data.adj_t 
-             
-        ###################
-        # print(adj)
-        h = model(x, adj)
-        edge = train_pos[perm].t()
-        pos_out = score_func(h[edge[0]], h[edge[1]])
-        pos_loss = -torch.log(pos_out + 1e-15).mean()
-        edge_large = train_pos[perm_large].t()
-        edge_large = torch.randint(0, num_nodes, edge_large.size(), dtype=torch.long, device=edge.device)
-        with torch.no_grad():
-            neg_out_gnn_large = score_func(h[edge_large[0]], h[edge_large[1]])
-            neg_large_loss = -torch.log(1 - (torch.sigmoid(neg_out_gnn_large)) + 1e-15)
-            edge = edge_large[:,torch.topk(neg_large_loss.squeeze(), batch_size)[1]]
-        neg_out = score_func(h[edge[0]], h[edge[1]])
-        neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
-        loss = pos_loss + neg_loss
-        loss.backward()
-        if emb_update == 1: torch.nn.utils.clip_grad_norm_(x, 1.0)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        torch.nn.utils.clip_grad_norm_(score_func.parameters(), 1.0)
-        optimizer.step()
-        num_examples = pos_out.size(0)
-        total_loss += loss.item() * num_examples
-        total_examples += num_examples
-    return total_loss / total_examples
 
 
 
@@ -224,64 +107,7 @@ def test_edge(score_func, input_data, h, batch_size, mrr_mode=False, negative_da
     return pred_all
 
 
-@torch.no_grad()
-def test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size):
-    model.eval()
-    score_func.eval()
-    train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
-    if emb == None: x = data.x
-    else: x = emb.weight
-    h = model(x, data.adj_t.to(x.device))
-    x1 = h
-    x2 = torch.tensor(1)
-    # print(h[0][:10])
-    train_val_edge = train_val_edge.to(x.device)
-    pos_valid_edge = pos_valid_edge.to(x.device) 
-    neg_valid_edge = neg_valid_edge.to(x.device)
-    pos_test_edge = pos_test_edge.to(x.device) 
-    neg_test_edge = neg_test_edge.to(x.device)
-    neg_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size, mrr_mode=True, negative_data=neg_valid_edge)
-    pos_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size)
-    pos_test_pred = test_edge(score_func, pos_test_edge, h, batch_size)
-    neg_test_pred = test_edge(score_func, pos_test_edge, h, batch_size, mrr_mode=True, negative_data=neg_test_edge)
-    pos_train_pred = test_edge(score_func, train_val_edge, h, batch_size)
-    pos_valid_pred = pos_valid_pred.view(-1)
-    pos_test_pred =pos_test_pred.view(-1)
-    pos_train_pred = pos_valid_pred.view(-1)
-    print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
-    
-    result = get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
-    score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x1.cpu(), x2.cpu()]
-    return result, score_emb
 
-
-
-def visualize_predictions(pos_train_pred, neg_train_pred, 
-                          pos_valid_pred, neg_valid_pred, 
-                          pos_test_pred, neg_test_pred):
-  
-    """
-    Visualizes the distribution of positive and negative predictions for train, validation, and test sets.
-    """
-    plt.figure(figsize=(15, 5))
-    
-    datasets = [(pos_train_pred, neg_train_pred, 'Train'),
-                (pos_valid_pred, neg_valid_pred, 'Validation'),
-                (pos_test_pred, neg_test_pred, 'Test')]
-    
-    for i, (pos_pred, neg_pred, title) in enumerate(datasets):
-        plt.subplot(1, 3, i + 1)
-        sns.histplot(pos_pred, bins=50, kde=True, color='#7FCA85', stat='density', label='Positive')
-        sns.histplot(neg_pred, bins=50, kde=True, color='#BDAED2', stat='density', label='Negative', alpha=0.6)
-        plt.title(f'{title} Set')
-        plt.xlabel('Prediction Score')
-        plt.ylabel('Density')
-        plt.legend()
-    
-    plt.tight_layout()
-    plt.savefig('visual_grand.png')
-    
-    
 @torch.no_grad()
 def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size, use_valedges_as_input):
     model.eval()
@@ -322,11 +148,145 @@ def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluato
     return result, score_emb
 
 
+def evaluate_mrr(evaluator, pos_val_pred, neg_val_pred):
+    
+    neg_val_pred = neg_val_pred.view(pos_val_pred.shape[0], -1)
+    # neg_test_pred = neg_test_pred.view(pos_test_pred.shape[0], -1)
+    
+    mrr_output =  eval_mrr(pos_val_pred, neg_val_pred)
 
-# def main(count, lr, l2, dropout):
+
+    valid_mrr =mrr_output['mrr_list'].mean().item()
+    valid_mrr_hit1 = mrr_output['hits@1_list'].mean().item()
+    valid_mrr_hit3 = mrr_output['hits@3_list'].mean().item()
+    valid_mrr_hit10 = mrr_output['hits@10_list'].mean().item()
+
+    valid_mrr_hit20 = mrr_output['hits@20_list'].mean().item()
+    valid_mrr_hit50 = mrr_output['hits@50_list'].mean().item()
+    valid_mrr_hit100 = mrr_output['hits@100_list'].mean().item()
+
+
+    valid_mrr = round(valid_mrr, 4)
+    # test_mrr = round(test_mrr, 4)
+    valid_mrr_hit1 = round(valid_mrr_hit1, 4)
+    valid_mrr_hit3 = round(valid_mrr_hit3, 4)
+    valid_mrr_hit10 = round(valid_mrr_hit10, 4)
+
+    valid_mrr_hit20 = round(valid_mrr_hit20, 4)
+    valid_mrr_hit50 = round(valid_mrr_hit50, 4)
+    valid_mrr_hit100 = round(valid_mrr_hit100, 4)
+    
+    results = {}
+    results['mrr_hit1'] = valid_mrr_hit1
+    results['mrr_hit3'] = valid_mrr_hit3
+    results['mrr_hit10'] = valid_mrr_hit10
+
+    results['MRR'] = valid_mrr
+
+    results['mrr_hit20'] = valid_mrr_hit20
+    results['mrr_hit50'] = valid_mrr_hit50
+    results['mrr_hit100'] = valid_mrr_hit100
+
+    
+    return results['MRR']
+
+def eval_mrr(y_pred_pos, y_pred_neg):
+    '''
+        compute mrr
+        y_pred_neg is an array with shape (batch size, num_entities_neg).
+        y_pred_pos is an array with shape (batch size, )
+    '''
+
+
+    # calculate ranks
+    y_pred_pos = y_pred_pos.view(-1, 1)
+    # optimistic rank: "how many negatives have at least the positive score?"
+    # ~> the positive is ranked first among those with equal score
+    optimistic_rank = (y_pred_neg >= y_pred_pos).sum(dim=1)
+    # pessimistic rank: "how many negatives have a larger score than the positive?"
+    # ~> the positive is ranked last among those with equal score
+    pessimistic_rank = (y_pred_neg > y_pred_pos).sum(dim=1)
+    ranking_list = 0.5 * (optimistic_rank + pessimistic_rank) + 1
+
+    hits1_list = (ranking_list <= 1).to(torch.float)
+    hits3_list = (ranking_list <= 3).to(torch.float)
+
+    hits20_list = (ranking_list <= 20).to(torch.float)
+    hits50_list = (ranking_list <= 50).to(torch.float)
+    hits10_list = (ranking_list <= 10).to(torch.float)
+    hits100_list = (ranking_list <= 100).to(torch.float)
+    mrr_list = 1./ranking_list.to(torch.float)
+
+    return { 'hits@1_list': hits1_list,
+                'hits@3_list': hits3_list,
+                'hits@20_list': hits20_list,
+                'hits@50_list': hits50_list,
+                'hits@10_list': hits10_list,
+                'hits@100_list': hits100_list,
+                'mrr_list': mrr_list}
+
+
+
+def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
+
+    # result_hit = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred)
+    result = {}
+    k_list = [1, 5, 50, 100]
+    result_hit_train = evaluate_hits(evaluator_hit, pos_train_pred, neg_val_pred, k_list)
+    result_hit_val = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, k_list)
+    result_hit_test = evaluate_hits(evaluator_hit, pos_test_pred, neg_test_pred, k_list)
+    # result_hit = {}
+    for K in k_list:
+        result[f'Hits@{K}'] = (result_hit_train[f'Hits@{K}'], result_hit_val[f'Hits@{K}'], result_hit_test[f'Hits@{K}'])
+    train_pred = torch.cat([pos_train_pred, neg_val_pred])
+    train_true = torch.cat([torch.ones(pos_train_pred.size(0), dtype=int), 
+                            torch.zeros(neg_val_pred.size(0), dtype=int)])
+    val_pred = torch.cat([pos_val_pred, neg_val_pred])
+    val_true = torch.cat([torch.ones(pos_val_pred.size(0), dtype=int), 
+                            torch.zeros(neg_val_pred.size(0), dtype=int)])
+    test_pred = torch.cat([pos_test_pred, neg_test_pred])
+    test_true = torch.cat([torch.ones(pos_test_pred.size(0), dtype=int), 
+                            torch.zeros(neg_test_pred.size(0), dtype=int)])
+    result_auc_train = evaluate_auc(train_pred, train_true)
+    result_auc_val = evaluate_auc(val_pred, val_true)
+    result_auc_test = evaluate_auc(test_pred, test_true)
+    
+    mrr_train =  evaluate_mrr(evaluator_mrr, pos_val_pred, neg_val_pred)
+    mrr_valid =  evaluate_mrr(evaluator_mrr, pos_train_pred, neg_val_pred)
+    mrr_test =  evaluate_mrr(evaluator_mrr, pos_test_pred, neg_test_pred)
+    
+    # result_auc = {}
+    result['AUC'] = (result_auc_train['AUC'], result_auc_val['AUC'], result_auc_test['AUC'])
+    result['AP'] = (result_auc_train['AP'], result_auc_val['AP'], result_auc_test['AP'])
+    result['MRR'] =  (mrr_train, mrr_valid, mrr_test)
+    return result
+
+
+def plot_test_sequences(test_pred, test_true):
+    """
+    Plots test_pred as a line plot with transparent circles for positive and negative samples.
+    """
+    test_pred = test_pred.detach().cpu().numpy()  
+    test_true = test_true.detach().cpu().numpy()
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(test_pred, marker='o', linestyle='-', label="Prediction Score", color='#7FCA85', alpha=0.7)
+    plt.plot(test_true, marker='o', linestyle='-', label="True Score", color='#BDAED2', alpha=0.7)
+    # Color true labels (1=Positive, 0=Negative)
+
+    plt.xlabel("Sample Index")
+    plt.ylabel("Prediction Score")
+    plt.title("Test Predictions with True Labels")
+    plt.legend()
+    plt.savefig('plot_prediction.png')
+
 def main():
     parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default='ogbl-citation2')
+    #     TRIANGULAR = 1
+    # HEXAGONAL = 2
+    # SQUARE_GRID  = 3
+    # KAGOME_LATTICE = 4
+    parser.add_argument('--data_name', type=str, default='RegularTilling.KAGOME_LATTICE')
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
     parser.add_argument('--score_model', type=str, default='mlp_score')
@@ -383,15 +343,37 @@ def main():
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
-    dataset = PygLinkPropPredDataset(name=args.data_name, root=DATASET_PATH) #args.data_name
+    # dataset = PygLinkPropPredDataset(name=args.data_name, root=os.path.join(get_root_dir(), "dataset", args.data_name))
+    # data = dataset[0]
 
-    data = dataset[0]
+    if args.N is not None:
+        N = args.N
+    elif args.data_name =='RegularTilling.TRIANGULAR':
+        eval_metric = 'MRR'
+        N = 8000 
+    elif args.data_name =='RegularTilling.HEXAGONAL':
+        eval_metric = 'MRR'
+        N = 8000
+    elif args.data_name =='RegularTilling.SQUARE_GRID':
+        eval_metric = 'MRR'
+        N = 400
+    elif args.data_name =='RegularTilling.KAGOME_LATTICE':
+        eval_metric = 'MRR'
+        N = 10000
+        
+    data, split_edge = init_pyg_regtil(N, 
+            eval(args.data_name), 
+            0,
+            undirected = True,
+            val_pct = 0.05,
+            test_pct = 0.15,
+            split_labels = True, 
+            include_negatives = True)
+    
     edge_index = data.edge_index
     emb = None
     node_num = data.num_nodes
-    split_edge = dataset.get_edge_split()
-    
-    args.name_tag = f"{args.data_name}_{args.gnn_model}_{args.score_model}_epochs{args.epochs}_runs{args.runs}"
+
     if hasattr(data, 'x'):
         if data.x != None:
             x = data.x
@@ -413,17 +395,19 @@ def main():
         if data.edge_weight != None:
             edge_weight = data.edge_weight.to(torch.float)
             data.edge_weight = data.edge_weight.view(-1).to(torch.float)
-            train_edge_weight = split_edge['train']['weight'].to(device)
+            train_edge_weight = split_edge['train']['edge_weight'].to(device)
             train_edge_weight = train_edge_weight.to(torch.float)
         else:
             train_edge_weight = None
     else:
         train_edge_weight = None
     
+    
     print(data, args.data_name)
     if data.edge_weight is None:
         edge_weight = torch.ones((data.edge_index.size(1), 1))
         print(f"custom edge_weight {edge_weight.size()} added for {args.data_name}")
+
     data = T.ToSparseTensor()(data)
     if args.use_valedges_as_input:
         val_edge_index = split_edge['valid']['edge'].t()
@@ -436,18 +420,9 @@ def main():
         data.full_edge_index = full_edge_index
         print(data.full_adj_t)
         print(data.adj_t)
-    
-    if args.data_name == 'ogbl-citation2': 
-        data.adj_t = data.adj_t.to_symmetric()
-        if args.gnn_model == 'GCN':
-            adj_t = data.adj_t.set_diag()
-            deg = adj_t.sum(dim=1).to(torch.float)
-            deg_inv_sqrt = deg.pow(-0.5)
-            deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-            adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
-            data.adj_t = adj_t
-            
     data = data.to(device)
+
+
     model = eval(args.gnn_model)(input_channel, args.hidden_channels,
                     args.hidden_channels, args.num_layers, args.dropout, 
                     mlp_layer=args.gin_mlp_layer, head=args.gat_head, 
@@ -456,13 +431,13 @@ def main():
 
     score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
                     1, args.num_layers_predictor, args.dropout).to(device)
-    # train_pos = data['train_pos'].to(x.device)
-    # eval_metric = args.metric
+
     evaluator_hit = Evaluator(name='ogbl-collab')
     evaluator_mrr = Evaluator(name='ogbl-citation2')
 
     loggers = {
-        'Hits@20': Logger(args.runs),
+        'Hits@1': Logger(args.runs),
+        'Hits@5': Logger(args.runs),
         'Hits@50': Logger(args.runs),
         'Hits@100': Logger(args.runs),
         'MRR': Logger(args.runs),
@@ -472,31 +447,18 @@ def main():
         'mrr_hit50':  Logger(args.runs),
         'mrr_hit100':  Logger(args.runs),
     }
+    
 
-    if args.data_name =='ogbl-collab':
-        eval_metric = 'Hits@50'
-    elif args.data_name =='ogbl-ddi':
-        eval_metric = 'Hits@20'
-    elif args.data_name =='ogbl-ppa':
-        eval_metric = 'Hits@100'
-    elif args.data_name =='ogbl-citation2':
-        eval_metric = 'MRR'
+        
+    print(data)
+    print(split_edge)
 
-    if args.data_name != 'ogbl-citation2':
-        pos_train_edge = split_edge['train']['edge']
-        pos_valid_edge = split_edge['valid']['edge']
-        neg_valid_edge = split_edge['valid']['edge_neg']
-        pos_test_edge = split_edge['test']['edge']
-        neg_test_edge = split_edge['test']['edge_neg']
-    else:
-        source_edge, target_edge = split_edge['train']['source_node'], split_edge['train']['target_node']
-        pos_train_edge = torch.cat([source_edge.unsqueeze(1), target_edge.unsqueeze(1)], dim=-1)
-        source, target = split_edge['valid']['source_node'],  split_edge['valid']['target_node']
-        pos_valid_edge = torch.cat([source.unsqueeze(1), target.unsqueeze(1)], dim=-1)
-        neg_valid_edge = split_edge['valid']['target_node_neg'] 
-        source, target = split_edge['test']['source_node'],  split_edge['test']['target_node']
-        pos_test_edge = torch.cat([source.unsqueeze(1), target.unsqueeze(1)], dim=-1)
-        neg_test_edge = split_edge['test']['target_node_neg']
+   
+    pos_train_edge = split_edge['train']['pos_edge_label_index']
+    pos_valid_edge = split_edge['valid']['pos_edge_label_index']
+    neg_valid_edge = split_edge['valid']['neg_edge_label_index']
+    pos_test_edge = split_edge['test']['pos_edge_label_index']
+    neg_test_edge = split_edge['test']['neg_edge_label_index']
 
     idx = torch.randperm(pos_train_edge.size(0))[:pos_valid_edge.size(0)]
     train_val_edge = pos_train_edge[idx]
@@ -504,11 +466,11 @@ def main():
     evaluation_edges = [train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge]
     best_valid_auc = best_test_auc = 2
     best_auc_valid_str = 2
-    
+
     for run in range(args.runs):
         print('#################################          ', run, '          #################################')
         import wandb
-        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.init(project="GRAND4Syn", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
         wandb.config.update(args)
         if args.runs == 1:
             seed = args.seed
@@ -531,20 +493,16 @@ def main():
         kill_cnt = 0
         best_test = 0
         step = 0
-        
+
+
         for epoch in range(1, 1 + args.epochs):
-            if args.use_hard_negative:
-                loss = train_use_hard_negative(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.remove_edge_aggre, args.test_batch_size)
-            else:
-                loss = train(model, score_func, split_edge, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
-                wandb.log({'train_loss': loss}, step = epoch)
-                step += 1
+
+            loss = train(model, score_func, split_edge, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
+            wandb.log({'train_loss': loss}, step = epoch)
+            step += 1
                 
             if epoch % args.eval_steps == 0:
-                if args.data_name == 'ogbl-citation2':
-                    results_rank, score_emb= test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size)
-                else:
-                    results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
+                results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
                     wandb.log({f"Metrics/{key}": result[-1]}, step=step)
@@ -564,7 +522,7 @@ def main():
                               f'Test: {100 * test_hits:.2f}%')
 
                 r = torch.tensor(loggers[eval_metric].results[run])
-                best_valid_current = round(r[:, 1].max().item(),4)
+                best_valid_current = round(r[:, 1].max().item(), 4)
                 best_test = round(r[r[:, 1].argmax(), 2].item(), 4)
 
                 print(eval_metric)
@@ -591,36 +549,13 @@ def main():
                     if kill_cnt > args.kill_cnt: 
                         print("Early Stopping!!")
                         break
+
         for key in loggers.keys():
             if len(loggers[key].results[0]) > 0:
                 print(key)
                 loggers[key].print_statistics(run)
     
-    result_all_run = {}
-    save_dict = {}
-    for key in loggers.keys():
-        if len(loggers[key].results[0]) > 0:
-            print(key)
-            best_metric,  best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
-            if key == eval_metric:
-                best_metric_valid_str = best_metric
-                best_valid_mean_metric = best_valid_mean
-            if key == 'AUC':
-                best_auc_valid_str = best_metric
-                best_auc_metric = best_valid_mean
-            result_all_run[key] = [mean_list, var_list]
-            save_dict[key] = test_res
-    print(f"to results_ogb_gnn/{args.data_name}_lm_mrr.csv")
-    print(f"with name {args.name_tag}.")
-    mvari_str2csv(args.name_tag, save_dict, f'results_ogb_gnn/{args.data_name}_lm_mrr.csv')
-
-    if args.runs == 1:
-        print(str(best_valid_current) + ' ' + str(best_test) + ' ' + str(best_valid_auc) + ' ' + str(best_test_auc))
-    else:
-        print(str(best_metric_valid_str) +' ' +str(best_auc_valid_str))
-
+        
 
 if __name__ == "__main__":
-
     main()
-
