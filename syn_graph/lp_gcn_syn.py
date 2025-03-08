@@ -282,7 +282,7 @@ def plot_test_sequences(test_pred, test_true):
 
 def main():
     parser = argparse.ArgumentParser(description='homo')
-    #     TRIANGULAR = 1
+    # TRIANGULAR = 1
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
