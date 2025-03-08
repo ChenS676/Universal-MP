@@ -28,15 +28,13 @@ import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
 from syn_random import init_pyg_regtil, RegularTilling
-
+import csv
+import pandas as pd
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
 
-import csv
-import pandas as pd
-import pandas as pd
 
 def save_new_results(loggers, data_name, num_node, file_name='test_results.csv'):
     new_data = []
@@ -50,16 +48,20 @@ def save_new_results(loggers, data_name, num_node, file_name='test_results.csv')
             new_data.append([data_name, num_node, key, best_valid, best_valid_mean, mean_list, var_list, test_res])
     
     # Merge and save the new results with the old ones
-    load_and_merge_data(new_data, file_name, num_node)
+    load_and_merge_data(new_data, data_name, num_node, file_name)
 
 
 def load_and_merge_data(new_data, data_name, num_node, file_name='test_results.csv'):
     try:
         # Try to read the existing CSV file
         old_data = pd.read_csv(file_name)
+        
         # Merge the new data (convert new_data to a DataFrame)
         new_data_df = pd.DataFrame(new_data, columns=['data_name', 'num_node', 'Metric', 'Best Valid', 'Best Valid Mean', 'Mean List', 'Variance List', 'Test Result'])
-        merged_data = pd.concat([old_data, new_data_df], ignore_index=True)
+        
+        # Concatenate only the necessary columns
+        merged_data = pd.concat([old_data[['data_name', 'num_node', 'Metric', 'Best Valid', 'Best Valid Mean', 'Mean List', 'Variance List', 'Test Result']], new_data_df], ignore_index=True)
+    
     except FileNotFoundError:
         # If the file doesn't exist, create a new DataFrame for the new data
         new_data_df = pd.DataFrame(new_data, columns=['data_name', 'num_node', 'Metric', 'Best Valid', 'Best Valid Mean', 'Mean List', 'Variance List', 'Test Result'])
@@ -68,6 +70,7 @@ def load_and_merge_data(new_data, data_name, num_node, file_name='test_results.c
     # Save the merged data back to the CSV file
     merged_data.to_csv(file_name, index=False)
     print(f'Merged data saved to {file_name}')
+    
     
 def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name, remove_edge_aggre):
     model.train()
@@ -313,6 +316,8 @@ def plot_test_sequences(test_pred, test_true):
     plt.title("Test Predictions with True Labels")
     plt.legend()
     plt.savefig('plot_prediction.png')
+
+
 
 def main():
     parser = argparse.ArgumentParser(description='homo')
@@ -581,8 +586,6 @@ def main():
                     if kill_cnt > args.kill_cnt: 
                         print("Early Stopping!!")
                         break
-                    
-    import IPython; IPython.embed()
 
     for key in loggers.keys():
         if len(loggers[key].results[0]) > 0:
