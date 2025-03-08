@@ -322,6 +322,7 @@ def main():
     # KAGOME_LATTICE = 4
     parser.add_argument('--data_name', type=str, default='RegularTilling.KAGOME_LATTICE')
     parser.add_argument('--N', type=str, help='number of the node in synthetic graph')
+
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
     parser.add_argument('--score_model', type=str, default='mlp_score')

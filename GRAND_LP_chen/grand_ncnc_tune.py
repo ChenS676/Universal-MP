@@ -938,11 +938,13 @@ if __name__=='__main__':
                     best_results = results
                 print(f"Epoch {epoch} completed in {time.time() - start_time:.2f}s")
                 print(f"Current Best {current_metric}: {best_metric:.4f} (Epoch {best_epoch})")
+
             tune_res[str(id)][eval_metric] = best_metric
         save_parmet_tune(str(id), tune_res[str(id)], f'results_grand_gnn/tune{tune_id}_{args.data_name}_lm_mrr.csv')
     df = pd.DataFrame.from_dict(tune_res, orient='index')
     df.to_csv( f'results_grand_gnn/tune{tune_id}_{args.data_name}_lm_mrr.csv', index=False)  
     print(f"Training completed. Best {current_metric}: {best_metric:.4f} (Epoch {best_epoch})")
+
 
     """python allin_grand_ncnc.py   
     --xdp 0.25 --tdp 0.05 --pt 0.1 --gnnedp 0.25 
