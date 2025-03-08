@@ -169,10 +169,9 @@ def init_pyg_regtil(N: int,
                     test_pct = 0.15,
                     split_labels = True, 
                     include_negatives = True) -> Tuple[Data, Data, Data]:
-    
     G, _, _ = init_regular_tilling(N, g_type, seed)
     data = from_networkx(G)
-  
+    
     data.edge_index, _ = coalesce(data.edge_index, None, num_nodes=data.num_nodes)
     data.edge_index, _ = remove_self_loops(data.edge_index)
     
@@ -214,8 +213,9 @@ def init_regular_tilling(N, type=RegularTilling.SQUARE_GRID, seed=None):
     # generate adjacency matrix and nodes values
     nodes = list(G)
     random.shuffle(nodes)
-    adj_matrix = nx.to_numpy_array(G, nodes)
     
+    # adj_matrix = nx.to_numpy_array(G, nodes) it raises OOM larger than 80000 nodes  
+    adj_matrix = nx.to_scipy_sparse_array(G, nodes)
     # draw the graph created
     return G, adj_matrix, type
 

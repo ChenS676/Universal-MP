@@ -34,7 +34,41 @@ dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
 
+import csv
+import pandas as pd
+import pandas as pd
 
+def save_new_results(loggers, data_name, num_node, file_name='test_results.csv'):
+    new_data = []
+    
+    for key in loggers.keys():
+        if len(loggers[key].results[0]) > 0:
+            print(key)
+            best_valid, best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
+
+            # Prepare row data
+            new_data.append([data_name, num_node, key, best_valid, best_valid_mean, mean_list, var_list, test_res])
+    
+    # Merge and save the new results with the old ones
+    load_and_merge_data(new_data, file_name, num_node)
+
+
+def load_and_merge_data(new_data, data_name, num_node, file_name='test_results.csv'):
+    try:
+        # Try to read the existing CSV file
+        old_data = pd.read_csv(file_name)
+        # Merge the new data (convert new_data to a DataFrame)
+        new_data_df = pd.DataFrame(new_data, columns=['data_name', 'num_node', 'Metric', 'Best Valid', 'Best Valid Mean', 'Mean List', 'Variance List', 'Test Result'])
+        merged_data = pd.concat([old_data, new_data_df], ignore_index=True)
+    except FileNotFoundError:
+        # If the file doesn't exist, create a new DataFrame for the new data
+        new_data_df = pd.DataFrame(new_data, columns=['data_name', 'num_node', 'Metric', 'Best Valid', 'Best Valid Mean', 'Mean List', 'Variance List', 'Test Result'])
+        merged_data = new_data_df
+    
+    # Save the merged data back to the CSV file
+    merged_data.to_csv(file_name, index=False)
+    print(f'Merged data saved to {file_name}')
+    
 def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name, remove_edge_aggre):
     model.train()
     score_func.train()
@@ -287,6 +321,7 @@ def main():
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
     parser.add_argument('--data_name', type=str, default='RegularTilling.KAGOME_LATTICE')
+    parser.add_argument('--N', type=str, help='number of the node in synthetic graph')
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
     parser.add_argument('--score_model', type=str, default='mlp_score')
@@ -346,20 +381,20 @@ def main():
     # dataset = PygLinkPropPredDataset(name=args.data_name, root=os.path.join(get_root_dir(), "dataset", args.data_name))
     # data = dataset[0]
 
-    if args.N is not None:
-        N = args.N
-    elif args.data_name =='RegularTilling.TRIANGULAR':
+    if args.data_name =='RegularTilling.TRIANGULAR':
         eval_metric = 'MRR'
         N = 8000 
-    elif args.data_name =='RegularTilling.HEXAGONAL':
+    if args.data_name =='RegularTilling.HEXAGONAL':
         eval_metric = 'MRR'
         N = 8000
-    elif args.data_name =='RegularTilling.SQUARE_GRID':
+    if args.data_name =='RegularTilling.SQUARE_GRID':
         eval_metric = 'MRR'
         N = 400
-    elif args.data_name =='RegularTilling.KAGOME_LATTICE':
+    if args.data_name =='RegularTilling.KAGOME_LATTICE':
         eval_metric = 'MRR'
         N = 10000
+    if args.N is not None:
+        N = int(args.N)
         
     data, split_edge = init_pyg_regtil(N, 
             eval(args.data_name), 
@@ -448,12 +483,9 @@ def main():
         'mrr_hit100':  Logger(args.runs),
     }
     
-
-        
     print(data)
     print(split_edge)
 
-   
     pos_train_edge = split_edge['train']['pos_edge_label_index']
     pos_valid_edge = split_edge['valid']['pos_edge_label_index']
     neg_valid_edge = split_edge['valid']['neg_edge_label_index']
@@ -493,7 +525,6 @@ def main():
         kill_cnt = 0
         best_test = 0
         step = 0
-
 
         for epoch in range(1, 1 + args.epochs):
 
@@ -549,13 +580,23 @@ def main():
                     if kill_cnt > args.kill_cnt: 
                         print("Early Stopping!!")
                         break
+                    
+    import IPython; IPython.embed()
 
-        for key in loggers.keys():
-            if len(loggers[key].results[0]) > 0:
-                print(key)
-                loggers[key].print_statistics(run)
-    
-        
+    for key in loggers.keys():
+        if len(loggers[key].results[0]) > 0:
+            print(key)
+            best_valid, best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
+            print(best_valid)
+            print(best_valid_mean)
+            print(mean_list)
+            print(var_list)
+            print(test_res)
+            # After collecting the results from the loggers:
+    # After collecting the results from the loggers
+    data_name = "regular"  # Set your dataset name here
+    num_node = 1000         # Set the number of nodes here
+    save_new_results(loggers, data_name, N)
 
 if __name__ == "__main__":
     main()

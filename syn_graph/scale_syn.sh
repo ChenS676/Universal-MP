@@ -30,7 +30,7 @@ module load devel/cuda/11.8
 module load compiler/gnu/12
 conda activate EAsF
 cd /hkfs/work/workspace/scratch/cc7738-rebuttal 
-cd /hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines
+cd /hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/syn_graph
  
 echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 # Print loaded modules
@@ -44,6 +44,6 @@ Ns=(1000 10000 100000 1000000)
 for N in "${Ns[@]}"
 do
     echo "Running N=$N"
-    python lp_gcn_syn.py -N $N
+    python lp_gcn_syn.py --N $N
 done
 
