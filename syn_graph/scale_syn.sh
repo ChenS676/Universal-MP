@@ -44,6 +44,6 @@ Ns=(1000 10000 100000 1000000)
 for N in "${Ns[@]}"
 do
     echo "Running N=$N"
-    python lp_gcn_syn.py -N $N
+    python lp_gcn_syn.py -N $N --data_name 'RegularTilling.KAGOME_LATTICE'
 done
 
