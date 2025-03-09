@@ -415,6 +415,7 @@ def main():
     emb = None
     node_num = data.num_nodes
 
+    import IPython; IPython.embed(header='check data')
     if hasattr(data, 'x'):
         if data.x != None:
             x = data.x
