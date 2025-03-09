@@ -18,9 +18,9 @@
 # Request GPU resources
 #SBATCH --gres=gpu:1
 
-source /hkfs/home/project/hk-project-test-p0021478/cc7738/anaconda3/etc/profile.d/conda.sh
+# source /hkfs/home/project/hk-project-test-p0021478/cc7738/anaconda3/etc/profile.d/conda.sh
 
-conda activate base
+# conda activate base
 
  
 # <<< conda initialize <<<
@@ -39,23 +39,23 @@ echo "Start time: $(date)"
 
 data_name='RegularTilling.KAGOME_LATTICE'
 
-Ns=(100 1000 10000 100000)
+Ns=(10000 30000 50000 70000 90000)
                       
-# for N in "${Ns[@]}"
-# do
-#     echo "Running N=$N"
-#     python lp_gcn_syn.py --N $N --data_name 'RegularTilling.KAGOME_LATTICE'
-
-# done
-
-
-
-
-Ns=(100 400 500 800)
 for N in "${Ns[@]}"
 do
     echo "Running N=$N"
-    python lp_gcn_syn.py --N $N --data_name 'RegularTilling.SQUARE_GRID'
+    python lp_gcn_syn.py --N $N --data_name 'RegularTilling.KAGOME_LATTICE'
 
 done
+
+
+
+
+# Ns=(100 400 500 800)
+# for N in "${Ns[@]}"
+# do
+#     echo "Running N=$N"
+#     python lp_gcn_syn.py --N $N --data_name 'RegularTilling.SQUARE_GRID'
+
+# done
 
