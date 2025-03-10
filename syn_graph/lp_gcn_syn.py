@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import torch
 
 from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, Logger, init_seed, save_emb
-from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
+from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score, dot_product
 
 # from logger import Logger
 from torch.utils.data import DataLoader
@@ -27,16 +27,25 @@ import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
-from syn_random import init_pyg_regtil, RegularTilling
-import csv
 import pandas as pd
+import itertools
+import networkx as nx
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+from syn_random import (init_regular_tilling, 
+                        init_pyg_regtil, 
+                        RegularTilling, 
+                        local_edge_rewiring,
+                        nx2Data_split)
+import csv
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
 
 
-def save_new_results(loggers, data_name, num_node, file_name='test_results.csv'):
+def save_new_results(loggers, data_name, num_node, file_name='test_results_0.25_0.5.csv'):
     new_data = []
     
     for key in loggers.keys():
@@ -330,8 +339,8 @@ def main():
 
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
-    parser.add_argument('--score_model', type=str, default='mlp_score')
-
+    parser.add_argument('--score_model', type=str, default='mlp_score', choices=['mlp_score', 'dot_product'])
+    
     ##gnn setting
     parser.add_argument('--num_layers', type=int, default=3)
     parser.add_argument('--num_layers_predictor', type=int, default=3)
@@ -341,11 +350,11 @@ def main():
 
 
     ### train setting
-    parser.add_argument('--batch_size', type=int, default=16384)
+    parser.add_argument('--batch_size', type=int, default=2**12)
     parser.add_argument('--lr', type=float, default=0.0001)
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=999)
     parser.add_argument('--eval_steps', type=int, default=1)
-    parser.add_argument('--runs', type=int, default=2)
+    parser.add_argument('--runs', type=int, default=1)
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=20,    type=int,       help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
     parser.add_argument('--l2',		type=float,             default=0.0,			help='L2 Regularization for Optimizer')
@@ -398,82 +407,10 @@ def main():
         N = 400
     if args.data_name =='RegularTilling.KAGOME_LATTICE':
         eval_metric = 'MRR'
-        N = 10000
+        N = 100
     if args.N is not None:
         N = int(args.N)
         
-    data, split_edge = init_pyg_regtil(N, 
-            eval(args.data_name), 
-            0,
-            undirected = True,
-            val_pct = 0.05,
-            test_pct = 0.15,
-            split_labels = True, 
-            include_negatives = True)
-    
-    edge_index = data.edge_index
-    emb = None
-    node_num = data.num_nodes
-
-    import IPython; IPython.embed(header='check data')
-    if hasattr(data, 'x'):
-        if data.x != None:
-            x = data.x
-            data.x = data.x.to(torch.float)
-            if args.cat_n2v_feat:
-                print('cat n2v embedding!!')
-                n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
-                data.x = torch.cat((data.x, n2v_emb), dim=-1)
-            data.x = data.x.to(device)
-            input_channel = data.x.size(1)
-        else:
-            emb = torch.nn.Embedding(node_num, args.hidden_channels).to(device)
-            input_channel = args.hidden_channels
-    else:
-        emb = torch.nn.Embedding(node_num, args.hidden_channels).to(device)
-        input_channel = args.hidden_channels
-        
-    if hasattr(data, 'edge_weight'):
-        if data.edge_weight != None:
-            edge_weight = data.edge_weight.to(torch.float)
-            data.edge_weight = data.edge_weight.view(-1).to(torch.float)
-            train_edge_weight = split_edge['train']['edge_weight'].to(device)
-            train_edge_weight = train_edge_weight.to(torch.float)
-        else:
-            train_edge_weight = None
-    else:
-        train_edge_weight = None
-    
-    
-    print(data, args.data_name)
-    if data.edge_weight is None:
-        edge_weight = torch.ones((data.edge_index.size(1), 1))
-        print(f"custom edge_weight {edge_weight.size()} added for {args.data_name}")
-
-    data = T.ToSparseTensor()(data)
-    if args.use_valedges_as_input:
-        val_edge_index = split_edge['valid']['edge'].t()
-        val_edge_index = to_undirected(val_edge_index)
-        full_edge_index = torch.cat([edge_index, val_edge_index], dim=-1)
-        val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=torch.float)
-        edge_weight = torch.cat([edge_weight, val_edge_weight], 0)
-        A = SparseTensor.from_edge_index(full_edge_index, edge_weight.view(-1), [data.num_nodes, data.num_nodes])
-        data.full_adj_t = A
-        data.full_edge_index = full_edge_index
-        print(data.full_adj_t)
-        print(data.adj_t)
-    data = data.to(device)
-
-
-    model = eval(args.gnn_model)(input_channel, args.hidden_channels,
-                    args.hidden_channels, args.num_layers, args.dropout, 
-                    mlp_layer=args.gin_mlp_layer, head=args.gat_head, 
-                    node_num=node_num, cat_node_feat_mf=args.cat_node_feat_mf,  
-                    data_name=args.data_name).to(device)
-
-    score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
-                    1, args.num_layers_predictor, args.dropout).to(device)
-
     evaluator_hit = Evaluator(name='ogbl-collab')
     evaluator_mrr = Evaluator(name='ogbl-citation2')
 
@@ -490,104 +427,213 @@ def main():
         'mrr_hit100':  Logger(args.runs),
     }
     
-    print(data)
-    print(split_edge)
+    perturb_ratio = [0.01, 0.02, 0.1]
+    N = 100
+    g_type = RegularTilling.KAGOME_LATTICE
+    G, _, _, pos = init_regular_tilling(N, g_type, seed=None)
+    
+    print(f"number of nodes {G.number_of_nodes()} and number of edges {G.number_of_edges()}")
+    
+    for pr in perturb_ratio:
+        G_rewired = local_edge_rewiring(G, num_rewirings=int(pr * G.number_of_edges()), seed=None)
+        plt.figure(figsize=(12, 6))
+        plt.subplot(1, 2, 1)
+        nx.draw(G, pos, node_size=50, font_size=10)
+        plt.title("Original Kagome Lattice")
+        plt.subplot(1, 2, 2)
+        nx.draw(G_rewired, pos, node_size=50, font_size=10)
+        plt.title("Rewired Kagome Lattice")
+        plt.savefig(f'rewired_{pr}.png')
+        data, split_edge, G, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
+    
+    for k, val in split_edge.items():
+        print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
+        
+        import IPython; IPython.embed(header='check data')
+        # data, split_edge = init_pyg_regtil(N, 
+        #         eval(args.data_name), 
+        #         0,
+        #         undirected = True,
+        #         val_pct = 0.25,
+        #         test_pct = 0.50,
+        #         split_labels = True, 
+        #         include_negatives = True)
+        
+        # edge_index = data.edge_index
+        emb = None
+        # node_num = data.num_nodes
+        for k, val in split_edge.items():
+            print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
+            try:
+                print(k, 'neg_edge_index', val['neg_edge_label_index'].size())
+            except:
+                pass
 
-    pos_train_edge = split_edge['train']['pos_edge_label_index']
-    pos_valid_edge = split_edge['valid']['pos_edge_label_index']
-    neg_valid_edge = split_edge['valid']['neg_edge_label_index']
-    pos_test_edge = split_edge['test']['pos_edge_label_index']
-    neg_test_edge = split_edge['test']['neg_edge_label_index']
+        if hasattr(data, 'x'):
+            if data.x != None:
+                x = data.x
+                data.x = data.x.to(torch.float)
+                if args.cat_n2v_feat:
+                    print('cat n2v embedding!!')
+                    n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
+                    data.x = torch.cat((data.x, n2v_emb), dim=-1)
+                data.x = data.x.to(device)
+                input_channel = data.x.size(1)
+            else:
+                emb = torch.nn.Embedding(data.num_nodes, args.hidden_channels).to(device)
+                input_channel = args.hidden_channels
+        else:
+            emb = torch.nn.Embedding(data.num_nodes, args.hidden_channels).to(device)
+            input_channel = args.hidden_channels
+            
+        if hasattr(data, 'edge_weight'):
+            if data.edge_weight != None:
+                edge_weight = data.edge_weight.to(torch.float)
+                data.edge_weight = data.edge_weight.view(-1).to(torch.float)
+                train_edge_weight = split_edge['train']['edge_weight'].to(device)
+                train_edge_weight = train_edge_weight.to(torch.float)
+            else:
+                train_edge_weight = None
+        else:
+            train_edge_weight = None
+        
+        
+        print(data, args.data_name)
+        if data.edge_weight is None:
+            edge_weight = torch.ones((data.edge_index.size(1), 1))
+            print(f"custom edge_weight {edge_weight.size()} added for {args.data_name}")
 
-    idx = torch.randperm(pos_train_edge.size(0))[:pos_valid_edge.size(0)]
-    train_val_edge = pos_train_edge[idx]
-    pos_train_edge = pos_train_edge.to(device)
-    evaluation_edges = [train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge]
-    best_valid_auc = best_test_auc = 2
-    best_auc_valid_str = 2
+        data = T.ToSparseTensor()(data)
+        if args.use_valedges_as_input:
+            val_edge_index = split_edge['valid']['edge'].t()
+            val_edge_index = to_undirected(val_edge_index)
+            full_edge_index = torch.cat([data.edge_index, val_edge_index], dim=-1)
+            val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=torch.float)
+            edge_weight = torch.cat([edge_weight, val_edge_weight], 0)
+            A = SparseTensor.from_edge_index(full_edge_index, edge_weight.view(-1), [data.num_nodes, data.num_nodes])
+            data.full_adj_t = A
+            data.full_edge_index = full_edge_index
+            print(data.full_adj_t)
+            print(data.adj_t)
+        data = data.to(device)
 
-    for run in range(args.runs):
-        print('#################################          ', run, '          #################################')
+
+        model = eval(args.gnn_model)(input_channel, args.hidden_channels,
+                        args.hidden_channels, args.num_layers, args.dropout, 
+                        mlp_layer=args.gin_mlp_layer, head=args.gat_head, 
+                        node_num=data.num_nodes, cat_node_feat_mf=args.cat_node_feat_mf,  
+                        data_name=args.data_name).to(device)
+
+        score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
+                        1, args.num_layers_predictor, args.dropout).to(device)
+    
+        print(data)
+        print(split_edge)
+
+        pos_train_edge = split_edge['train']['pos_edge_label_index']
+        pos_valid_edge = split_edge['valid']['pos_edge_label_index']
+        neg_valid_edge = split_edge['valid']['neg_edge_label_index']
+        pos_test_edge = split_edge['test']['pos_edge_label_index']
+        neg_test_edge = split_edge['test']['neg_edge_label_index']
+
+        idx = torch.randperm(pos_train_edge.size(0))[:pos_valid_edge.size(0)]
+        train_val_edge = pos_train_edge[idx]
+        pos_train_edge = pos_train_edge.to(device)
+        evaluation_edges = [train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge]
+        best_valid_auc = best_test_auc = 2
+        best_auc_valid_str = 2
+
+        # hyperparams = {
+        #     'batch_size': [512],
+        #     'lr': [0.001]
+        #     }
+        args.batch_size = 512
+        args.lr = 0.001
+
+        print('#################################                    #################################')
         import wandb
-        wandb.init(project="GRAND4Syn", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
-        wandb.config.update(args)
-        if args.runs == 1:
-            seed = args.seed
-        else:
-            seed = run
-        print('seed: ', seed)
-        init_seed(seed)
-        save_path = args.output_dir+'/lr'+str(args.lr) + '_drop' + str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+str(args.hidden_channels) + '_'+ 'best_run_'+str(seed)
-        if emb != None:
-            torch.nn.init.xavier_uniform_(emb.weight)
-        model.reset_parameters()
-        score_func.reset_parameters()
-        if emb != None:
-            optimizer = torch.optim.Adam(
-                list(model.parameters()) + list(score_func.parameters()) + list(emb.parameters() ),lr=args.lr, weight_decay=args.l2)
-        else:
-            optimizer = torch.optim.Adam(
-                    list(model.parameters()) + list(score_func.parameters()),lr=args.lr, weight_decay=args.l2)
-        best_valid = 0
-        kill_cnt = 0
-        best_test = 0
-        step = 0
+        wandb.init(project="GRAND4Syn", name=f"{args.data_name}_{args.gnn_model}_bs{batch_size}_lr{lr}_")
+        wandb.config.update(args, allow_val_change=True)
+        
+        for run in range(args.runs):
+            if args.runs == 1:
+                seed = args.seed
+            else:
+                seed = run
+            print('seed: ', seed)
+            init_seed(seed)
+            save_path = args.output_dir+'/lr'+str(args.lr) + '_drop' + str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+str(args.hidden_channels) + '_'+ 'best_run_'+str(seed)
+            if emb != None:
+                torch.nn.init.xavier_uniform_(emb.weight)
+            model.reset_parameters()
+            score_func.reset_parameters()
+            if emb != None:
+                optimizer = torch.optim.Adam(
+                    list(model.parameters()) + list(score_func.parameters()) + list(emb.parameters() ),lr=args.lr, weight_decay=args.l2)
+            else:
+                optimizer = torch.optim.Adam(
+                        list(model.parameters()) + list(score_func.parameters()),lr=args.lr, weight_decay=args.l2)
+            best_valid = 0
+            kill_cnt = 0
+            best_test = 0
+            step = 0
 
-        for epoch in range(1, 1 + args.epochs):
+            for epoch in range(1, 1 + args.epochs):
 
-            loss = train(model, score_func, split_edge, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
-            wandb.log({'train_loss': loss}, step = epoch)
-            step += 1
-                
-            if epoch % args.eval_steps == 0:
-                results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
-                for key, result in results_rank.items():
-                    loggers[key].add_result(run, result)
-                    wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                loss = train(model, score_func, split_edge, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
+                wandb.log({'train_loss': loss}, step = epoch)
+                step += 1
                     
-                    
-                if epoch % args.log_steps == 0:
+                if epoch % args.eval_steps == 0:
+                    results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
                     for key, result in results_rank.items():
-                        print(key)
+                        loggers[key].add_result(run, result)
+                        wandb.log({f"Metrics/{key}": result[-1]}, step=step)
                         
-                        train_hits, valid_hits, test_hits = result
-                        log_print.info(
-                            f'Run: {run + 1:02d}, '
-                              f'Epoch: {epoch:02d}, '
-                              f'Loss: {loss:.4f}, '
-                              f'Train: {100 * train_hits:.2f}%, '
-                              f'Valid: {100 * valid_hits:.2f}%, '
-                              f'Test: {100 * test_hits:.2f}%')
+                        
+                    if epoch % args.log_steps == 0:
+                        for key, result in results_rank.items():
+                            print(key)
+                            
+                            train_hits, valid_hits, test_hits = result
+                            log_print.info(
+                                f'Run: {run + 1:02d}, '
+                                f'Epoch: {epoch:02d}, '
+                                f'Loss: {loss:.4f}, '
+                                f'Train: {100 * train_hits:.2f}%, '
+                                f'Valid: {100 * valid_hits:.2f}%, '
+                                f'Test: {100 * test_hits:.2f}%')
 
-                r = torch.tensor(loggers[eval_metric].results[run])
-                best_valid_current = round(r[:, 1].max().item(), 4)
-                best_test = round(r[r[:, 1].argmax(), 2].item(), 4)
+                    r = torch.tensor(loggers[eval_metric].results[run])
+                    best_valid_current = round(r[:, 1].max().item(), 4)
+                    best_test = round(r[r[:, 1].argmax(), 2].item(), 4)
 
-                print(eval_metric)
-                log_print.info(f'best valid: {100*best_valid_current:.2f}%, '
-                                f'best test: {100*best_test:.2f}%')
-                
-                if len(loggers['AUC'].results[run]) > 0:
-                    r = torch.tensor(loggers['AUC'].results[run])
-                    best_valid_auc = round(r[:, 1].max().item(), 4)
-                    best_test_auc = round(r[r[:, 1].argmax(), 2].item(), 4)
+                    print(eval_metric)
+                    log_print.info(f'best valid: {100*best_valid_current:.2f}%, '
+                                    f'best test: {100*best_test:.2f}%')
                     
-                    print('AUC')
-                    log_print.info(f'best valid: {100*best_valid_auc:.2f}%, '
-                                f'best test: {100*best_test_auc:.2f}%')
-                
-                print('---')
-                if best_valid_current > best_valid:
-                    best_valid = best_valid_current
-                    kill_cnt = 0
-                    if args.save: save_emb(score_emb, save_path)
-                else:
-                    kill_cnt += 1
+                    if len(loggers['AUC'].results[run]) > 0:
+                        r = torch.tensor(loggers['AUC'].results[run])
+                        best_valid_auc = round(r[:, 1].max().item(), 4)
+                        best_test_auc = round(r[r[:, 1].argmax(), 2].item(), 4)
+                        
+                        print('AUC')
+                        log_print.info(f'best valid: {100*best_valid_auc:.2f}%, '
+                                    f'best test: {100*best_test_auc:.2f}%')
                     
-                    if kill_cnt > args.kill_cnt: 
-                        print("Early Stopping!!")
-                        break
-
+                    print('---')
+                    if best_valid_current > best_valid:
+                        best_valid = best_valid_current
+                        kill_cnt = 0
+                        if args.save: save_emb(score_emb, save_path)
+                    else:
+                        kill_cnt += 1
+                        
+                        if kill_cnt > args.kill_cnt: 
+                            print("Early Stopping!!")
+                            break
+        wandb.finish()
+                                
     for key in loggers.keys():
         if len(loggers[key].results[0]) > 0:
             print(key)
@@ -599,9 +645,31 @@ def main():
             print(test_res)
             # After collecting the results from the loggers:
     # After collecting the results from the loggers
-    data_name = "regular"  # Set your dataset name here
-    num_node = 1000         # Set the number of nodes here
-    save_new_results(loggers, data_name, N)
+    save_new_results(loggers, args.data_name, N)
+
+
+# Example usage function
+def rewiring():
+    perturb_ratio = [0.01, 0.02, 0.1]
+    N = 100
+    g_type = RegularTilling.KAGOME_LATTICE
+    G, _, _, pos = init_regular_tilling(N, g_type, seed=None)
+    
+    for pr in perturb_ratio:
+        G_rewired = local_edge_rewiring(G, num_rewirings=int(pr * G.number_of_edges()), seed=None)
+        plt.figure(figsize=(12, 6))
+        plt.subplot(1, 2, 1)
+        nx.draw(G, pos, node_size=50, font_size=10)
+        plt.title("Original Kagome Lattice")
+        plt.subplot(1, 2, 2)
+        nx.draw(G_rewired, pos, node_size=50, font_size=10)
+        plt.title("Rewired Kagome Lattice")
+        plt.savefig(f'rewired_{pr}.png')
+        data_rewired, split_rewired, G_rewired, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
+    
+    return data_rewired, split_rewired, G_rewired, pos
+
+
 
 if __name__ == "__main__":
     main()

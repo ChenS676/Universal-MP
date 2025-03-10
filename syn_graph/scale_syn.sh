@@ -39,7 +39,7 @@ echo "Start time: $(date)"
 
 data_name='RegularTilling.KAGOME_LATTICE'
 
-Ns=(10000 30000 50000 70000 90000)
+Ns=(90000 100000 120000 140000 160000 180000 200000) 
                       
 for N in "${Ns[@]}"
 do

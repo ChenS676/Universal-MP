@@ -20,6 +20,8 @@ from torch_geometric.utils import (to_undirected,
                                 coalesce, 
                                 remove_self_loops,
                                 from_networkx)
+from scipy.sparse.linalg import eigsh
+
 """
     Generates random graphs of different types of a given size.
     Some of the graph are created using the NetworkX library, for more info see
@@ -164,31 +166,25 @@ def kagome_lattice(m, n, seed):
 def init_pyg_regtil(N: int, 
                     g_type: RegularTilling,
                     seed: int,
-                    undirected = True,
-                    val_pct = 0.05,
-                    test_pct = 0.15,
+                    undirected,
+                    val_pct,
+                    test_pct,
                     split_labels = True, 
                     include_negatives = True) -> Tuple[Data, Data, Data]:
-    G, _, _ = init_regular_tilling(N, g_type, seed)
+    G, adj_matrix, type, pos = init_regular_tilling(N, g_type, seed)
     data = from_networkx(G)
-    
     data.edge_index, _ = coalesce(data.edge_index, None, num_nodes=data.num_nodes)
     data.edge_index, _ = remove_self_loops(data.edge_index)
-    
     if undirected:
         data.edge_index = to_undirected(data.edge_index, num_nodes=data.num_nodes)
         undirected = True
-        
     data.x = init_nodefeats(G, 'random', int(np.log(N)) + 16)
-
     data = T.ToSparseTensor()(data)
-    
     row, col, _ = data.adj_t.coo()
     data.edge_index = torch.stack([col, row], dim=0)
     data.edge_weight = data.adj_t.to_torch_sparse_csc_tensor().values()
     data.adj_t = sp.csr_matrix((data.edge_weight.cpu(), (data.edge_index[0].cpu(), data.edge_index[1].cpu())), 
                 shape=(data.num_nodes, data.num_nodes))
-
     splits = random_edge_split(data,
                 undirected,
                 'cpu',
@@ -196,10 +192,115 @@ def init_pyg_regtil(N: int,
                 test_pct, # test_pct =  0.5,
                 split_labels, # split_labels = True,
                 include_negatives)  # include_negatives = False
+    return data, splits, G, pos
 
-    return data, splits
+
+def nx2Data_split(G, 
+                  pos,
+                    undirected,
+                    val_pct,
+                    test_pct,
+                    split_labels = True, 
+                    include_negatives = True) -> Tuple[Data, Data, Data]:
+    
+    data = from_networkx(G)
+    data.edge_index, _ = coalesce(data.edge_index, None, num_nodes=data.num_nodes)
+    data.edge_index, _ = remove_self_loops(data.edge_index)
+    if undirected:
+        data.edge_index = to_undirected(data.edge_index, num_nodes=data.num_nodes)
+        undirected = True
+    data.x = init_nodefeats(G, 'random', int(np.log(G.number_of_nodes())) + 16)
+    data = T.ToSparseTensor()(data)
+    row, col, _ = data.adj_t.coo()
+    data.edge_index = torch.stack([col, row], dim=0)
+    data.edge_weight = data.adj_t.to_torch_sparse_csc_tensor().values()
+    data.adj_t = sp.csr_matrix((data.edge_weight.cpu(), (data.edge_index[0].cpu(), data.edge_index[1].cpu())), 
+                shape=(data.num_nodes, data.num_nodes))
+    splits = random_edge_split(data,
+                undirected,
+                'cpu',
+                val_pct, # val_pct = 0.15
+                test_pct, # test_pct =  0.5,
+                split_labels, # split_labels = True,
+                include_negatives)  # include_negatives = False
+    return data, splits, G, pos
 
 
+
+
+def local_edge_rewiring(G, num_rewirings=1, seed=None):
+    """Perform local edge rewiring (automorphism-breaking swap) on a graph.
+
+    Args:
+        G (networkx.Graph): The graph on which to perform the rewiring.
+        num_rewirings (int, optional): The number of rewiring operations to perform.
+        seed (int, optional): Random seed for reproducibility.
+
+    Returns:
+        G (networkx.Graph): The graph after local edge rewiring.
+        
+    Usage:
+        G_rewired = local_edge_rewiring(G, num_rewirings=nr, seed=42)
+    """
+    if seed is not None:
+        np.random.seed(seed)
+        random.seed(seed)
+    for _ in range(num_rewirings):
+        edges = list(G.edges()) 
+        if len(edges) < 2:
+            break 
+        (u, v) = random.choice(edges)
+        (x, y) = random.choice(edges)
+        while (u, v) == (x, y) or (u == x and v == y) or (u, y) in G.edges() or (x, v) in G.edges():
+            (x, y) = random.choice(edges)
+        if G.has_edge(u, v) and G.has_edge(x, y):
+            G.remove_edge(u, v)
+            G.remove_edge(x, y)
+            G.add_edge(u, y)
+            G.add_edge(x, v)
+    return G
+
+
+def analyze_graph(G, graph_type):
+    print(f"\nAnalysis of {graph_type} Lattice:")
+    
+    # Basic statistics
+    N = G.number_of_nodes()
+    E = G.number_of_edges()
+    avg_degree = 2 * E / N
+    density = 2 * E / (N * (N - 1))
+    
+    print(f"Number of Nodes: {N}")
+    print(f"Number of Edges: {E}")
+    print(f"Average Degree: {avg_degree:.2f}")
+    print(f"Density: {density:.6f}")
+
+    # Degree distribution
+    degrees = [deg for _, deg in G.degree()]
+    plt.figure(figsize=(5, 4))
+    plt.hist(degrees, bins=range(min(degrees), max(degrees) + 1), alpha=0.7, color='b', edgecolor='black')
+    plt.title(f"Degree Distribution - {graph_type}")
+    plt.xlabel("Degree")
+    plt.ylabel("Frequency")
+    plt.grid()
+    plt.show()
+
+    # Clustering coefficient
+    clustering_coeffs = nx.clustering(G)
+    avg_clustering = np.mean(list(clustering_coeffs.values()))
+    print(f"Average Clustering Coefficient: {avg_clustering:.4f}")
+
+    # Average shortest path length (Only computed if the graph is small)
+    if N < 5000:  
+        avg_shortest_path = nx.average_shortest_path_length(G)
+        print(f"Average Shortest Path Length: {avg_shortest_path:.4f}")
+
+    # Spectral Analysis (Graph Laplacian Eigenvalues)
+    L = nx.normalized_laplacian_matrix(G)
+    eigenvalues = eigsh(L, k=6, which='SM', return_eigenvectors=False)  # Smallest 6 eigenvalues
+    print(f"Smallest 6 Laplacian Eigenvalues: {eigenvalues}")
+    
+    
 def init_regular_tilling(N, type=RegularTilling.SQUARE_GRID, seed=None):
     if type == RegularTilling.TRIANGULAR:
         G, pos = triangular(N)
@@ -208,16 +309,19 @@ def init_regular_tilling(N, type=RegularTilling.SQUARE_GRID, seed=None):
     elif type == RegularTilling.SQUARE_GRID:
         G, pos = square_grid(N, N, seed)
     elif type == RegularTilling.KAGOME_LATTICE:
-        G, pos = kagome_lattice(2, N // 2, seed)
+        G, pos = kagome_lattice(N, N, seed)
 
     # generate adjacency matrix and nodes values
     nodes = list(G)
     random.shuffle(nodes)
-    
-    # adj_matrix = nx.to_numpy_array(G, nodes) it raises OOM larger than 80000 nodes  
     adj_matrix = nx.to_scipy_sparse_array(G, nodes)
-    # draw the graph created
-    return G, adj_matrix, type
+    plt.figure(figsize=(12, 6))
+    nx.draw(G, pos, node_size=50, font_size=10)
+    plt.title("Original Kagome Lattice")
+    plt.savefig('draw.png')
+    return G, adj_matrix, type, pos
+
+
 
 
 
@@ -481,6 +585,48 @@ def random_edge_split(data: Data,
     return {'train': train_data, 'valid': val_data, 'test': test_data}
 
 
+def randomsplit(dataset: RegularTilling, 
+                use_valedges_as_input: bool,  
+                val_ratio: float=0.25, 
+                test_ratio: float=0.5):
+    
+    def removerepeated(ei):
+        ei = to_undirected(ei)
+        ei = ei[:, ei[0]<ei[1]]
+        return ei
+    data = dataset[0]
+    data.num_nodes = data.x.shape[0]
+
+    train_data, val_data, test_data  = RandomLinkSplit(num_val=val_ratio,
+                            num_test=test_ratio, 
+                            is_undirected=True, 
+                            split_labels=True)(data)
+    del data, train_data.y, val_data.y, test_data.y, train_data.train_mask, train_data.val_mask, train_data.test_mask
+    del val_data.y, val_data.train_mask, val_data.val_mask, val_data.test_mask
+    del test_data.y, test_data.train_mask, test_data.val_mask, test_data.test_mask
+    
+    split_edge = {'train': {}, 'valid': {}, 'test': {}}
+    
+    if use_valedges_as_input:
+        num_val = int(val_data.pos_edge_label_index.shape[1] * val_ratio/test_ratio)
+        train_pos_edge = torch.cat((train_data.pos_edge_label_index, val_data.pos_edge_label_index[:, :-num_val]), dim=-1)
+        split_edge['train']['edge'] = removerepeated(train_pos_edge).t()
+        split_edge['valid']['edge'] = removerepeated(val_data.pos_edge_label_index[:, -num_val:]).t()
+    else:
+        train_pos_edge = train_data.pos_edge_label_index
+        split_edge['train']['edge'] = removerepeated(train_pos_edge).t()
+        split_edge['valid']['edge'] = removerepeated(val_data.pos_edge_label_index).t()
+        
+    split_edge['train']['edge_neg'] = removerepeated(train_data.neg_edge_label_index).t()
+    split_edge['valid']['edge_neg'] = removerepeated(val_data.neg_edge_label_index).t()
+    split_edge['test']['edge'] = removerepeated(test_data.pos_edge_label_index).t()
+    split_edge['test']['edge_neg'] = removerepeated(test_data.neg_edge_label_index).t()
+    for k, val in split_edge.items():
+        print(f"{k}: {val['edge'].size()}")
+        print(f"{k}: {val['edge_neg'].size()}")
+        
+    return split_edge
+
 
 def init_pyg_random(N: int, 
                     g_type: RandomType, 
@@ -515,6 +661,7 @@ def init_pyg_random(N: int,
                 split_labels, # split_labels = True,
                 include_negatives)  # include_negatives = False
     # TODO save to .pt file
+
     return data, splits
 
 

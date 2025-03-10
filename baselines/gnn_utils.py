@@ -631,6 +631,16 @@ class mlp_score(torch.nn.Module):
         x = self.lins[-1](x)
         return torch.sigmoid(x)
 
+
+
+class dot_product(torch.nn.Module):
+    def __init__(self):
+        super(dot_product, self).__init__()
+        
+    def forward(self, x_i, x_j):
+        x = x_i * x_j
+        return torch.sigmoid(x)
+    
 import joblib
 import os
 import torch

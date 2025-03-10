@@ -129,5 +129,8 @@ def visualize_graph(graph: Data, filename: str = 'draw.png'):
 
 # Example usage
 data = generate_symmetric_graph(N=1000, graph_type='erdos_renyi')
-splits = random_edge_split(data, undirected=True, device='cpu', val_pct=0.1, test_pct=0.1, split_labels=True)
+splits = random_edge_split(data, undirected=True, device='cpu', val_pct=0.25, test_pct=0.5, split_labels=True)
 visualize_graph(data, 'draw.png')
+
+
+# Implement a graph with perturbation ratio

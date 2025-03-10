@@ -212,7 +212,7 @@ def init_regular_tilling(N, type=RegularTilling.SQUARE_GRID, seed=None):
     elif type == RegularTilling.SQUARE_GRID:
         G, pos = square_grid(N, N, seed)
     elif type == RegularTilling.KAGOME_LATTICE:
-        G, pos = kagome_lattice(2, N // 2, seed)
+        G, pos = kagome_lattice(N, N, seed)
 
     # generate adjacency matrix and nodes values
     nodes = list(G)

@@ -339,7 +339,9 @@ def main():
         
         save_path = args.output_dir+'/lr'+str(args.lr) + '_drop' + \
                     str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' \
-                        + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+str(args.hidden_channels) + '_'+ 'best_run_'+str(seed)
+                        + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) \
+                        + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+ \
+                        str(args.hidden_channels) + '_'+ 'best_run_'+str(seed)
 
         model.reset_parameters()
         score_func.reset_parameters()
