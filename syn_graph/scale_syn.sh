@@ -39,23 +39,14 @@ echo "Start time: $(date)"
 
 data_name='RegularTilling.KAGOME_LATTICE'
 
-Ns=(90000 100000 120000 140000 160000 180000 200000) 
-                      
-for N in "${Ns[@]}"
-do
-    echo "Running N=$N"
-    python lp_gcn_syn.py --N $N --data_name 'RegularTilling.KAGOME_LATTICE'
 
+prs=(0.25 0.3 0.35 0.4 0.45) # 0 0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5 0.55 0.6 0.65 0.7
+
+for pr in "${prs[@]}"
+do
+    echo "Running with N=$N"
+    python lp_gcn_syn.py --pr "$pr" 
 done
 
 
-
-
-# Ns=(100 400 500 800)
-# for N in "${Ns[@]}"
-# do
-#     echo "Running N=$N"
-#     python lp_gcn_syn.py --N $N --data_name 'RegularTilling.SQUARE_GRID'
-
-# done
 
