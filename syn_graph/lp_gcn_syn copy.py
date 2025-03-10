@@ -427,7 +427,7 @@ def main():
         'mrr_hit100':  Logger(args.runs),
     }
     
-    perturb_ratio = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
+    perturb_ratio = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7]
     N = 100
     g_type = RegularTilling.KAGOME_LATTICE
     g_type = RegularTilling.SQUARE_GRID
