@@ -427,7 +427,7 @@ def main():
         'mrr_hit100':  Logger(args.runs),
     }
     
-    perturb_ratio = [0.01, 0.02, 0.1]
+    perturb_ratio = [0.1, 0.2, 0.3, 0.4, 0.5]
     N = 100
     g_type = RegularTilling.KAGOME_LATTICE
     G, _, _, pos = init_regular_tilling(N, g_type, seed=None)
@@ -446,10 +446,9 @@ def main():
         plt.savefig(f'rewired_{pr}.png')
         data, split_edge, G, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
     
-    for k, val in split_edge.items():
-        print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
-        
-        import IPython; IPython.embed(header='check data')
+        for k, val in split_edge.items():
+            print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
+            
         # data, split_edge = init_pyg_regtil(N, 
         #         eval(args.data_name), 
         #         0,
@@ -459,15 +458,9 @@ def main():
         #         split_labels = True, 
         #         include_negatives = True)
         
-        # edge_index = data.edge_index
+        edge_index = data.edge_index
         emb = None
-        # node_num = data.num_nodes
-        for k, val in split_edge.items():
-            print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
-            try:
-                print(k, 'neg_edge_index', val['neg_edge_label_index'].size())
-            except:
-                pass
+        node_num = data.num_nodes
 
         if hasattr(data, 'x'):
             if data.x != None:
@@ -496,7 +489,6 @@ def main():
                 train_edge_weight = None
         else:
             train_edge_weight = None
-        
         
         print(data, args.data_name)
         if data.edge_weight is None:
@@ -552,7 +544,7 @@ def main():
 
         print('#################################                    #################################')
         import wandb
-        wandb.init(project="GRAND4Syn", name=f"{args.data_name}_{args.gnn_model}_bs{batch_size}_lr{lr}_")
+        wandb.init(project="GRAND4Syn", name=f"{args.data_name}_{args.gnn_model}_bs{args.batch_size}_lr{args.lr}_perturb{pr}")
         wandb.config.update(args, allow_val_change=True)
         
         for run in range(args.runs):
@@ -589,7 +581,6 @@ def main():
                     for key, result in results_rank.items():
                         loggers[key].add_result(run, result)
                         wandb.log({f"Metrics/{key}": result[-1]}, step=step)
-                        
                         
                     if epoch % args.log_steps == 0:
                         for key, result in results_rank.items():
