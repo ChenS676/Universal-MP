@@ -427,9 +427,10 @@ def main():
         'mrr_hit100':  Logger(args.runs),
     }
     
-    perturb_ratio = [0.3, 0.4, 0.5, 0.6, 0.7]
+    perturb_ratio = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
     N = 100
     g_type = RegularTilling.KAGOME_LATTICE
+    g_type = RegularTilling.SQUARE_GRID
     G, _, _, pos = init_regular_tilling(N, g_type, seed=None)
     
     print(f"number of nodes {G.number_of_nodes()} and number of edges {G.number_of_edges()}")
@@ -448,7 +449,16 @@ def main():
     
         for k, val in split_edge.items():
             print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
-            
+
+        import pickle
+
+        # Define a filename
+        filename = f"{g_type}_{pr}.pkl"
+
+        # Save objects to a pickle file
+        with open(filename, "wb") as f:
+            pickle.dump((data, split_edge, G, pos), f)
+
         # data, split_edge = init_pyg_regtil(N, 
         #         eval(args.data_name), 
         #         0,
