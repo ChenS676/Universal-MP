@@ -81,8 +81,7 @@ def load_and_merge_data(new_data, data_name, num_node, file_name='test_results.c
     print(f'Merged data saved to {file_name}')
     
     
-def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name, remove_edge_aggre):
-    model.train()
+def train(score_func, split_edge, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name, remove_edge_aggre):
     score_func.train()
     # train_pos = train_pos.transpose(1, 0)
     total_loss = total_examples = 0
@@ -113,7 +112,7 @@ def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_
         else:
             adj = data.adj_t 
         ###################
-        h = model(x, adj)
+        h = x
         edge = train_pos[perm].t()
         pos_out = score_func(h[edge[0]], h[edge[1]])
         pos_loss = -torch.log(pos_out + 1e-15).mean()
@@ -124,7 +123,6 @@ def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_
         loss = pos_loss + neg_loss
         loss.backward()
         if emb_update == 1: torch.nn.utils.clip_grad_norm_(x, 1.0)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         torch.nn.utils.clip_grad_norm_(score_func.parameters(), 1.0)
         optimizer.step()
         num_examples = pos_out.size(0)
@@ -155,14 +153,13 @@ def test_edge(score_func, input_data, h, batch_size, mrr_mode=False, negative_da
 
 
 @torch.no_grad()
-def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size, use_valedges_as_input):
-    model.eval()
+def test(score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size, use_valedges_as_input):
     score_func.eval()
     # adj_t = adj_t.transpose(1,0)
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
     if emb == None: x = data.x
     else: x = emb.weight
-    h = model(x, data.adj_t.to(x.device))
+    h = x
     x1 = h
     x2 = torch.tensor(1)
     # print(h[0][:10])
@@ -175,7 +172,7 @@ def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluato
     pos_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size)
     if use_valedges_as_input:
         print('use_val_in_edge')
-        h = model(x, data.full_adj_t.to(x.device))
+        h = x
         x2 = h
     pos_test_pred = test_edge(score_func, pos_test_edge, h, batch_size)
     neg_test_pred = test_edge(score_func, neg_test_edge, h, batch_size)
@@ -328,36 +325,87 @@ def plot_test_sequences(test_pred, test_true):
 
 
 
+def get_graph_statistics(G, graph_name="Graph", perturbation="None"):
+    """Calculate and return statistics of a NetworkX graph."""
+    num_nodes = G.number_of_nodes()
+    num_edges = G.number_of_edges()
+    density = nx.density(G)
+    
+    # Compute degree statistics
+    degrees = [deg for node, deg in G.degree()]
+    avg_degree = sum(degrees) / num_nodes if num_nodes > 0 else 0
+    min_degree = min(degrees) if degrees else None
+    max_degree = max(degrees) if degrees else None
+
+    # Create a dictionary with the statistics
+    graph_key = f"{graph_name}_Perturbation_{perturbation}"
+    
+    stats = {
+        "Graph Name": graph_key,
+        "Number of Nodes": num_nodes,
+        "Number of Edges": num_edges,
+        "Density": density,
+        "Average Degree": avg_degree,
+        "Min Degree": min_degree,
+        "Max Degree": max_degree,
+    }
+
+    return stats
+
+def save_graph_statistics(stats, filename="graph_statistics.csv"):
+    """Load existing data, merge new data, and save back to CSV."""
+    # Convert new stats to DataFrame
+    new_df = pd.DataFrame.from_dict(stats, orient='index')
+
+    # Check if file exists, and load old data if present
+    if os.path.exists(filename):
+        old_df = pd.read_csv(filename, index_col=0)
+        # Merge old and new data, ensuring uniqueness
+        updated_df = pd.concat([old_df, new_df]).drop_duplicates()
+    else:
+        updated_df = new_df
+
+    # Save the merged DataFrame back to CSV
+    updated_df.to_csv(filename)
+    print(f"Updated graph statistics saved to {filename}")
+
+
 def main():
     parser = argparse.ArgumentParser(description='homo')
     # TRIANGULAR = 1
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
-    parser.add_argument('--data_name', type=str, default='RegularTilling.KAGOME_LATTICE')
+    parser.add_argument('--data_name', type=str, default='RegularTilling.TRIANGULAR')
     parser.add_argument('--N', type=str, help='number of the node in synthetic graph')
-
+    parser.add_argument('--pr', type=float,  help='percentage of perturbation of edges')
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
-    parser.add_argument('--score_model', type=str, default='mlp_score', choices=['mlp_score', 'dot_product'])
+    parser.add_argument('--score_model', type=str, 
+                                            default='mlp_score', 
+                                            choices=['mlp_score', 'dot_product'])
     
-    ##gnn setting
+    ## gnn setting
     parser.add_argument('--num_layers', type=int, default=3)
     parser.add_argument('--num_layers_predictor', type=int, default=3)
     parser.add_argument('--hidden_channels', type=int, default=256)
     parser.add_argument('--gnnout_hidden_channels', type=int, default=512)
     parser.add_argument('--dropout', type=float, default=0.1)
 
-
     ### train setting
     parser.add_argument('--batch_size', type=int, default=2**12)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--epochs', type=int, default=999)
     parser.add_argument('--eval_steps', type=int, default=1)
-    parser.add_argument('--runs', type=int, default=1)
-    parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=20,    type=int,       help='early stopping')
+    parser.add_argument('--runs', type=int, default=5)
+    parser.add_argument('--kill_cnt', dest='kill_cnt', 
+                                        default=20,    
+                                        type=int,       
+                                        help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
-    parser.add_argument('--l2',		type=float,             default=0.0,			help='L2 Regularization for Optimizer')
+    parser.add_argument('--l2',		type=float,             
+                                    default=0.0,			
+                                    help='L2 Regularization for Optimizer')
     parser.add_argument('--seed', type=int, default=999)
     
     parser.add_argument('--save', action='store_true', default=False)
@@ -379,7 +427,7 @@ def main():
 
     ##### n2v
     parser.add_argument('--cat_n2v_feat', default=False, action='store_true')
-    parser.add_argument('--test_batch_size', type=int, default=1024 * 64) 
+    parser.add_argument('--test_batch_size', type=int, default=1024) 
     parser.add_argument('--use_hard_negative', default=False, action='store_true')
 
     args = parser.parse_args()
@@ -401,10 +449,10 @@ def main():
         N = 8000 
     if args.data_name =='RegularTilling.HEXAGONAL':
         eval_metric = 'MRR'
-        N = 8000
+        N = 4000
     if args.data_name =='RegularTilling.SQUARE_GRID':
         eval_metric = 'MRR'
-        N = 400
+        N = 100
     if args.data_name =='RegularTilling.KAGOME_LATTICE':
         eval_metric = 'MRR'
         N = 100
@@ -427,213 +475,195 @@ def main():
         'mrr_hit100':  Logger(args.runs),
     }
     
-    perturb_ratio = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7]
-    N = 100
-    g_type = RegularTilling.KAGOME_LATTICE
-    g_type = RegularTilling.SQUARE_GRID
-    G, _, _, pos = init_regular_tilling(N, g_type, seed=None)
+    G, _, _, pos = init_regular_tilling(N, eval(args.data_name), seed=None)
     
-    print(f"number of nodes {G.number_of_nodes()} and number of edges {G.number_of_edges()}")
+    graph_stats = get_graph_statistics(G, graph_name=args.data_name, perturbation=args.pr)
+    save_graph_statistics(graph_stats)
+
+    for key, value in graph_stats.items():
+        print(f"{key}: {value}")
     
-    for pr in perturb_ratio:
-        G_rewired = local_edge_rewiring(G, num_rewirings=int(pr * G.number_of_edges()), seed=None)
-        plt.figure(figsize=(12, 6))
-        plt.subplot(1, 2, 1)
-        nx.draw(G, pos, node_size=50, font_size=10)
-        plt.title("Original Kagome Lattice")
-        plt.subplot(1, 2, 2)
-        nx.draw(G_rewired, pos, node_size=50, font_size=10)
-        plt.title("Rewired Kagome Lattice")
-        plt.savefig(f'rewired_{pr}.png')
-        data, split_edge, G, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
+    G_rewired, rewired_list = local_edge_rewiring(G, num_rewirings=int(args.pr * G.number_of_edges()), seed=None)
+    rewired_stats = get_graph_statistics(G_rewired, graph_name=args.data_name, perturbation=args.pr)
+    save_graph_statistics(rewired_stats)
     
-        for k, val in split_edge.items():
-            print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
+    node_colors = ["gray"] * len(G_rewired.nodes())
+    highlight_nodes = rewired_list
 
-        import pickle
+    # Set selected nodes to green
+    for i, node in enumerate(G_rewired.nodes()):
+        if node in highlight_nodes:
+            node_colors[i] = "green"
+    
+    data, split_edge, G, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
 
-        # Define a filename
-        filename = f"{g_type}_{pr}.pkl"
+    for k, val in split_edge.items():
+        print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
+    emb = None
 
-        # Save objects to a pickle file
-        with open(filename, "wb") as f:
-            pickle.dump((data, split_edge, G, pos), f)
-
-        # data, split_edge = init_pyg_regtil(N, 
-        #         eval(args.data_name), 
-        #         0,
-        #         undirected = True,
-        #         val_pct = 0.25,
-        #         test_pct = 0.50,
-        #         split_labels = True, 
-        #         include_negatives = True)
-        
-        edge_index = data.edge_index
-        emb = None
-        node_num = data.num_nodes
-
-        if hasattr(data, 'x'):
-            if data.x != None:
-                x = data.x
-                data.x = data.x.to(torch.float)
-                if args.cat_n2v_feat:
-                    print('cat n2v embedding!!')
-                    n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
-                    data.x = torch.cat((data.x, n2v_emb), dim=-1)
-                data.x = data.x.to(device)
-                input_channel = data.x.size(1)
-            else:
-                emb = torch.nn.Embedding(data.num_nodes, args.hidden_channels).to(device)
-                input_channel = args.hidden_channels
+    if hasattr(data, 'x'):
+        if data.x != None:
+            x = data.x
+            data.x = data.x.to(torch.float)
+            if args.cat_n2v_feat:
+                print('cat n2v embedding!!')
+                n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
+                data.x = torch.cat((data.x, n2v_emb), dim=-1)
+            data.x = data.x.to(device)
+            input_channel = data.x.size(1)
         else:
             emb = torch.nn.Embedding(data.num_nodes, args.hidden_channels).to(device)
             input_channel = args.hidden_channels
-            
-        if hasattr(data, 'edge_weight'):
-            if data.edge_weight != None:
-                edge_weight = data.edge_weight.to(torch.float)
-                data.edge_weight = data.edge_weight.view(-1).to(torch.float)
-                train_edge_weight = split_edge['train']['edge_weight'].to(device)
-                train_edge_weight = train_edge_weight.to(torch.float)
-            else:
-                train_edge_weight = None
+    else:
+        emb = torch.nn.Embedding(data.num_nodes, args.hidden_channels).to(device)
+        input_channel = args.hidden_channels
+    
+    args.hidden_channels = data.x.size(1)
+    if hasattr(data, 'edge_weight'):
+        if data.edge_weight != None:
+            edge_weight = data.edge_weight.to(torch.float)
+            data.edge_weight = data.edge_weight.view(-1).to(torch.float)
+            train_edge_weight = split_edge['train']['edge_weight'].to(device)
+            train_edge_weight = train_edge_weight.to(torch.float)
         else:
             train_edge_weight = None
-        
-        print(data, args.data_name)
-        if data.edge_weight is None:
-            edge_weight = torch.ones((data.edge_index.size(1), 1))
-            print(f"custom edge_weight {edge_weight.size()} added for {args.data_name}")
-
-        data = T.ToSparseTensor()(data)
-        if args.use_valedges_as_input:
-            val_edge_index = split_edge['valid']['edge'].t()
-            val_edge_index = to_undirected(val_edge_index)
-            full_edge_index = torch.cat([data.edge_index, val_edge_index], dim=-1)
-            val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=torch.float)
-            edge_weight = torch.cat([edge_weight, val_edge_weight], 0)
-            A = SparseTensor.from_edge_index(full_edge_index, edge_weight.view(-1), [data.num_nodes, data.num_nodes])
-            data.full_adj_t = A
-            data.full_edge_index = full_edge_index
-            print(data.full_adj_t)
-            print(data.adj_t)
-        data = data.to(device)
-
-
-        model = eval(args.gnn_model)(input_channel, args.hidden_channels,
-                        args.hidden_channels, args.num_layers, args.dropout, 
-                        mlp_layer=args.gin_mlp_layer, head=args.gat_head, 
-                        node_num=data.num_nodes, cat_node_feat_mf=args.cat_node_feat_mf,  
-                        data_name=args.data_name).to(device)
-
-        score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
-                        1, args.num_layers_predictor, args.dropout).to(device)
+    else:
+        train_edge_weight = None
     
-        print(data)
-        print(split_edge)
+    print(data, args.data_name)
+    if data.edge_weight is None:
+        edge_weight = torch.ones((data.edge_index.size(1), 1))
+        print(f"custom edge_weight {edge_weight.size()} added for {args.data_name}")
 
-        pos_train_edge = split_edge['train']['pos_edge_label_index']
-        pos_valid_edge = split_edge['valid']['pos_edge_label_index']
-        neg_valid_edge = split_edge['valid']['neg_edge_label_index']
-        pos_test_edge = split_edge['test']['pos_edge_label_index']
-        neg_test_edge = split_edge['test']['neg_edge_label_index']
+    data = T.ToSparseTensor()(data)
+    if args.use_valedges_as_input:
+        val_edge_index = split_edge['valid']['edge'].t()
+        val_edge_index = to_undirected(val_edge_index)
+        full_edge_index = torch.cat([data.edge_index, val_edge_index], dim=-1)
+        val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=torch.float)
+        edge_weight = torch.cat([edge_weight, val_edge_weight], 0)
+        A = SparseTensor.from_edge_index(full_edge_index, edge_weight.view(-1), [data.num_nodes, data.num_nodes])
+        data.full_adj_t = A
+        data.full_edge_index = full_edge_index
+        print(data.full_adj_t)
+        print(data.adj_t)
+    data = data.to(device)
 
-        idx = torch.randperm(pos_train_edge.size(0))[:pos_valid_edge.size(0)]
-        train_val_edge = pos_train_edge[idx]
-        pos_train_edge = pos_train_edge.to(device)
-        evaluation_edges = [train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge]
-        best_valid_auc = best_test_auc = 2
-        best_auc_valid_str = 2
 
-        # hyperparams = {
-        #     'batch_size': [512],
-        #     'lr': [0.001]
-        #     }
-        args.batch_size = 512
-        args.lr = 0.001
+    # model = eval(args.gnn_model)(input_channel, args.hidden_channels,
+    #                 args.hidden_channels, args.num_layers, args.dropout, 
+    #                 mlp_layer=args.gin_mlp_layer, head=args.gat_head, 
+    #                 node_num=data.num_nodes, cat_node_feat_mf=args.cat_node_feat_mf,  
+    #                 data_name=args.data_name).to(device)
 
-        print('#################################                    #################################')
-        import wandb
-        wandb.init(project="GRAND4Syn", name=f"{args.data_name}_{args.gnn_model}_bs{args.batch_size}_lr{args.lr}_perturb{pr}")
-        wandb.config.update(args, allow_val_change=True)
-        
-        for run in range(args.runs):
-            if args.runs == 1:
-                seed = args.seed
-            else:
-                seed = run
-            print('seed: ', seed)
-            init_seed(seed)
-            save_path = args.output_dir+'/lr'+str(args.lr) + '_drop' + str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+str(args.hidden_channels) + '_'+ 'best_run_'+str(seed)
-            if emb != None:
-                torch.nn.init.xavier_uniform_(emb.weight)
-            model.reset_parameters()
-            score_func.reset_parameters()
-            if emb != None:
-                optimizer = torch.optim.Adam(
-                    list(model.parameters()) + list(score_func.parameters()) + list(emb.parameters() ),lr=args.lr, weight_decay=args.l2)
-            else:
-                optimizer = torch.optim.Adam(
-                        list(model.parameters()) + list(score_func.parameters()),lr=args.lr, weight_decay=args.l2)
-            best_valid = 0
-            kill_cnt = 0
-            best_test = 0
-            step = 0
+    score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
+                    1, args.num_layers_predictor, args.dropout).to(device)
 
-            for epoch in range(1, 1 + args.epochs):
+    print(data)
+    print(split_edge)
 
-                loss = train(model, score_func, split_edge, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
-                wandb.log({'train_loss': loss}, step = epoch)
-                step += 1
+    pos_train_edge = split_edge['train']['pos_edge_label_index']
+    pos_valid_edge = split_edge['valid']['pos_edge_label_index']
+    neg_valid_edge = split_edge['valid']['neg_edge_label_index']
+    pos_test_edge = split_edge['test']['pos_edge_label_index']
+    neg_test_edge = split_edge['test']['neg_edge_label_index']
+
+    idx = torch.randperm(pos_train_edge.size(0))[:pos_valid_edge.size(0)]
+    train_val_edge = pos_train_edge[idx]
+    pos_train_edge = pos_train_edge.to(device)
+    evaluation_edges = [train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge]
+    best_valid_auc = best_test_auc = 2
+    best_auc_valid_str = 2
+
+    # hyperparams = {
+    #     'batch_size': [512],
+    #     'lr': [0.001]
+    #     }
+    args.batch_size = 512
+    args.lr = 0.001
+
+    print('#################################                    #################################')
+    import wandb
+    wandb.init(project=f"GRAND4{args.data_name}{args.gnn_model}", name=f"{args.data_name}_{args.gnn_model}_bs{args.batch_size}_lr{args.lr}_perturb{args.pr}")
+    wandb.config.update(args, allow_val_change=True)
+    
+    for run in range(args.runs):
+        if args.runs == 1:
+            seed = args.seed
+        else:
+            seed = run
+        print('seed: ', seed)
+        init_seed(seed)
+        save_path = args.output_dir+'/lr'+str(args.lr) + '_drop' + str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+str(args.hidden_channels) + '_'+ 'best_run_'+str(seed)
+        if emb != None:
+            torch.nn.init.xavier_uniform_(emb.weight)
+        #model.reset_parameters()
+        score_func.reset_parameters()
+        if emb != None:
+            optimizer = torch.optim.Adam(
+                list(score_func.parameters()) + list(emb.parameters() ),lr=args.lr, weight_decay=args.l2)
+        else:
+            optimizer = torch.optim.Adam(
+                   list(score_func.parameters()),lr=args.lr, weight_decay=args.l2)
+        best_valid = 0
+        kill_cnt = 0
+        best_test = 0
+        step = 0
+
+        for epoch in range(1, 1 + args.epochs):
+
+            loss = train(score_func, split_edge, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
+            wandb.log({'train_loss': loss}, step = epoch)
+            step += 1
+                
+            if epoch % args.eval_steps == 0:
+                results_rank, score_emb= test(score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
+                for key, result in results_rank.items():
+                    loggers[key].add_result(run, result)
+                    wandb.log({f"Metrics/{key}": result[-1]}, step=epoch)
                     
-                if epoch % args.eval_steps == 0:
-                    results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
+                if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
-                        loggers[key].add_result(run, result)
-                        wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                        print(key)
                         
-                    if epoch % args.log_steps == 0:
-                        for key, result in results_rank.items():
-                            print(key)
-                            
-                            train_hits, valid_hits, test_hits = result
-                            log_print.info(
-                                f'Run: {run + 1:02d}, '
-                                f'Epoch: {epoch:02d}, '
-                                f'Loss: {loss:.4f}, '
-                                f'Train: {100 * train_hits:.2f}%, '
-                                f'Valid: {100 * valid_hits:.2f}%, '
-                                f'Test: {100 * test_hits:.2f}%')
+                        train_hits, valid_hits, test_hits = result
+                        log_print.info(
+                            f'Run: {run + 1:02d}, '
+                            f'Epoch: {epoch:02d}, '
+                            f'Loss: {loss:.4f}, '
+                            f'Train: {100 * train_hits:.2f}%, '
+                            f'Valid: {100 * valid_hits:.2f}%, '
+                            f'Test: {100 * test_hits:.2f}%')
 
-                    r = torch.tensor(loggers[eval_metric].results[run])
-                    best_valid_current = round(r[:, 1].max().item(), 4)
-                    best_test = round(r[r[:, 1].argmax(), 2].item(), 4)
+                r = torch.tensor(loggers[eval_metric].results[run])
+                best_valid_current = round(r[:, 1].max().item(), 4)
+                best_test = round(r[r[:, 1].argmax(), 2].item(), 4)
 
-                    print(eval_metric)
-                    log_print.info(f'best valid: {100*best_valid_current:.2f}%, '
-                                    f'best test: {100*best_test:.2f}%')
+                print(eval_metric)
+                log_print.info(f'best valid: {100*best_valid_current:.2f}%, '
+                                f'best test: {100*best_test:.2f}%')
+                
+                if len(loggers['AUC'].results[run]) > 0:
+                    r = torch.tensor(loggers['AUC'].results[run])
+                    best_valid_auc = round(r[:, 1].max().item(), 4)
+                    best_test_auc = round(r[r[:, 1].argmax(), 2].item(), 4)
                     
-                    if len(loggers['AUC'].results[run]) > 0:
-                        r = torch.tensor(loggers['AUC'].results[run])
-                        best_valid_auc = round(r[:, 1].max().item(), 4)
-                        best_test_auc = round(r[r[:, 1].argmax(), 2].item(), 4)
-                        
-                        print('AUC')
-                        log_print.info(f'best valid: {100*best_valid_auc:.2f}%, '
-                                    f'best test: {100*best_test_auc:.2f}%')
+                    print('AUC')
+                    log_print.info(f'best valid: {100*best_valid_auc:.2f}%, '
+                                f'best test: {100*best_test_auc:.2f}%')
+                
+                print('---')
+                if best_valid_current > best_valid:
+                    best_valid = best_valid_current
+                    kill_cnt = 0
+                    if args.save: save_emb(score_emb, save_path)
+                else:
+                    kill_cnt += 1
                     
-                    print('---')
-                    if best_valid_current > best_valid:
-                        best_valid = best_valid_current
-                        kill_cnt = 0
-                        if args.save: save_emb(score_emb, save_path)
-                    else:
-                        kill_cnt += 1
-                        
-                        if kill_cnt > args.kill_cnt: 
-                            print("Early Stopping!!")
-                            break
-        wandb.finish()
+                    if kill_cnt > args.kill_cnt: 
+                        print("Early Stopping!!")
+                        break
+    wandb.finish()
                                 
     for key in loggers.keys():
         if len(loggers[key].results[0]) > 0:
@@ -644,27 +674,38 @@ def main():
             print(mean_list)
             print(var_list)
             print(test_res)
-            # After collecting the results from the loggers:
-    # After collecting the results from the loggers
-    save_new_results(loggers, args.data_name, N)
+    save_new_results(loggers, args.data_name, N, file_name=f'MLP_{args.pr}test_results_0.25_0.5.csv')
 
 
 # Example usage function
 def rewiring():
-    perturb_ratio = [0.01, 0.02, 0.1]
-    N = 100
-    g_type = RegularTilling.KAGOME_LATTICE
+    perturb_ratio = [0, 0.1, 0.5, 0.7]
+    N = 20
+    node_size =150
+    font_size = 100
+    g_type = RegularTilling.TRIANGULAR
     G, _, _, pos = init_regular_tilling(N, g_type, seed=None)
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    nx.draw(G, pos, node_size=node_size, font_size=font_size, node_color="gray", edge_color="gray")
+    # plt.title(f"Original Triangular {G.number_of_edges()}")
     
     for pr in perturb_ratio:
-        G_rewired = local_edge_rewiring(G, num_rewirings=int(pr * G.number_of_edges()), seed=None)
-        plt.figure(figsize=(12, 6))
-        plt.subplot(1, 2, 1)
-        nx.draw(G, pos, node_size=50, font_size=10)
-        plt.title("Original Kagome Lattice")
+        G_rewired, rewired_list = local_edge_rewiring(G, num_rewirings=int(pr * G.number_of_edges()), seed=None) # num_rewirting = int(pr * G.number_of_edges())
+
+        node_colors = ["gray"] * len(G_rewired.nodes())
+        highlight_nodes = rewired_list
+
+        # Set selected nodes to green
+        for i, node in enumerate(G_rewired.nodes()):
+            if node in highlight_nodes:
+                node_colors[i] = "green"
+
+        # Draw the rewired graph
+        
         plt.subplot(1, 2, 2)
-        nx.draw(G_rewired, pos, node_size=50, font_size=10)
-        plt.title("Rewired Kagome Lattice")
+        nx.draw(G_rewired, pos, node_size=node_size, font_size=font_size, node_color=node_colors, edge_color="gray")
+        # plt.title(f"Rewired Triangular {G_rewired.number_of_edges()}")
         plt.savefig(f'rewired_{pr}.png')
         data_rewired, split_rewired, G_rewired, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
     
@@ -673,4 +714,5 @@ def rewiring():
 
 
 if __name__ == "__main__":
-    main()
+   main()
+   # rewiring()

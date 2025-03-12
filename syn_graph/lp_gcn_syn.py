@@ -328,18 +328,60 @@ def plot_test_sequences(test_pred, test_true):
 
 
 
+def get_graph_statistics(G, graph_name="Graph", perturbation="None"):
+    """Calculate and return statistics of a NetworkX graph."""
+    num_nodes = G.number_of_nodes()
+    num_edges = G.number_of_edges()
+    density = nx.density(G)
+    
+    # Compute degree statistics
+    degrees = [deg for node, deg in G.degree()]
+    avg_degree = sum(degrees) / num_nodes if num_nodes > 0 else 0
+    min_degree = min(degrees) if degrees else None
+    max_degree = max(degrees) if degrees else None
+
+    # Create a dictionary with the statistics
+    graph_key = f"{graph_name}_Perturbation_{perturbation}"
+    
+    stats = {
+        "Graph Name": graph_key,
+        "Number of Nodes": num_nodes,
+        "Number of Edges": num_edges,
+        "Density": density,
+        "Average Degree": avg_degree,
+        "Min Degree": min_degree,
+        "Max Degree": max_degree,
+    }
+
+    return stats
+
+def save_graph_statistics(stats, filename="graph_statistics.csv"):
+    """Load existing data, merge new data, and save back to CSV."""
+    # Convert new stats to DataFrame
+    new_df = pd.DataFrame.from_dict(stats, orient='index')
+
+    # Check if file exists, and load old data if present
+    if os.path.exists(filename):
+        old_df = pd.read_csv(filename, index_col=0)
+        # Merge old and new data, ensuring uniqueness
+        updated_df = pd.concat([old_df, new_df]).drop_duplicates()
+    else:
+        updated_df = new_df
+
+    # Save the merged DataFrame back to CSV
+    updated_df.to_csv(filename)
+    print(f"Updated graph statistics saved to {filename}")
+
+
 def main():
     parser = argparse.ArgumentParser(description='homo')
     # TRIANGULAR = 1
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
-    parser.add_argument('--data_name', type=str, default='RegularTilling.KAGOME_LATTICE')
+    parser.add_argument('--data_name', type=str, default='RegularTilling.TRIANGULAR')
     parser.add_argument('--N', type=str, help='number of the node in synthetic graph')
-    parser.add_argument('--pr', type=float, help='percentage of perturbation of edges', 
-                        choices=[0, 0.05, 0.1, 0.15, 0.2, 
-                                 0.25, 0.3, 0.35, 0.4, 0.45, 
-                                 0.5, 0.55, 0.6, 0.65, 0.7])
+    parser.add_argument('--pr', type=float, help='percentage of perturbation of edges')
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
     parser.add_argument('--score_model', type=str, 
@@ -358,7 +400,7 @@ def main():
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--epochs', type=int, default=999)
     parser.add_argument('--eval_steps', type=int, default=1)
-    parser.add_argument('--runs', type=int, default=2)
+    parser.add_argument('--runs', type=int, default=5)
     parser.add_argument('--kill_cnt', dest='kill_cnt', 
                                         default=20,    
                                         type=int,       
@@ -410,10 +452,10 @@ def main():
         N = 8000 
     if args.data_name =='RegularTilling.HEXAGONAL':
         eval_metric = 'MRR'
-        N = 8000
+        N = 4000
     if args.data_name =='RegularTilling.SQUARE_GRID':
         eval_metric = 'MRR'
-        N = 400
+        N = 100
     if args.data_name =='RegularTilling.KAGOME_LATTICE':
         eval_metric = 'MRR'
         N = 100
@@ -436,40 +478,31 @@ def main():
         'mrr_hit100':  Logger(args.runs),
     }
     
-    perturb_ratio = args.pr # [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
-    N = 50
-    g_type = RegularTilling.KAGOME_LATTICE
-    # g_type = RegularTilling.SQUARE_GRID
-    G, _, _, pos = init_regular_tilling(N, g_type, seed=None)
+    G, _, _, pos = init_regular_tilling(N, eval(args.data_name), seed=None)
     
-    print(f"number of nodes {G.number_of_nodes()} and number of edges {G.number_of_edges()}")
+    graph_stats = get_graph_statistics(G, graph_name=args.data_name, perturbation=args.pr)
+    save_graph_statistics(graph_stats)
+
+    for key, value in graph_stats.items():
+        print(f"{key}: {value}")
     
-    # for pr in perturb_ratio:
-    G_rewired = local_edge_rewiring(G, num_rewirings=int(args.pr * G.number_of_edges()), seed=None)
-    plt.figure(figsize=(12, 6))
-    plt.subplot(1, 2, 1)
-    nx.draw(G, pos, node_size=50, font_size=10)
-    plt.title("Original Kagome Lattice")
-    plt.subplot(1, 2, 2)
-    nx.draw(G_rewired, pos, node_size=50, font_size=10)
-    plt.title("Rewired Kagome Lattice")
-    plt.savefig(f'rewired_{args.pr}.png')
+    G_rewired, rewired_list = local_edge_rewiring(G, num_rewirings=int(args.pr * G.number_of_edges()), seed=None)
+    rewired_stats = get_graph_statistics(G_rewired, graph_name=args.data_name, perturbation=args.pr)
+    save_graph_statistics(rewired_stats)
+    
+    node_colors = ["gray"] * len(G_rewired.nodes())
+    highlight_nodes = rewired_list
+
+    # Set selected nodes to green
+    for i, node in enumerate(G_rewired.nodes()):
+        if node in highlight_nodes:
+            node_colors[i] = "green"
+    
     data, split_edge, G, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
 
     for k, val in split_edge.items():
         print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
-    # data, split_edge = init_pyg_regtil(N, 
-    #         eval(args.data_name), 
-    #         0,
-    #         undirected = True,
-    #         val_pct = 0.25,
-    #         test_pct = 0.50,
-    #         split_labels = True, 
-    #         include_negatives = True)
-    
-    # edge_index = data.edge_index
     emb = None
-    # node_num = data.num_nodes
 
     if hasattr(data, 'x'):
         if data.x != None:
@@ -553,7 +586,7 @@ def main():
 
     print('#################################                    #################################')
     import wandb
-    wandb.init(project="GRAND4Syn", name=f"{args.data_name}_{args.gnn_model}_bs{args.batch_size}_lr{args.lr}_perturb{pr}")
+    wandb.init(project=f"GRAND4{args.data_name}{args.gnn_model}", name=f"{args.data_name}_{args.gnn_model}_bs{args.batch_size}_lr{args.lr}_perturb{args.pr}")
     wandb.config.update(args, allow_val_change=True)
     
     for run in range(args.runs):
@@ -589,7 +622,7 @@ def main():
                 results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
-                    wandb.log({f"Metrics/{key}": result[-1]}, step=step)
+                    wandb.log({f"Metrics/{key}": result[-1]}, step=epoch)
                     
                 if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
@@ -634,36 +667,47 @@ def main():
                         break
     wandb.finish()
                                 
-    # for key in loggers.keys():
-    #     if len(loggers[key].results[0]) > 0:
-    #         print(key)
-    #         best_valid, best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
-    #         print(best_valid)
-    #         print(best_valid_mean)
-    #         print(mean_list)
-    #         print(var_list)
-    #         print(test_res)
-    #         # After collecting the results from the loggers:
-    # # After collecting the results from the loggers
-    # save_new_results(loggers, args.data_name, N)
+    for key in loggers.keys():
+        if len(loggers[key].results[0]) > 0:
+            print(key)
+            best_valid, best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
+            print(best_valid)
+            print(best_valid_mean)
+            print(mean_list)
+            print(var_list)
+            print(test_res)
+    save_new_results(loggers, args.data_name, N, file_name=f'{args.gnn_model}_{args.pr}test_results_0.25_0.5.csv')
 
 
 # Example usage function
 def rewiring():
-    perturb_ratio = [0.01, 0.02, 0.1]
-    N = 100
-    g_type = RegularTilling.KAGOME_LATTICE
+    perturb_ratio = [0, 0.1, 0.5, 0.7]
+    N = 20
+    node_size =150
+    font_size = 100
+    g_type = RegularTilling.TRIANGULAR
     G, _, _, pos = init_regular_tilling(N, g_type, seed=None)
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    nx.draw(G, pos, node_size=node_size, font_size=font_size, node_color="gray", edge_color="gray")
+    # plt.title(f"Original Triangular {G.number_of_edges()}")
     
     for pr in perturb_ratio:
-        G_rewired = local_edge_rewiring(G, num_rewirings=int(pr * G.number_of_edges()), seed=None)
-        plt.figure(figsize=(12, 6))
-        plt.subplot(1, 2, 1)
-        nx.draw(G, pos, node_size=50, font_size=10)
-        plt.title("Original Kagome Lattice")
+        G_rewired, rewired_list = local_edge_rewiring(G, num_rewirings=int(pr * G.number_of_edges()), seed=None) # num_rewirting = int(pr * G.number_of_edges())
+
+        node_colors = ["gray"] * len(G_rewired.nodes())
+        highlight_nodes = rewired_list
+
+        # Set selected nodes to green
+        for i, node in enumerate(G_rewired.nodes()):
+            if node in highlight_nodes:
+                node_colors[i] = "green"
+
+        # Draw the rewired graph
+        
         plt.subplot(1, 2, 2)
-        nx.draw(G_rewired, pos, node_size=50, font_size=10)
-        plt.title("Rewired Kagome Lattice")
+        nx.draw(G_rewired, pos, node_size=node_size, font_size=font_size, node_color=node_colors, edge_color="gray")
+        # plt.title(f"Rewired Triangular {G_rewired.number_of_edges()}")
         plt.savefig(f'rewired_{pr}.png')
         data_rewired, split_rewired, G_rewired, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
     
@@ -672,4 +716,5 @@ def rewiring():
 
 
 if __name__ == "__main__":
-    main()
+   main()
+   # rewiring()

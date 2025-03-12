@@ -37,16 +37,16 @@ echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 
 echo "Start time: $(date)"
 
-data_name='RegularTilling.KAGOME_LATTICE'
-
-
-prs=(0.25 0.3 0.35 0.4 0.45) # 0 0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5 0.55 0.6 0.65 0.7
-
+data_name='RegularTilling.TRIANGULAR'
+    # TRIANGULAR = 1
+    # HEXAGONAL = 2
+    # SQUARE_GRID  = 3
+    # KAGOME_LATTICE = 4
+    
+prs=(0 0.1 0.5 0.9) 
 for pr in "${prs[@]}"
 do
     echo "Running with N=$N"
-    python lp_gcn_syn.py --pr "$pr" 
+    python lp_mlp_syn.py --pr "$pr" --data_name "$data_name" --gnn_model 'MLP'
 done
-
-
 

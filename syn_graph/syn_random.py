@@ -21,7 +21,10 @@ from torch_geometric.utils import (to_undirected,
                                 remove_self_loops,
                                 from_networkx)
 from scipy.sparse.linalg import eigsh
-
+import networkx as nx
+import numpy as np
+import random
+import copy
 """
     Generates random graphs of different types of a given size.
     Some of the graph are created using the NetworkX library, for more info see
@@ -226,39 +229,54 @@ def nx2Data_split(G,
     return data, splits, G, pos
 
 
-
-
 def local_edge_rewiring(G, num_rewirings=1, seed=None):
-    """Perform local edge rewiring (automorphism-breaking swap) on a graph.
+    """
+    Perform local edge rewiring (automorphism-breaking swap) on a graph.
 
     Args:
-        G (networkx.Graph): The graph on which to perform the rewiring.
-        num_rewirings (int, optional): The number of rewiring operations to perform.
-        seed (int, optional): Random seed for reproducibility.
+        G (networkx.Graph): The input graph for edge rewiring.
+        num_rewirings (int, optional): The number of rewiring operations to perform (default is 1).
+        seed (int, optional): A random seed for reproducibility (default is None).
 
     Returns:
-        G (networkx.Graph): The graph after local edge rewiring.
-        
+        networkx.Graph: A new graph after local edge rewiring.
+        list: A list of nodes involved in the rewiring process.
+
     Usage:
-        G_rewired = local_edge_rewiring(G, num_rewirings=nr, seed=42)
+        G_rewired, affected_nodes = local_edge_rewiring(G, num_rewirings=nr, seed=42)
     """
     if seed is not None:
         np.random.seed(seed)
         random.seed(seed)
+
+    G_new = copy.deepcopy(G)  # Make a copy of the graph to avoid modifying the original
+    affected_nodes = []
+
     for _ in range(num_rewirings):
-        edges = list(G.edges()) 
+        edges = list(G_new.edges()) 
         if len(edges) < 2:
-            break 
+            break  # Stop if there are not enough edges to perform rewiring
+
+        # Randomly select two different edges
         (u, v) = random.choice(edges)
         (x, y) = random.choice(edges)
-        while (u, v) == (x, y) or (u == x and v == y) or (u, y) in G.edges() or (x, v) in G.edges():
+        
+        # Ensure the chosen edges are distinct and the swap does not create duplicate edges
+        while (u, v) == (x, y) or (u == x and v == y) or (u, y) in G_new.edges() or (x, v) in G_new.edges():
             (x, y) = random.choice(edges)
-        if G.has_edge(u, v) and G.has_edge(x, y):
-            G.remove_edge(u, v)
-            G.remove_edge(x, y)
-            G.add_edge(u, y)
-            G.add_edge(x, v)
-    return G
+
+        # Perform the edge rewiring
+        if G_new.has_edge(u, v) and G_new.has_edge(x, y):
+            G_new.remove_edge(u, v)
+            G_new.remove_edge(x, y)
+            G_new.add_edge(u, y)
+            G_new.add_edge(x, v)
+
+            # Track affected nodes
+            affected_nodes.extend([u, v, x, y])
+
+    return G_new, list(set(affected_nodes))  # Return the modified graph and unique affected nodes
+
 
 
 def analyze_graph(G, graph_type):
