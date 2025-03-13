@@ -709,10 +709,12 @@ def rewiring():
         plt.savefig(f'rewired_{pr}.png')
         data_rewired, split_rewired, G_rewired, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
     
+    # Define your automorphism function on synthetic graph 
+    
     return data_rewired, split_rewired, G_rewired, pos
 
 
 
 if __name__ == "__main__":
-   main()
-   # rewiring()
+   # main()
+   rewiring()

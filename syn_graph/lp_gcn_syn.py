@@ -39,6 +39,7 @@ from syn_random import (init_regular_tilling,
                         local_edge_rewiring,
                         nx2Data_split)
 import csv
+from graph_generation import generate_graph, GraphType
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
@@ -716,5 +717,6 @@ def rewiring():
 
 
 if __name__ == "__main__":
-   main()
+    for i in range(100):
+        data = generate_graph(10, GraphType.TREE, seed=i)
    # rewiring()

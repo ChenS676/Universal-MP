@@ -174,7 +174,7 @@ def init_pyg_regtil(N: int,
                     test_pct,
                     split_labels = True, 
                     include_negatives = True) -> Tuple[Data, Data, Data]:
-    G, adj_matrix, type, pos = init_regular_tilling(N, g_type, seed)
+    G, _, _, pos = init_regular_tilling(N, g_type, seed)
     data = from_networkx(G)
     data.edge_index, _ = coalesce(data.edge_index, None, num_nodes=data.num_nodes)
     data.edge_index, _ = remove_self_loops(data.edge_index)

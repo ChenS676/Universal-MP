@@ -1,0 +1,92 @@
+\newpage
+\section{Proofs and Discussions of Theorems}
+
+\subsection{Detailed Analysis of Theorem 1}
+\label{app:proof-thm1}
+
+In this section, we provide a formal analysis of Theorem 1, focusing on quantifying graph automorphism using the given node feature matrix $\matX$ and adjacency matrix $\matA$. Our analysis is divided into two parts: global and local automorphism quantification.
+
+\subsubsection{Global Automorphism Quantification}
+A fundamental approach to measuring graph automorphism is to compute the \textit{automorphism group}, denoted as $\text{Aut}(\graph)$. The automorphism group consists of all possible node permutations that preserve the structure of $\graph$. Formally, a valid automorphism is a permutation function $\pi: \vertexSet \to \vertexSet$ such that:
+
+\begin{equation}
+    (u, v) \in \edgeSet \iff (\pi(u), \pi(v)) \in \edgeSet.
+\end{equation}
+
+To obtain the total number of such permutations, we compute the order of the automorphism group, denoted as $|\text{Aut}(\graph)|$. This can be efficiently determined using graph automorphism solvers such as \textsc{Nauty} or \textsc{Bliss}.
+
+\paragraph{Symmetry Ratio.}
+To quantify the degree of global symmetry in a graph, we define the \textit{symmetry ratio}:
+
+\begin{equation}
+    S_{\text{global}} = \frac{|\text{Aut}(\graph)|}{|\vertexSet|!}.
+\end{equation}
+
+A high value of $S_{\text{global}}$ (close to 1) indicates that the graph has significant structural symmetry, whereas a lower value suggests a more irregular structure.
+
+\paragraph{Automorphic Equivalence Classes.}
+To further characterize automorphism at a global level, we partition the node set $\vertexSet$ into \textit{automorphic equivalence classes}. Each equivalence class $\mathcal{O}_i$ consists of nodes that are interchangeable under some automorphism:
+
+\begin{equation}
+    \vertexSet = \bigsqcup_{i} \mathcal{O}_i, \quad \text{where } u, v \in \mathcal{O}_i \iff \exists \pi \in \text{Aut}(\graph), \pi(u) = v.
+\end{equation}
+
+The number of such distinct equivalence classes is given by:
+
+\begin{equation}
+    C_{\text{auto}} = |\{\mathcal{O}_i\}|.
+\end{equation}
+
+A smaller value of $C_{\text{auto}}$ implies a higher degree of symmetry, as more nodes share automorphic roles.
+
+\subsubsection{Local Automorphism Quantification}
+While global metrics provide insight into overall graph symmetry, local automorphism measures are crucial for understanding the indistinguishability of individual nodes within the graph.
+
+\paragraph{Node Automorphism Orbit.}
+For a given node $v \in \vertexSet$, its \textit{automorphism orbit} $\text{Orb}(v)$ consists of all nodes to which it can be mapped under some automorphism:
+
+\begin{equation}
+    \text{Orb}(v) = \{ u \in \vertexSet \mid \exists \pi \in \text{Aut}(\graph), \pi(v) = u \}.
+\end{equation}
+
+To quantify the extent to which a node is affected by automorphism, we define the \textit{node symmetry score}:
+
+\begin{equation}
+    S_v = \frac{|\text{Orb}(v)|}{|\vertexSet|}.
+\end{equation}
+
+A high value of $S_v$ indicates that the node belongs to a highly symmetric region of the graph, while a low value suggests a more unique or distinguishable position.
+
+\paragraph{Feature-aware Automorphism.}
+Traditional graph automorphism analysis considers only the structural properties of a graph. However, in practical applications, nodes often possess additional feature information $\matX$, which can either reinforce or break automorphic symmetry.
+
+To evaluate whether node features preserve automorphism, we impose the constraint:
+
+\begin{equation}
+    \forall u, v \in \text{Orb}(v): \quad \mathbf{x}_u = \mathbf{x}_v.
+\end{equation}
+
+That is, nodes within the same orbit should ideally have identical feature representations. To quantify the deviation from this ideal case, we define the \textit{feature deviation score}:
+
+\begin{equation}
+    D_v = \sum_{u \in \text{Orb}(v)} \|\mathbf{x}_v - \mathbf{x}_u\|^2.
+\end{equation}
+
+This score measures the extent to which features distinguish automorphic nodes. The interpretation is as follows:
+\begin{itemize}
+    \item If $D_v = 0$, node features are perfectly aligned with the automorphism structure, making the node indistinguishable from others in its orbit.
+    \item If $D_v \neq 0$, the features break the automorphism, introducing a distinguishing factor that can aid graph learning models such as Graph Neural Networks (GNNs).
+\end{itemize}
+
+\subsubsection{Implications for Graph Neural Networks}
+Automorphic nodes pose a significant challenge for standard message-passing GNNs, as these models rely on local neighborhood aggregation, which fails to distinguish nodes in the same automorphism orbit. The findings in this section highlight the need for:
+\begin{itemize}
+    \item **Enhanced Node Representations:** Using structural embeddings (e.g., Laplacian eigenvectors) or positional encodings to break automorphic equivalence.
+    \item **Feature-aware Graph Processing:** Incorporating node feature deviations to improve distinguishability.
+    \item **Higher-order Neighborhood Analysis:** Leveraging subgraph-based or higher-order GNN architectures to capture symmetry-breaking patterns.
+\end{itemize}
+
+These insights lay the foundation for developing more expressive GNN architectures capable of distinguishing automorphic nodes in practical applications.
+
+# ddi 
+{'Automorphism Ratio (A_r)': 0.001657742676573102, 'Number of Unique Groups (C_auto)': 3925, 'Automorphism Entropy (H_auto)': 8.07344255529032}
