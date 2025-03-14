@@ -46,6 +46,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from torch_geometric.datasets import Planetoid
+
 
 class WLConv(torch.nn.Module):
     r"""The Weisfeiler Lehman (WL) operator from the `"A Reduction of a Graph
@@ -462,6 +464,14 @@ def dataloader(args):
         num_nodes = data.num_nodes
         G = None 
         
+    if args.data_name in ["Cora", "Citeseer", "Pubmed"]:
+        dataset = Planetoid(root="dataset", name=args.data_name)
+        data = dataset[0]
+        edge_index = data.edge_index
+        data.num_nodes = data.x.shape[0]
+        num_nodes = data.num_nodes
+        G = None 
+        
     # elif args.data_name in ['RegularTilling.SQUARE_GRID', 
     #                       'RegularTilling.HEXAGONAL', 
     #                       'RegularTilling.TRIANGULAR', 
@@ -521,7 +531,8 @@ def test_automorphism():
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
-    parser.add_argument('--data_name', type=str, default='ogbl-citation2', choices=['ogbl-ddi', 'ogbl-ppa', 'ogbl-citation2', 'ogbl-collab'])
+    parser.add_argument('--data_name', type=str, default='ogbl-citation2', choices=['ogbl-ddi', 'ogbl-ppa', 'ogbl-citation2', 'ogbl-collab', 
+                                                                                    'Cora', 'Citeseer', 'Pubmed'])
     args = parser.parse_args()    
     G, num_nodes, edge_index = dataloader(args)
     
