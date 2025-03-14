@@ -523,16 +523,41 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     plt.savefig(f'wl_test_{label}.png')
 
 
-
+def process_perturbation(N):
+    data_name = 'RegularTilling.TRIANGULAR'
+    perturb_dict = {}
     
+    G, _, _, pos = init_regular_tilling(N, eval(data_name), seed=None)
+    num_nodes = G.number_of_nodes()
+    edge_index = from_networkx(G).edge_index
+    node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
+    metrics = compute_automorphism_metrics(node_groups, num_nodes)
+    print(metrics)
+    perturb_dict.update({'0': metrics})
+
+    del node_groups, node_labels, metrics
+    for pr in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+        G_rewired, _ = local_edge_rewiring(G, num_rewirings=int(pr * G.number_of_edges()), seed=None)
+        num_nodes = G_rewired.number_of_nodes()
+        edge_index = from_networkx(G_rewired).edge_index
+        node_groups, _ = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
+        metrics = compute_automorphism_metrics(node_groups, num_nodes)
+        perturb_dict.update({'index': pr})
+
+    df = pd.DataFrame.from_dict(perturb_dict, orient='index')
+    df.to_csv(f'{data_name}_perturbation.csv', index=False)
+    return 
+
+
 def test_automorphism():
     parser = argparse.ArgumentParser(description='homo')
     # TRIANGULAR = 1
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
-    parser.add_argument('--data_name', type=str, default='ogbl-citation2', choices=['ogbl-ddi', 'ogbl-ppa', 'ogbl-citation2', 'ogbl-collab', 
-                                                                                    'Cora', 'Citeseer', 'Pubmed'])
+    parser.add_argument('--data_name', type=str, default='ogbl-citation2', 
+                        choices=['ogbl-ddi', 'ogbl-ppa', 'ogbl-citation2', 'ogbl-collab', 
+                                'Cora', 'Citeseer', 'Pubmed'])
     args = parser.parse_args()    
     G, num_nodes, edge_index = dataloader(args)
     
@@ -544,14 +569,15 @@ def test_automorphism():
     df = pd.DataFrame(node_labels.numpy(), columns=['node_labels'])
     df.to_csv(f'{args.data_name}_node_labels.csv', index=False)
     del node_labels, node_groups, metrics
-    import IPython; IPython.embed()
     
     # Two Extreme Cases:
     process_graph(100, None, is_grid=True, label="G_low")  # Regular tiling case
     process_graph(10, GraphType.TREE, label="G_high")      # Tree case
-
+    N = 8000
+    process_perturbation(args.data_name,  N)
 
 
 if __name__ == "__main__":
     # DRAFT THE DATASET FROM THE SYNTHETIC GRAPH where their automophism should be 1 and for tree it should be very low
-    test_automorphism()
+    N = 8000
+    process_perturbation(N)
