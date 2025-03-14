@@ -448,96 +448,99 @@ def compute_automorphism_metrics(node_groups, num_nodes):
         "Number of Unique Groups (C_auto)": C_auto,
         "Automorphism Entropy (H_auto)": H_auto
     }
-    
-    
-def test_automorphism(args):
-    node_size =150
-    font_size = 100
-    
+
+def dataloader(args):
     if args.data_name in ['ogbl-ddi', 'ogbl-collab', 'ogbl-ppa', 'ogbl-citation2']:
         dataset = PygLinkPropPredDataset(name=args.data_name, 
-                                         root=os.path.join(get_root_dir(), 
-                                         "dataset", args.data_name))
+                                         root=os.path.abspath(os.path.join(get_root_dir(), f"dataset")))
+        print(f"Dataset: {args.data_name}")
+        print(f"Number of graphs: {len(dataset)}")
+
         data = dataset[0]
+        print("data", data)
         edge_index = data.edge_index
-
-
-    if args.data_name in ['RegularTilling.SQUARE_GRID', 
-                          'RegularTilling.HEXAGONAL', 
-                          'RegularTilling.TRIANGULAR', 
-                          'RegularTilling.KAGOME_LATTICE']:
-        N = 100
-        G, _, _, pos = init_regular_tilling(N, eval(args.data_name), seed=None)
+        num_nodes = data.num_nodes
+        G = None 
         
-    elif args.data_name in ['GraphType.TREE', 'GraphType.RANDOM']:    
-        G = generate_graph(10, eval(args.data_name), seed=0)
-        # data_tree, split_edge, G, _ = nx2Data_split(G_tree, None, True, 0.25, 0.5)
-        # N = 30
+    # elif args.data_name in ['RegularTilling.SQUARE_GRID', 
+    #                       'RegularTilling.HEXAGONAL', 
+    #                       'RegularTilling.TRIANGULAR', 
+    #                       'RegularTilling.KAGOME_LATTICE']:
+    #     N = 100
+    #     G, _, _, pos = init_regular_tilling(N, eval(args.data_name), seed=None)
+    #     data = from_networkx(G)
+    #     num_nodes = G.number_of_nodes()
+    #     edge_index = data.edge_index
+    #     print(f"Dataset: {args.data_name}")
+    #     print("data", data)
+        
+    # elif args.data_name in ['GraphType.TREE', 
+    #                         'GraphType.RANDOM']:    
+        
+    #     G = generate_graph(10, eval(args.data_name), seed=0)
+    #     data = from_networkx(G)
+    #     num_nodes = G.number_of_nodes()
+    #     print(f"Dataset: {args.data_name}")
+    #     print("data", data)
+        
+    return G, num_nodes, edge_index
 
-    # Generate a sample graph (e.g., a symmetric structure like a cycle or grid)
-    # G = nx.cycle_graph(6)  # Change to any graph structure
-    # key = 'G_tri'
-    # G = eval(args.key)
-    # node_labels = quasi_random_features(G.number_of_nodes(), feature_dim=3)
-    # H = compute_inner_product_matrix(node_labels)
-    # H = H/H.max()
-    # visualize_inner_product_matrix(H)
-    
-    data = from_networkx(G)
-    edge_index = data.edge_index
-    node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=G.number_of_nodes(), num_iterations=100)
-    metrics = compute_automorphism_metrics(node_groups, data.num_nodes)
-    metrics.update({'data_name': args.data_name})
-    print(metrics)
-    pd.DataFrame([data]).to_csv(f'{args.data_name}.csv', index=False)
-    del node_labels, node_groups, metrics
 
-    plt.figure(figsize=(12, 6))
-    if args.key == 'G_low':
+def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
+    if is_grid:
         G, _, _, pos = init_regular_tilling(N, RegularTilling.SQUARE_GRID, seed=None)
-        nx.draw(G, pos, node_size=node_size, font_size=font_size, node_color="black", edge_color="gray")
-    if args.key == 'G_high':
-        G = generate_graph(10, GraphType.TREE, seed=0)
-        nx.draw(G, None, node_size=node_size, font_size=font_size, node_color="black", edge_color="gray")
-    plt.savefig(f'{args.key}.png')
-
+    else:
+        G = generate_graph(N, graph_type, seed=0)
+    
+    # Draw the graph
+    plt.figure(figsize=(12, 6))
+    nx.draw(G, pos if is_grid else None, node_size=150, font_size=100, node_color="black", edge_color="gray")
+    plt.savefig(f'{label}.png')
+    
+    # Process Graph with WL Test
     data = from_networkx(G)
     edge_index = data.edge_index
     node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=G.number_of_nodes(), num_iterations=100)
-    metrics = compute_automorphism_metrics(node_groups, data.num_nodes)
-    metrics.update({'data_name': args.data_name})
+    metrics = compute_automorphism_metrics(node_groups, G.number_of_nodes())
+    metrics.update({'data_name': label})
     print(metrics)
-    pd.DataFrame([metrics]).to_csv(f'{args.data_name}.csv', index=False)
-    
+    pd.DataFrame([metrics]).to_csv(f'{label}.csv', index=False)
+
+    # Visualize with WL-based coloring
     plt.figure(figsize=(6, 6))
-    if args.key == 'G_low':
-        nx.draw(G, pos, node_size=node_size, font_size=font_size, cmap='Set1', node_color=node_labels, edge_color="gray")
-    elif args.key == 'G_high':
-        nx.draw(G, None, node_size=node_size, font_size=font_size, cmap='Set1', node_color=node_labels, edge_color="gray")
-    print("Node Groups based on WL Hashing:", node_groups)
+    nx.draw(G, pos if is_grid else None, node_size=50, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
     plt.title("Graph Visualization with WL-based Node Coloring")
-    plt.savefig(f'wl_test_{args.key}.png')
+    plt.savefig(f'wl_test_{label}.png')
 
 
-if __name__ == "__main__":
-    # DRAFT THE DATASET FROM THE SYNTHETIC GRAPH where their automophism should be 1 and for tree it should be very low
+
+    
+def test_automorphism():
     parser = argparse.ArgumentParser(description='homo')
     # TRIANGULAR = 1
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
-    parser.add_argument('--data_name', type=str, default='RegularTilling.TRIANGULAR', choices=['RegularTilling.SQUARE_GRID'])
-    parser.add_argument('--key', type=str, default='G_high')
-    args = parser.parse_args()
-    # rewiring() 
-    test_automorphism(args)
-    # How to examine it in the OGB dataset, 
-    #    - is should somehow relates to performnace-wise 
-    #    - 0 for tree and 1 for triangular
+    parser.add_argument('--data_name', type=str, default='ogbl-citation2', choices=['ogbl-ddi', 'ogbl-ppa', 'ogbl-citation2', 'ogbl-collab'])
+    args = parser.parse_args()    
+    G, num_nodes, edge_index = dataloader(args)
+    
+    node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
+    metrics = compute_automorphism_metrics(node_groups, num_nodes)
+    metrics.update({'data_name': args.data_name})
+    print(metrics)
+    pd.DataFrame([metrics]).to_csv(f'{args.data_name}_alpha.csv', index=False)
+    df = pd.DataFrame(node_labels.numpy(), columns=['node_labels'])
+    df.to_csv(f'{args.data_name}_node_labels.csv', index=False)
+    del node_labels, node_groups, metrics
+    import IPython; IPython.embed()
+    
+    # Two Extreme Cases:
+    process_graph(100, None, is_grid=True, label="G_low")  # Regular tiling case
+    process_graph(10, GraphType.TREE, label="G_high")      # Tree case
 
 
-    # PLAN 1: init random feature and aggregate with A as a embedding
 
-    # PLAN 2: init random feature and run a GIN model to get the embedding
-
-    # PLAN 3: WL TEST 
+if __name__ == "__main__":
+    # DRAFT THE DATASET FROM THE SYNTHETIC GRAPH where their automophism should be 1 and for tree it should be very low
+    test_automorphism()
