@@ -1,52 +1,39 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import torch
-
-from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, Logger, init_seed, save_emb
-from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score, dot_product
-
-# from logger import Logger
-from torch.utils.data import DataLoader
-from torch_sparse import SparseTensor
-from torch_geometric.utils import to_networkx, to_undirected
-import torch_geometric.transforms as T
-from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
-from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
-import torch
-from torch_geometric.data import Data
 import argparse
+import csv
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import networkx as nx
-import numpy as np
-from scipy.sparse.linalg import eigsh
-from syn_random import (init_regular_tilling, 
-                        RegularTilling, 
-                        local_edge_rewiring,
-                        nx2Data_split)
-import csv
-from torch_geometric.utils import to_networkx, from_networkx
-from graph_generation import generate_graph, GraphType
-import networkx as nx
-from torch_geometric.data import Data
-from torch_geometric.nn import WLConv
-from typing import Optional
-from torch import Tensor
-from torch_geometric.typing import Adj
 import torch
+from torch import Tensor
+from scipy.sparse.linalg import eigsh
 from scipy.stats import qmc
+from typing import Optional
+from torch_geometric.datasets import Planetoid
+from torch_geometric.nn import WLConv
+from torch_geometric.typing import Adj
 from torch_geometric.utils import (
     degree,
     is_sparse,
     scatter,
     sort_edge_index,
     to_edge_index,
+    from_networkx
 )
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-from torch_geometric.datasets import Planetoid
+from ogb.linkproppred import PygLinkPropPredDataset
+from baselines.gnn_utils import (
+    get_root_dir
+)
+from syn_random import (
+    init_regular_tilling, 
+    RegularTilling, 
+    local_edge_rewiring, 
+    nx2Data_split
+)
+from graph_generation import generate_graph, GraphType
 
 
 class WLConv(torch.nn.Module):
@@ -433,12 +420,13 @@ def compute_automorphism_metrics(node_groups, num_nodes):
         num_nodes (int): Total number of nodes in the graph.
 
     Returns:
-        dict: Automorphism metrics {A_r, C_auto, H_auto}
+        dict: Automorphism metrics {A_r1, C_auto, H_auto}
     """
     # Compute the size of each group (how many nodes share the same WL label)
     group_sizes = np.array([len(group) for group in node_groups.values()])
-    # Automorphism Ratio (A_r)
-    A_r = np.sum(group_sizes**2) / num_nodes**2
+    # Automorphism Ratio (A_r1)
+    A_r1 = np.sum(group_sizes**2) / num_nodes**2
+    A_r2 = np.sum(group_sizes) / num_nodes
     # Number of Unique Groups (C_auto)
     C_auto = len(node_groups)
     # Automorphism Entropy (H_auto)
@@ -446,10 +434,11 @@ def compute_automorphism_metrics(node_groups, num_nodes):
     H_auto = -np.sum(p_i * np.log(p_i + 1e-9))  # Small epsilon to avoid log(0)
 
     return {
-        "Automorphism Ratio (A_r)": A_r,
+        "Automorphism Ratio (A_r1)": A_r1,
+        "Automorphism Ratio (A_r2)": A_r2,
         "Number of Unique Groups (C_auto)": C_auto,
         "Automorphism Entropy (H_auto)": H_auto
-    }
+    }, num_nodes, group_sizes
 
 def dataloader(args):
     if args.data_name in ['ogbl-ddi', 'ogbl-collab', 'ogbl-ppa', 'ogbl-citation2']:
@@ -497,8 +486,10 @@ def dataloader(args):
 
 
 def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
-    if is_grid:
+    if graph_type == RegularTilling.SQUARE_GRID:
         G, _, _, pos = init_regular_tilling(N, RegularTilling.SQUARE_GRID, seed=None)
+    elif graph_type == RegularTilling.TRIANGULAR:
+        G, _, _, pos = init_regular_tilling(N, RegularTilling.TRIANGULAR, seed=None)
     else:
         G = generate_graph(N, graph_type, seed=0)
     
@@ -511,29 +502,42 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     data = from_networkx(G)
     edge_index = data.edge_index
     node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=G.number_of_nodes(), num_iterations=100)
-    metrics = compute_automorphism_metrics(node_groups, G.number_of_nodes())
+    metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, G.number_of_nodes())
+    
     metrics.update({'data_name': label})
     print(metrics)
     pd.DataFrame([metrics]).to_csv(f'{label}.csv', index=False)
-
-    # Visualize with WL-based coloring
+    plt.figure()
+    plt.plot(group_sizes)
+    plt.savefig(f'group_size_{graph_type}_{N}.png')
+    
+    
+    # Visualiz  e with WL-based coloring
     plt.figure(figsize=(6, 6))
     nx.draw(G, pos if is_grid else None, node_size=50, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
     plt.title("Graph Visualization with WL-based Node Coloring")
     plt.savefig(f'wl_test_{label}.png')
+    plt.figure()
+    plt.plot(group_sizes)
+    plt.savefig(f'group_size_{graph_type}_{N}.png')
+    
 
 
-def process_perturbation(N):
-    data_name = 'RegularTilling.TRIANGULAR'
+def process_perturbation(N, data_name):
+    
     perturb_dict = {}
     
     G, _, _, pos = init_regular_tilling(N, eval(data_name), seed=None)
     num_nodes = G.number_of_nodes()
     edge_index = from_networkx(G).edge_index
     node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
-    metrics = compute_automorphism_metrics(node_groups, num_nodes)
+    metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
     print(metrics)
+    plt.figure()
+    plt.plot(group_sizes)
+    plt.savefig(f'group_size_pr0_{data_name}.png')
     perturb_dict.update({'0': metrics})
+
 
     del node_groups, node_labels, metrics
     for pr in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
@@ -541,9 +545,13 @@ def process_perturbation(N):
         num_nodes = G_rewired.number_of_nodes()
         edge_index = from_networkx(G_rewired).edge_index
         node_groups, _ = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
-        metrics = compute_automorphism_metrics(node_groups, num_nodes)
+        metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
         perturb_dict.update({'index': pr})
-
+        
+        plt.figure()
+        plt.plot(group_sizes)
+        plt.savefig(f'group_size_{pr}_{data_name}.png')
+        
     df = pd.DataFrame.from_dict(perturb_dict, orient='index')
     df.to_csv(f'{data_name}_perturbation.csv', index=False)
     return 
@@ -555,29 +563,46 @@ def test_automorphism():
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
-    parser.add_argument('--data_name', type=str, default='ogbl-citation2', 
-                        choices=['ogbl-ddi', 'ogbl-ppa', 'ogbl-citation2', 'ogbl-collab', 
-                                'Cora', 'Citeseer', 'Pubmed'])
+    parser.add_argument('--data_name', type=str, default='ogbl-collab', 
+                        choices=['ogbl-ddi', 'ogbl-ppa', 
+                                 'ogbl-citation2', 'ogbl-collab', 
+                                'Cora', 'Citeseer', 
+                                'Pubmed'])
+
     args = parser.parse_args()    
-    G, num_nodes, edge_index = dataloader(args)
-    
-    node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
-    metrics = compute_automorphism_metrics(node_groups, num_nodes)
-    metrics.update({'data_name': args.data_name})
-    print(metrics)
-    pd.DataFrame([metrics]).to_csv(f'{args.data_name}_alpha.csv', index=False)
-    df = pd.DataFrame(node_labels.numpy(), columns=['node_labels'])
-    df.to_csv(f'{args.data_name}_node_labels.csv', index=False)
-    del node_labels, node_groups, metrics
-    
-    # Two Extreme Cases:
-    process_graph(100, None, is_grid=True, label="G_low")  # Regular tiling case
+    process_graph(40, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
+    process_graph(40, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
     process_graph(10, GraphType.TREE, label="G_high")      # Tree case
-    N = 8000
-    process_perturbation(args.data_name,  N)
+    
+    for data_name in ['ogbl-ddi', 'ogbl-ppa', 
+                        'ogbl-citation2', 'ogbl-collab', 
+                        'Cora', 'Citeseer', 
+                        'Pubmed']:
+        
+        args.data_name = data_name
+        G, num_nodes, edge_index = dataloader(args)
+        
+        node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
+        metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
+        plt.figure()
+        plt.plot(group_sizes)
+        plt.savefig(f'group_size_{args.data_name}.png')
+        
+        metrics.update({'data_name': args.data_name})
+        print(metrics)
+        pd.DataFrame([metrics]).to_csv(f'{args.data_name}_alpha.csv', index=False)
+        # df = pd.DataFrame(node_labels.numpy(), columns=['node_labels'])
+        # df.to_csv(f'{args.data_name}_node_labels.csv', index=False)
+        del node_labels, node_groups, metrics
+        
+        # Two Extreme Cases:
+
+        # N = 8000 # TRIANGULAR
+        # N = 80 # SQUARE_GRID
+        # process_perturbation(N, 'RegularTilling.SQUARE_GRID')
 
 
 if __name__ == "__main__":
     # DRAFT THE DATASET FROM THE SYNTHETIC GRAPH where their automophism should be 1 and for tree it should be very low
-    N = 8000
-    process_perturbation(N)
+
+    test_automorphism()

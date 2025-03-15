@@ -1,4 +1,4 @@
-data_name, Automorphism Ratio (A_r),Number of Unique Groups (C_auto),Automorphism Entropy (H_auto)
+data_name, Automorphism Ratio (A_r1),Number of Unique Groups (C_auto),Automorphism Entropy (H_auto)
 ogbl-ddi,0.001657742676573102,3925,8.07344255529032
 ogbl-collab, 1.667068298913701e-05,158973,11.753247976220209,
 ogbl-ppa, 2.0795491120129677e-06,570692,13.240374231438166,

@@ -18,8 +18,8 @@ from torch_geometric.utils import negative_sampling
 import os
 from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
 
-dir_path = get_root_dir()
-log_print		= get_logger('testrun', 'log', get_config_dir())
+dir_path  = get_root_dir()
+log_print = get_logger('testrun', 'log', get_config_dir())
 
 
 def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):

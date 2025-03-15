@@ -89,4 +89,4 @@ Automorphic nodes pose a significant challenge for standard message-passing GNNs
 These insights lay the foundation for developing more expressive GNN architectures capable of distinguishing automorphic nodes in practical applications.
 
 # ddi 
-{'Automorphism Ratio (A_r)': 0.001657742676573102, 'Number of Unique Groups (C_auto)': 3925, 'Automorphism Entropy (H_auto)': 8.07344255529032}
+{'Automorphism Ratio (A_r1)': 0.001657742676573102, 'Number of Unique Groups (C_auto)': 3925, 'Automorphism Entropy (H_auto)': 8.07344255529032}
