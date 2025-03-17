@@ -1,2 +1,2 @@
-Automorphism Ratio (A_r1),Automorphism Ratio (A_r2),Number of Unique Groups (C_auto),Automorphism Entropy (H_auto),data_name
-1.667068298913701e-05,1.0,158973,11.753247976220209,ogbl-collab
+Automorphism Ratio (A_r1),A_r_norm,Number of Unique Groups (C_auto),Automorphism Entropy (H_auto),Automorphism Ratio (A_r_log),num_nodes,data_name
+1.667068298913701e-05,0.5553377115576034,158973,11.753247976220209,-0.8893245768847934,235868,ogbl-collab

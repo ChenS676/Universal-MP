@@ -1,2 +1,2 @@
 Automorphism Ratio (A_r1),A_r_norm,Number of Unique Groups (C_auto),Automorphism Entropy (H_auto),Automorphism Ratio (A_r_log),num_nodes,data_name
-0.0022505667326309267,0.6143345318289859,2365,7.559150572205567,-0.7713309363420283,2708,Cora
+0.0374,0.64321790055012,70,3.909404250021756,-0.71356419889976,100,G_high

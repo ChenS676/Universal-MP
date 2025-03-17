@@ -34,6 +34,8 @@ from syn_random import (
     nx2Data_split
 )
 from graph_generation import generate_graph, GraphType
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 class WLConv(torch.nn.Module):
@@ -424,21 +426,44 @@ def compute_automorphism_metrics(node_groups, num_nodes):
     """
     # Compute the size of each group (how many nodes share the same WL label)
     group_sizes = np.array([len(group) for group in node_groups.values()])
-    # Automorphism Ratio (A_r1)
-    A_r1 = np.sum(group_sizes**2) / num_nodes**2
-    A_r2 = np.sum(group_sizes) / num_nodes
-    # Number of Unique Groups (C_auto)
-    C_auto = len(node_groups)
-    # Automorphism Entropy (H_auto)
-    p_i = group_sizes / num_nodes  # Probability of each group
-    H_auto = -np.sum(p_i * np.log(p_i + 1e-9))  # Small epsilon to avoid log(0)
 
+    A_r1 = np.sum(group_sizes**2) / num_nodes**2
+    C_auto = len(node_groups)
+    p_i = group_sizes / num_nodes 
+    H_auto = -np.sum(p_i * np.log(p_i + 1e-9)) 
+    A_r_norm = np.log(np.sum(group_sizes**2)) / (2 * np.log(num_nodes))
+    A_r_log = (np.log(np.sum(group_sizes**2)) - np.log(num_nodes**2)) / np.log(num_nodes)
+    H_auto_normalized =  -np.sum(p_i * np.log(p_i + 1e-9)) / np.log(num_nodes)
     return {
         "Automorphism Ratio (A_r1)": A_r1,
-        "Automorphism Ratio (A_r2)": A_r2,
+        "A_r_norm": A_r_norm,
         "Number of Unique Groups (C_auto)": C_auto,
-        "Automorphism Entropy (H_auto)": H_auto
+        "Automorphism Entropy (H_auto)": H_auto,
+        "Automorphism Ratio (A_r_log)": A_r_log,
+        "num_nodes": num_nodes,
+        "H_auto_normalized": H_auto_normalized
     }, num_nodes, group_sizes
+
+
+def entropy_gaussian(sigma):
+    """Compute the entropy term (1/2) log (2πσ²)."""
+    return 0.5 * np.log(2 * np.pi * sigma**2)
+
+def plot_entropy():
+    """Plot entropy as a function of sigma."""
+    sigma_values = np.linspace(0.01, 10, 500)  # Avoid sigma=0 to prevent log(0)
+    entropy_values = entropy_gaussian(sigma_values)
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(sigma_values, entropy_values, label=r'$\frac{1}{2} \log (2\pi \sigma^2)$', color='b')
+    plt.xlabel(r'$\sigma$', fontsize=14)
+    plt.ylabel('Entropy', fontsize=14)
+    plt.title('Entropy vs. Standard Deviation', fontsize=16)
+    plt.grid(True)
+    plt.legend()
+    plt.savefig('entropy_gaussian.png')
+
+
 
 def dataloader(args):
     if args.data_name in ['ogbl-ddi', 'ogbl-collab', 'ogbl-ppa', 'ogbl-citation2']:
@@ -490,6 +515,9 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
         G, _, _, pos = init_regular_tilling(N, RegularTilling.SQUARE_GRID, seed=None)
     elif graph_type == RegularTilling.TRIANGULAR:
         G, _, _, pos = init_regular_tilling(N, RegularTilling.TRIANGULAR, seed=None)
+    elif graph_type == 'GraphType.COMPLETE':
+        graph_type = 'GraphType.COMPLETE'
+        G = nx.complete_graph(N)
     else:
         G = generate_graph(N, graph_type, seed=0)
     
@@ -506,17 +534,16 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     
     metrics.update({'data_name': label})
     print(metrics)
-    pd.DataFrame([metrics]).to_csv(f'{label}.csv', index=False)
+    pd.DataFrame([metrics]).to_csv(f'{label}_{N}.csv', index=False)
     plt.figure()
     plt.plot(group_sizes)
     plt.savefig(f'group_size_{graph_type}_{N}.png')
-    
     
     # Visualiz  e with WL-based coloring
     plt.figure(figsize=(6, 6))
     nx.draw(G, pos if is_grid else None, node_size=50, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
     plt.title("Graph Visualization with WL-based Node Coloring")
-    plt.savefig(f'wl_test_{label}.png')
+    plt.savefig(f'wl_test_{label}_{N}.png')
     plt.figure()
     plt.plot(group_sizes)
     plt.savefig(f'group_size_{graph_type}_{N}.png')
@@ -563,21 +590,32 @@ def test_automorphism():
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
-    parser.add_argument('--data_name', type=str, default='ogbl-collab', 
-                        choices=['ogbl-ddi', 'ogbl-ppa', 
-                                 'ogbl-citation2', 'ogbl-collab', 
-                                'Cora', 'Citeseer', 
+    parser.add_argument('--data_name', type=str, default='ogbl-ppa', 
+                        choices=['ogbl-ppa', 
+                                'ogbl-citation2', 
+                                'ogbl-collab', 
+                                'ogbl-ddi', 
+                                'Cora', 
+                                'Citeseer', 
                                 'Pubmed'])
+    args = parser.parse_args()  
 
-    args = parser.parse_args()    
-    process_graph(40, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
+    # Two Extreme Cases:
+    process_graph(40, 'GraphType.COMPLETE', is_grid=True, label="GraphType.COMPLETE")  # Regular tiling case
+    process_graph(300, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
     process_graph(40, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
+    process_graph(5, GraphType.TREE, label="G_high")      # Tree case
+    process_graph(6, GraphType.TREE, label="G_high")      # Tree case
+    process_graph(7, GraphType.TREE, label="G_high")      # Tree case
+    process_graph(8, GraphType.TREE, label="G_high")      # Tree case
+    process_graph(9, GraphType.TREE, label="G_high")      # Tree case
     process_graph(10, GraphType.TREE, label="G_high")      # Tree case
-    
-    for data_name in ['ogbl-ddi', 'ogbl-ppa', 
-                        'ogbl-citation2', 'ogbl-collab', 
-                        'Cora', 'Citeseer', 
-                        'Pubmed']:
+      
+    for data_name in [
+                     'ogbl-citation2', 
+                    'ogbl-collab', 
+                    'ogbl-ppa',
+                    ]:
         
         args.data_name = data_name
         G, num_nodes, edge_index = dataloader(args)
@@ -595,14 +633,8 @@ def test_automorphism():
         # df.to_csv(f'{args.data_name}_node_labels.csv', index=False)
         del node_labels, node_groups, metrics
         
-        # Two Extreme Cases:
-
-        # N = 8000 # TRIANGULAR
-        # N = 80 # SQUARE_GRID
-        # process_perturbation(N, 'RegularTilling.SQUARE_GRID')
-
 
 if __name__ == "__main__":
     # DRAFT THE DATASET FROM THE SYNTHETIC GRAPH where their automophism should be 1 and for tree it should be very low
-
+    plot_entropy()
     test_automorphism()
