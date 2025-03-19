@@ -2,12 +2,13 @@ import torch
 from sklearn.metrics import roc_auc_score, average_precision_score
 from ogb.linkproppred import PygLinkPropPredDataset
 import torch_geometric.transforms as T
-from torch_geometric.datasets import Planetoid
+from torch_geometric.datasets import Planetoid,  Amazon
 from torch_geometric.utils import train_test_split_edges, negative_sampling, to_undirected
 from torch_geometric.transforms import RandomLinkSplit
 from torch_geometric.utils import  is_undirected
 import torch
 from torch_sparse import SparseTensor
+
 
 # random split for Planetoid 70-10-20 percent train-val-test
 def randomsplit(dataset: Planetoid, 
@@ -67,6 +68,13 @@ def loaddataset(name: str, use_valedges_as_input: bool, load=None):
         edge_index = data.edge_index
     elif name in ["Cora", "Citeseer", "Pubmed"]:
         dataset = Planetoid(root="dataset", name=name)
+        split_edge = randomsplit(dataset, use_valedges_as_input)
+        data = dataset[0]
+        data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+        edge_index = data.edge_index
+        data.num_nodes = data.x.shape[0]
+    elif name in ["Computers", "Photo"]:
+        dataset = Amazon(root="dataset", name=name)
         split_edge = randomsplit(dataset, use_valedges_as_input)
         data = dataset[0]
         data.edge_index = to_undirected(split_edge["train"]["edge"].t())

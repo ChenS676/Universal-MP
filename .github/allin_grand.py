@@ -563,7 +563,7 @@ if __name__=='__main__':
     predictor = LinkPredictor(opt['hidden_dim'], opt['hidden_dim'], 1, opt['mlp_num_layers'], opt['dropout']).to(device)
     batch_size = opt['batch_size']  
     if opt['gcn']:
-        import IPython; IPython.embed()
+        
         model = GCN(data.x.shape[1],  opt['hidden_dim'], opt['hidden_dim'], opt['num_layers'], opt['dropout'])
     else:
       if opt['rewire_KNN'] or opt['fa_layer']:

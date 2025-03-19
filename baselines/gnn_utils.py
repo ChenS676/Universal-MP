@@ -925,8 +925,7 @@ def evaluate_mrr(evaluator, pos_val_pred, neg_val_pred):
     
     mrr_output =  eval_mrr(pos_val_pred, neg_val_pred)
 
-
-    valid_mrr =mrr_output['mrr_list'].mean().item()
+    valid_mrr = mrr_output['mrr_list'].mean().item()
     valid_mrr_hit1 = mrr_output['hits@1_list'].mean().item()
     valid_mrr_hit3 = mrr_output['hits@3_list'].mean().item()
     valid_mrr_hit10 = mrr_output['hits@10_list'].mean().item()

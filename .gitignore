@@ -27,3 +27,7 @@ baselines/results
 GRAND_LP.zip
 results/
 table_content.txt
+__init__.py
+dataset_heart.tar.gz
+pos_encodings.tar.gz
+proposed/

@@ -87,17 +87,17 @@ def read_data(data_name, neg_mode):
     data['x'] = feature_embeddings
     return data
 
-
+    
 def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
     # result_hit = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred)
     result = {}
-    k_list = [1, 3, 10, 100]
+    k_list = [1, 3, 10, 20, 50, 100]
     result_hit_train = evaluate_hits(evaluator_hit, pos_train_pred, neg_val_pred, k_list)
     result_hit_val = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, k_list)
     result_hit_test = evaluate_hits(evaluator_hit, pos_test_pred, neg_test_pred, k_list)
 
     # result_hit = {}
-    for K in [1, 3, 10, 100]:
+    for K in [1, 3, 10, 20, 50, 100]:
         result[f'Hits@{K}'] = (result_hit_train[f'Hits@{K}'], result_hit_val[f'Hits@{K}'], result_hit_test[f'Hits@{K}'])
 
     result_mrr_train = evaluate_mrr(evaluator_mrr, pos_train_pred, neg_val_pred.repeat(pos_train_pred.size(0), 1))
@@ -105,7 +105,7 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     result_mrr_test = evaluate_mrr(evaluator_mrr, pos_test_pred, neg_test_pred.repeat(pos_test_pred.size(0), 1) )
     # result_mrr = {}
     result['MRR'] = (result_mrr_train['MRR'], result_mrr_val['MRR'], result_mrr_test['MRR'])
-    # for K in [1,3,10, 100]:
+    # for K in [1, 3, 10, 100]:
     #     result[f'mrr_hit{K}'] = (result_mrr_train[f'mrr_hit{K}'], result_mrr_val[f'mrr_hit{K}'], result_mrr_test[f'mrr_hit{K}'])
     train_pred = torch.cat([pos_train_pred, neg_val_pred])
     train_true = torch.cat([torch.ones(pos_train_pred.size(0), dtype=int), 
@@ -122,8 +122,6 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     # result_auc = {}
     result['AUC'] = (result_auc_train['AUC'], result_auc_val['AUC'], result_auc_test['AUC'])
     result['AP'] = (result_auc_train['AP'], result_auc_val['AP'], result_auc_test['AP'])
-
-    
     return result
 
         
@@ -143,9 +141,9 @@ def train(model, score_func, train_pos, x, optimizer, batch_size):
         mask = torch.ones(train_pos.size(0), dtype=torch.bool).to(train_pos.device)
         mask[perm] = 0
         train_edge_mask = train_pos[mask].transpose(1,0)
-        # train_edge_mask = to_undirected(train_edge_mask)
+
         train_edge_mask = torch.cat((train_edge_mask, train_edge_mask[[1,0]]),dim=1)
-        # edge_weight_mask = torch.cat((edge_weight_mask, edge_weight_mask), dim=0).to(torch.float)
+
         edge_weight_mask = torch.ones(train_edge_mask.size(1)).to(torch.float).to(train_pos.device)
         adj = SparseTensor.from_edge_index(train_edge_mask, edge_weight_mask, [num_nodes, num_nodes]).to(train_pos.device)
         ###################
@@ -205,9 +203,11 @@ def test(model, score_func, data, x, evaluator_hit, evaluator_mrr, batch_size):
     return result, score_emb
 
 
+
+    
 def data2dict(data, splits, data_name) -> dict:
     #TODO test with all ogbl-datasets, start with collab
-    if data_name in ['Cora', 'CiteSeer', 'PubMed']:
+    if data_name in ['Cora', 'Citeseer', 'Pubmed', 'Computers', 'Photo']:
         datadict = {}
         datadict.update({'adj': data.adj_t})
         datadict.update({'train_pos': splits['train']['edge']})
@@ -317,10 +317,12 @@ def main():
         'Hits@1': Logger(args.runs),
         'Hits@3': Logger(args.runs),
         'Hits@10': Logger(args.runs),
+        'Hits@20': Logger(args.runs),
+        'Hits@50': Logger(args.runs),
         'Hits@100': Logger(args.runs),
         'MRR': Logger(args.runs),
-        'AUC':Logger(args.runs),
-        'AP':Logger(args.runs)
+        'AUC': Logger(args.runs),
+        'AP': Logger(args.runs)
     }
 
     for run in range(args.runs):
@@ -361,7 +363,7 @@ def main():
                 results_rank, score_emb = test(model, score_func, data, x, evaluator_hit, evaluator_mrr, args.batch_size)
                 
                 for key, result in results_rank.items():
-                    wandb.log({'train_loss': loss}, step = epoch)
+                    wandb.log({'train_loss': loss}, step = step)
                     loggers[key].add_result(run, result)
                     wandb.log({f"Metrics/{key}": result[-1]}, step=step)
                     step += 1
@@ -410,7 +412,7 @@ def main():
         result_all_run[key] = [mean_list, var_list]
         save_dict[key] = test_res
         print(save_dict)
-    print(best_metric_valid_str +' ' +best_auc_valid_str)
+    print(best_metric_valid_str + ' ' + best_auc_valid_str)
     mvari_str2csv(args.name_tag, save_dict, f'results/{args.data_name}_lm_mrr.csv')
     return best_valid_mean_metric, best_auc_metric, result_all_run
 

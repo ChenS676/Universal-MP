@@ -36,6 +36,8 @@ from syn_random import (
 from graph_generation import generate_graph, GraphType
 import numpy as np
 import matplotlib.pyplot as plt
+from torch_geometric.datasets import Planetoid, Amazon
+from torch_geometric.utils import train_test_split_edges, to_undirected
 
 
 class WLConv(torch.nn.Module):
@@ -269,6 +271,7 @@ class WLConvOptimized(torch.nn.Module):
         # Convert back to a tensor
         return torch.tensor(out, device=edge_index.device, dtype=torch.long)
 
+
 def quasi_random_features(num_nodes, feature_dim=3, method='halton'):
     """
     Generates quasi-random node features using low-discrepancy sequences.
@@ -447,7 +450,7 @@ def compute_automorphism_metrics(node_groups, num_nodes):
 
 def entropy_gaussian(sigma):
     """Compute the entropy term (1/2) log (2πσ²)."""
-    return 0.5 * np.log(2 * np.pi * sigma**2)
+    return 0.5 * np.log(2 * np.pi * sigma**2) + 0.5
 
 def plot_entropy():
     """Plot entropy as a function of sigma."""
@@ -458,12 +461,29 @@ def plot_entropy():
     plt.plot(sigma_values, entropy_values, label=r'$\frac{1}{2} \log (2\pi \sigma^2)$', color='b')
     plt.xlabel(r'$\sigma$', fontsize=14)
     plt.ylabel('Entropy', fontsize=14)
-    plt.title('Entropy vs. Standard Deviation', fontsize=16)
+    plt.title('Automorphism Entropy vs. Standard Deviation', fontsize=16)
     plt.grid(True)
     plt.legend()
     plt.savefig('entropy_gaussian.png')
 
-
+# random split dataset
+def randomsplit(dataset, val_ratio: float=0.10, test_ratio: float=0.2):
+    def removerepeated(ei):
+        ei = to_undirected(ei)
+        ei = ei[:, ei[0]<ei[1]]
+        return ei
+    data = dataset[0]
+    data.num_nodes = data.x.shape[0]
+    data = train_test_split_edges(data, test_ratio, test_ratio)
+    split_edge = {'train': {}, 'valid': {}, 'test': {}}
+    num_val = int(data.val_pos_edge_index.shape[1] * val_ratio/test_ratio)
+    data.val_pos_edge_index = data.val_pos_edge_index[:, torch.randperm(data.val_pos_edge_index.shape[1])]
+    split_edge['train']['edge'] = removerepeated(torch.cat((data.train_pos_edge_index, data.val_pos_edge_index[:, :-num_val]), dim=-1)).t()
+    split_edge['valid']['edge'] = removerepeated(data.val_pos_edge_index[:, -num_val:]).t()
+    split_edge['valid']['edge_neg'] = removerepeated(data.val_neg_edge_index).t()
+    split_edge['test']['edge'] = removerepeated(data.test_pos_edge_index).t()
+    split_edge['test']['edge_neg'] = removerepeated(data.test_neg_edge_index).t()
+    return split_edge
 
 def dataloader(args):
     if args.data_name in ['ogbl-ddi', 'ogbl-collab', 'ogbl-ppa', 'ogbl-citation2']:
@@ -484,6 +504,15 @@ def dataloader(args):
         edge_index = data.edge_index
         data.num_nodes = data.x.shape[0]
         num_nodes = data.num_nodes
+        G = None 
+
+    if args.data_name in ["Computers", "Photo"]:
+        dataset = Amazon(root="dataset", name=args.data_name)
+        split_edge = randomsplit(dataset)
+        data = dataset[0]
+        data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+        edge_index = data.edge_index
+        num_nodes = data.x.shape[0]
         G = None 
         
     # elif args.data_name in ['RegularTilling.SQUARE_GRID', 
@@ -591,30 +620,17 @@ def test_automorphism():
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
     parser.add_argument('--data_name', type=str, default='ogbl-ppa', 
-                        choices=['ogbl-ppa', 
-                                'ogbl-citation2', 
-                                'ogbl-collab', 
-                                'ogbl-ddi', 
-                                'Cora', 
-                                'Citeseer', 
-                                'Pubmed'])
+                        choices=["Computers", 
+                                 "Photo"])
     args = parser.parse_args()  
 
     # Two Extreme Cases:
     process_graph(40, 'GraphType.COMPLETE', is_grid=True, label="GraphType.COMPLETE")  # Regular tiling case
     process_graph(300, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
     process_graph(40, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
-    process_graph(5, GraphType.TREE, label="G_high")      # Tree case
-    process_graph(6, GraphType.TREE, label="G_high")      # Tree case
-    process_graph(7, GraphType.TREE, label="G_high")      # Tree case
-    process_graph(8, GraphType.TREE, label="G_high")      # Tree case
-    process_graph(9, GraphType.TREE, label="G_high")      # Tree case
-    process_graph(10, GraphType.TREE, label="G_high")      # Tree case
       
-    for data_name in [
-                     'ogbl-citation2', 
-                    'ogbl-collab', 
-                    'ogbl-ppa',
+    for data_name in ["Computers", 
+                        "Photo"
                     ]:
         
         args.data_name = data_name
@@ -632,9 +648,30 @@ def test_automorphism():
         # df = pd.DataFrame(node_labels.numpy(), columns=['node_labels'])
         # df.to_csv(f'{args.data_name}_node_labels.csv', index=False)
         del node_labels, node_groups, metrics
-        
+
+
+def plot_gaussian():
+    mu = 0
+    sigma_values = [0.5, 1, 2, 4]  # Different standard deviations
+
+    # Generate x values
+    x = np.linspace(-10, 10, 1000)
+
+    plt.figure(figsize=(8, 5))
+
+    # Plot Gaussian distributions
+    for sigma in sigma_values:
+        y = norm.pdf(x, mu, sigma)
+        plt.plot(x, y, label=rf'$\sigma={sigma}$')
+
+    plt.xlabel('x', fontsize=14)
+    plt.ylabel('Probability Density', fontsize=14)
+    plt.title('Gaussian Distributions with Different Variances', fontsize=16)
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('gaussian_distributions.png')
 
 if __name__ == "__main__":
     # DRAFT THE DATASET FROM THE SYNTHETIC GRAPH where their automophism should be 1 and for tree it should be very low
-    plot_entropy()
+
     test_automorphism()

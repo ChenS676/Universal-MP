@@ -1,2 +1,2 @@
 Automorphism Ratio (A_r1),A_r_norm,Number of Unique Groups (C_auto),Automorphism Entropy (H_auto),Automorphism Ratio (A_r_log),num_nodes,H_auto_normalized,data_name
-1.0,1.0,1,-1.000000082240371e-09,0.0,40,-2.710850529759503e-10,GraphType.COMPLETE
+0.011363636363636364,0.567029235679399,88,4.47733672647821,-0.865941528641202,176,0.8659415116215196,RegularTilling.TRIANGULAR

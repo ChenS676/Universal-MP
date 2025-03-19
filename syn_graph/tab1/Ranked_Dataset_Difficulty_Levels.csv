@@ -1,0 +1,12 @@
+,Automorphism Ratio (A_r_log),H_auto_normalized,data_name,Difficulty Level
+5,-0.2043,0.7146,ogbl-citation2,Hardest
+10,0.0,0.0,GraphType.COMPLETE,Hardest
+1,-0.4562,0.8101,Citeseer,Hard
+8,-0.7216,0.7228,RegularTilling.SQUARE_GRID,Medium-Hard
+0,-0.7713,0.9564,Cora,Medium
+6,-0.7659,0.9659,ogbl-ddi,Medium
+2,-0.8694,0.9252,Pubmed,Medium-Easy
+3,-0.8893,0.9501,ogbl-collab,Medium-Easy
+7,-0.8659,0.8659,RegularTilling.TRIANGULAR,Medium-Easy
+9,-0.9208,0.9398,G_Tree,Medium-Easy
+4,-0.9864,0.9982,ogbl-ppa,Easiest

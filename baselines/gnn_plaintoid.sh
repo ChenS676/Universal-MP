@@ -38,7 +38,7 @@ echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 echo "Running command: python main_gnn.py --data_name Pubmed --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024"
 echo "Start time: $(date)"
 
-data_name=ogbl-ddi
+data_name=Cora  # ogbl-citation2 ogbl-ddi ogbl-collab ogbl-ppa ogbl-wikikg2
 
 gnn_models=(GCN GIN SAGE GAT)
 
@@ -49,4 +49,11 @@ for model in "${gnn_models[@]}"; do
     time python main_gnn.py --data_name "$data_name" --gnn_model "$model" --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024
 done
 
-time python gnn_ogb_heart.py --data_name ogbl-citation2 --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024
+# time python gnn_ogb_heart.py --data_name ogbl-collab --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024
+python main_gnn.py --data_name Pubmed --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024 
+python main_gnn.py --data_name Cora --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024 
+python main_gnn.py --data_name Citeseer --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024 
+
+
+
+python main_gnn.py --data_name Computer --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024 

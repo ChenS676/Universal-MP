@@ -66,7 +66,7 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
 
     # result_hit = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred)
     result = {}
-    k_list = [20, 50, 100]
+    k_list = [1, 10, 20, 50, 100]
     result_hit_train = evaluate_hits(evaluator_hit, pos_train_pred, neg_val_pred, k_list)
     result_hit_val = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, k_list)
     result_hit_test = evaluate_hits(evaluator_hit, pos_test_pred, neg_test_pred, k_list)
@@ -86,6 +86,12 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     result_auc_val = evaluate_auc(val_pred, val_true)
     result_auc_test = evaluate_auc(test_pred, test_true)
     
+    # result_mrr_train = evaluate_mrr( evaluator_mrr,  pos_train_pred, neg_val_pred.repeat(pos_train_pred.size(0), 1))
+    result_mrr_val = evaluate_mrr( evaluator_mrr, pos_val_pred, neg_val_pred.repeat(pos_val_pred.size(0), 1))
+    result_mrr_test = evaluate_mrr( evaluator_mrr, pos_test_pred, neg_test_pred.repeat(pos_test_pred.size(0), 1))
+    for k in result_mrr_val.keys():
+        result[k] = (0, result_mrr_val[k], result_mrr_test[k])
+
     # result_auc = {}
     result['AUC'] = (result_auc_train['AUC'], result_auc_val['AUC'], result_auc_test['AUC'])
     result['AP'] = (result_auc_train['AP'], result_auc_val['AP'], result_auc_test['AP'])
@@ -462,6 +468,8 @@ def main():
     evaluator_mrr = Evaluator(name='ogbl-citation2')
 
     loggers = {
+        'Hits@1': Logger(args.runs),
+        'Hits@10': Logger(args.runs),
         'Hits@20': Logger(args.runs),
         'Hits@50': Logger(args.runs),
         'Hits@100': Logger(args.runs),
