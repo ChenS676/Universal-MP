@@ -592,7 +592,7 @@ def process_perturbation(N, data_name):
     plt.figure()
     plt.plot(group_sizes)
     plt.savefig(f'group_size_pr0_{data_name}.png')
-    perturb_dict.update({'0': metrics})
+    perturb_dict.update({'0': metrics['A_r_norm']})
 
 
     del node_groups, node_labels, metrics
@@ -602,7 +602,7 @@ def process_perturbation(N, data_name):
         edge_index = from_networkx(G_rewired).edge_index
         node_groups, _ = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
         metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
-        perturb_dict.update({'index': pr})
+        perturb_dict.update({str(pr): metrics['A_r_norm']})
         
         plt.figure()
         plt.plot(group_sizes)
@@ -675,3 +675,7 @@ if __name__ == "__main__":
     # DRAFT THE DATASET FROM THE SYNTHETIC GRAPH where their automophism should be 1 and for tree it should be very low
 
     test_automorphism()
+    exit(-1)
+    N = 800
+    data_name = "RegularTilling.TRIANGULAR"
+    process_perturbation(N, data_name)
