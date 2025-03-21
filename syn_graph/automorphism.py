@@ -434,12 +434,14 @@ def compute_automorphism_metrics(node_groups, num_nodes):
     C_auto = len(node_groups)
     p_i = group_sizes / num_nodes 
     H_auto = -np.sum(p_i * np.log(p_i + 1e-9)) 
-    A_r_norm = np.log(np.sum(group_sizes**2)) / (2 * np.log(num_nodes))
+    A_r_norm_1 = 1 - np.log(A_r1) / np.log(num_nodes) # lower is less automorphism
+    A_r_norm_2 = np.log(np.sum(group_sizes**2)) / (2 * np.log(num_nodes)) # A_r1
     A_r_log = (np.log(np.sum(group_sizes**2)) - np.log(num_nodes**2)) / np.log(num_nodes)
     H_auto_normalized =  -np.sum(p_i * np.log(p_i + 1e-9)) / np.log(num_nodes)
     return {
         "Automorphism Ratio (A_r1)": A_r1,
-        "A_r_norm": A_r_norm,
+        "A_r_norm_2": A_r_norm_2,
+        "A_r_norm_1": A_r_norm_1,
         "Number of Unique Groups (C_auto)": C_auto,
         "Automorphism Entropy (H_auto)": H_auto,
         "Automorphism Ratio (A_r_log)": A_r_log,
@@ -515,26 +517,27 @@ def dataloader(args):
         num_nodes = data.x.shape[0]
         G = None 
         
-    # elif args.data_name in ['RegularTilling.SQUARE_GRID', 
-    #                       'RegularTilling.HEXAGONAL', 
-    #                       'RegularTilling.TRIANGULAR', 
-    #                       'RegularTilling.KAGOME_LATTICE']:
-    #     N = 100
-    #     G, _, _, pos = init_regular_tilling(N, eval(args.data_name), seed=None)
-    #     data = from_networkx(G)
-    #     num_nodes = G.number_of_nodes()
-    #     edge_index = data.edge_index
-    #     print(f"Dataset: {args.data_name}")
-    #     print("data", data)
+    elif args.data_name in ['RegularTilling.SQUARE_GRID', 
+                          'RegularTilling.HEXAGONAL', 
+                          'RegularTilling.TRIANGULAR', 
+                          'RegularTilling.KAGOME_LATTICE']:
+        N = 100
+        G, _, _, pos = init_regular_tilling(N, eval(args.data_name), seed=None)
+        data = from_networkx(G)
+        num_nodes = G.number_of_nodes()
+        edge_index = data.edge_index
+        print(f"Dataset: {args.data_name}")
+        print("data", data)
         
-    # elif args.data_name in ['GraphType.TREE', 
-    #                         'GraphType.RANDOM']:    
-        
-    #     G = generate_graph(10, eval(args.data_name), seed=0)
-    #     data = from_networkx(G)
-    #     num_nodes = G.number_of_nodes()
-    #     print(f"Dataset: {args.data_name}")
-    #     print("data", data)
+    elif args.data_name in ['GraphType.TREE', 
+                            'GraphType.BARABASI_ALBERT',
+                            'GraphType.ERDOS_RENYI']:    
+        N = 100
+        G = generate_graph(10, eval(args.data_name), seed=0)
+        data = from_networkx(G)
+        num_nodes = G.number_of_nodes()
+        print(f"Dataset: {args.data_name}")
+        print("data", data)
         
     return G, num_nodes, edge_index
 
@@ -563,10 +566,12 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     
     metrics.update({'data_name': label})
     print(metrics)
-    pd.DataFrame([metrics]).to_csv(f'{label}_{N}.csv', index=False)
+    pd.DataFrame([metrics]).to_csv(f'{graph_type}_{N}.csv', index=False)
+    print(f"save to {graph_type}_{N}.csv.")
     plt.figure()
     plt.plot(group_sizes)
     plt.savefig(f'group_size_{graph_type}_{N}.png')
+    print(f"save to group_size_{graph_type}_{N}.png.")
     
     # Visualiz  e with WL-based coloring
     plt.figure(figsize=(6, 6))
@@ -619,35 +624,32 @@ def test_automorphism():
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
-    parser.add_argument('--data_name', type=str, default='ogbl-ppa', 
-                        choices=["Computers", 
-                                 "Photo"])
+    parser.add_argument('--data_name', type=str, default='ogbl-ppa')
     args = parser.parse_args()  
-
+    process_graph(10, GraphType.TREE)
+    process_graph(100, GraphType.BARABASI_ALBERT)
     # Two Extreme Cases:
     process_graph(40, 'GraphType.COMPLETE', is_grid=True, label="GraphType.COMPLETE")  # Regular tiling case
     process_graph(300, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
     process_graph(40, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
       
-    for data_name in ["Computers", 
-                        "Photo"
-                    ]:
+
         
-        args.data_name = data_name
-        G, num_nodes, edge_index = dataloader(args)
-        
-        node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
-        metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
-        plt.figure()
-        plt.plot(group_sizes)
-        plt.savefig(f'group_size_{args.data_name}.png')
-        
-        metrics.update({'data_name': args.data_name})
-        print(metrics)
-        pd.DataFrame([metrics]).to_csv(f'{args.data_name}_alpha.csv', index=False)
-        # df = pd.DataFrame(node_labels.numpy(), columns=['node_labels'])
-        # df.to_csv(f'{args.data_name}_node_labels.csv', index=False)
-        del node_labels, node_groups, metrics
+    args.data_name = data_name
+    G, num_nodes, edge_index = dataloader(args)
+    
+    node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
+    metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
+    plt.figure()
+    plt.plot(group_sizes)
+    plt.savefig(f'group_size_{args.data_name}.png')
+    
+    metrics.update({'data_name': args.data_name})
+    print(metrics)
+    pd.DataFrame([metrics]).to_csv(f'{args.data_name}_alpha.csv', index=False)
+    # df = pd.DataFrame(node_labels.numpy(), columns=['node_labels'])
+    # df.to_csv(f'{args.data_name}_node_labels.csv', index=False)
+    del node_labels, node_groups, metrics
 
 
 def plot_gaussian():

@@ -195,7 +195,7 @@ def generate_graph(N, type=GraphType.RANDOM, seed=None, degree=None):
     if type == GraphType.ERDOS_RENYI:
         if degree == None: degree = random.random() * N
         G = erdos_renyi(N, degree, seed)
-    elif type == GraphType.BARABASI_ALBERT:
+    elif type == GraphType.BARABASI_ALBERT: 
         if degree == None: degree = int(random.random() * (N - 1)) + 1
         G = barabasi_albert(N, degree, seed)
     elif type == GraphType.GRID:
