@@ -434,7 +434,7 @@ def compute_automorphism_metrics(node_groups, num_nodes):
     C_auto = len(node_groups)
     p_i = group_sizes / num_nodes 
     H_auto = -np.sum(p_i * np.log(p_i + 1e-9)) 
-    A_r_norm_1 = 1 - np.log(A_r1) / np.log(num_nodes) # lower is less automorphism
+    A_r_norm_1 = 1 + np.log(A_r1) / np.log(num_nodes) # lower is less automorphism
     A_r_norm_2 = np.log(np.sum(group_sizes**2)) / (2 * np.log(num_nodes)) # A_r1
     A_r_log = (np.log(np.sum(group_sizes**2)) - np.log(num_nodes**2)) / np.log(num_nodes)
     H_auto_normalized =  -np.sum(p_i * np.log(p_i + 1e-9)) / np.log(num_nodes)
@@ -556,7 +556,7 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     # Draw the graph
     plt.figure(figsize=(12, 6))
     nx.draw(G, pos if is_grid else None, node_size=150, font_size=100, node_color="black", edge_color="gray")
-    plt.savefig(f'{label}.png')
+    plt.savefig(f'{graph_type}.png')
     
     # Process Graph with WL Test
     data = from_networkx(G)
@@ -564,7 +564,7 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=G.number_of_nodes(), num_iterations=100)
     metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, G.number_of_nodes())
     
-    metrics.update({'data_name': label})
+    metrics.update({'data_name': str(graph_type)})
     print(metrics)
     pd.DataFrame([metrics]).to_csv(f'{graph_type}_{N}.csv', index=False)
     print(f"save to {graph_type}_{N}.csv.")
@@ -577,11 +577,11 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     plt.figure(figsize=(6, 6))
     nx.draw(G, pos if is_grid else None, node_size=50, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
     plt.title("Graph Visualization with WL-based Node Coloring")
-    plt.savefig(f'wl_test_{label}_{N}.png')
+    plt.savefig(f'wl_test_{graph_type}_{N}.png')
     plt.figure()
     plt.plot(group_sizes)
     plt.savefig(f'group_size_{graph_type}_{N}.png')
-    
+    print(f"save to group_size_{graph_type}_{N}.png")
 
 
 def process_perturbation(N, data_name):
@@ -626,13 +626,21 @@ def test_automorphism():
     # KAGOME_LATTICE = 4
     parser.add_argument('--data_name', type=str, default='ogbl-ppa')
     args = parser.parse_args()  
-    process_graph(10, GraphType.TREE)
+
+    process_graph(1000, GraphType.BARABASI_ALBERT)
     process_graph(100, GraphType.BARABASI_ALBERT)
+    process_graph(10, GraphType.BARABASI_ALBERT)
+    process_graph(100, GraphType.TREE)
+    process_graph(1000, GraphType.TREE)
+    process_graph(10, GraphType.TREE)
     # Two Extreme Cases:
     process_graph(40, 'GraphType.COMPLETE', is_grid=True, label="GraphType.COMPLETE")  # Regular tiling case
     process_graph(300, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
     process_graph(40, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
-      
+    process_graph(100, 'GraphType.COMPLETE', is_grid=True, label="GraphType.COMPLETE")  # Regular tiling case
+    process_graph(1000, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
+    process_graph(100, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
+        
 
         
     args.data_name = data_name

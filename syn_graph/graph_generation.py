@@ -88,7 +88,7 @@ def tree(N, seed):
     if N < 101:
         return nx.random_powerlaw_tree(N, seed=seed, gamma=3, tries=10000)
     else:
-        return nx.random_powerlaw_tree(100, seed=seed, tries=10000)
+        return nx.random_powerlaw_tree(N, seed=seed, tries=10000)
 
 
 def ladder(N):
