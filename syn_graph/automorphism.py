@@ -628,11 +628,12 @@ def test_automorphism():
     args = parser.parse_args()  
 
     process_graph(1000, GraphType.BARABASI_ALBERT)
-    process_graph(100, GraphType.BARABASI_ALBERT)
+    process_graph(500, GraphType.BARABASI_ALBERT)
     process_graph(10, GraphType.BARABASI_ALBERT)
     process_graph(100, GraphType.TREE)
     process_graph(1000, GraphType.TREE)
     process_graph(10, GraphType.TREE)
+
     # Two Extreme Cases:
     process_graph(40, 'GraphType.COMPLETE', is_grid=True, label="GraphType.COMPLETE")  # Regular tiling case
     process_graph(300, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
@@ -640,10 +641,8 @@ def test_automorphism():
     process_graph(100, 'GraphType.COMPLETE', is_grid=True, label="GraphType.COMPLETE")  # Regular tiling case
     process_graph(1000, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
     process_graph(100, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
-        
 
-        
-    args.data_name = data_name
+
     G, num_nodes, edge_index = dataloader(args)
     
     node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
@@ -658,6 +657,8 @@ def test_automorphism():
     # df = pd.DataFrame(node_labels.numpy(), columns=['node_labels'])
     # df.to_csv(f'{args.data_name}_node_labels.csv', index=False)
     del node_labels, node_groups, metrics
+
+
 
 
 def plot_gaussian():

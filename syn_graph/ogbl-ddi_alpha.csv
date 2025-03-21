@@ -1,0 +1,2 @@
+Automorphism Ratio (A_r1),A_r_norm_2,A_r_norm_1,Number of Unique Groups (C_auto),Automorphism Entropy (H_auto),Automorphism Ratio (A_r_log),num_nodes,H_auto_normalized,data_name
+0.001657742676573102,0.6170263162501806,0.23405263250036124,3925,8.07344255529032,-0.7659473674996389,4267,0.9658768853505543,ogbl-ddi
