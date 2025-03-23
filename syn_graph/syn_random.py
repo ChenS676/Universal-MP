@@ -679,7 +679,6 @@ def init_pyg_random(N: int,
                 split_labels, # split_labels = True,
                 include_negatives)  # include_negatives = False
     # TODO save to .pt file
-
     return data, splits
 
 

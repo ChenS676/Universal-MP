@@ -717,6 +717,7 @@ def rewiring():
 
 
 if __name__ == "__main__":
-    for i in range(100):
-        data = generate_graph(10, GraphType.TREE, seed=i)
-   # rewiring()
+#     for i in range(100):
+#         data = generate_graph(10, GraphType.TREE, seed=i)
+#    rewiring()
+   main()

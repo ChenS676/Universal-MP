@@ -1,0 +1,3 @@
+data_name,num_node,Metric,Best Valid,Best Valid Mean,Mean List,Variance List,Test Result
+0.3_GraphType.ERDOS_RENYI,2000,AUC,100.0 ± 0.0,100.0,"[97.5, 100.0, 45.0]","[7.91, 0.0, 25.82]",45.00 ± 25.82
+0.3_GraphType.ERDOS_RENYI,2000,AUC,100.0 ± 0.0,100.0,"[97.5, 100.0, 45.0]","[7.91, 0.0, 25.82]",45.00 ± 25.82

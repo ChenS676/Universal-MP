@@ -38,6 +38,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch_geometric.datasets import Planetoid, Amazon
 from torch_geometric.utils import train_test_split_edges, to_undirected
+import random
+from networkx import random_regular_graph
+
+
 
 
 class WLConv(torch.nn.Module):
@@ -328,7 +332,6 @@ def run_wl_test_and_group_nodes(edge_index, num_nodes, num_iterations=1000):
 
 
 
-
 def compute_inner_product_matrix(X):
     """
     Computes the pairwise inner product matrix for node features.
@@ -342,6 +345,7 @@ def compute_inner_product_matrix(X):
     X = X - X.mean(dim=0)  # Center features
     X = X / X.norm(dim=1, keepdim=True)  # Normalize features
     return torch.matmul(X, X.T)  # Compute pairwise inner products
+
 
 def visualize_inner_product_matrix(H):
     """
@@ -414,7 +418,6 @@ def compute_structural_similarity(A, k=6):
     H_struct = np.dot(eigvecs, eigvecs.T)  # Similarity based on projection
     return H_struct
 
-# Generate a 5x5 triangular lattice
 
 def compute_automorphism_metrics(node_groups, num_nodes):
     """
@@ -432,27 +435,25 @@ def compute_automorphism_metrics(node_groups, num_nodes):
 
     A_r1 = np.sum(group_sizes**2) / num_nodes**2
     C_auto = len(node_groups)
-    p_i = group_sizes / num_nodes 
-    H_auto = -np.sum(p_i * np.log(p_i + 1e-9)) 
     A_r_norm_1 = 1 + np.log(A_r1) / np.log(num_nodes) # lower is less automorphism
-    A_r_norm_2 = np.log(np.sum(group_sizes**2)) / (2 * np.log(num_nodes)) # A_r1
+    A_r_norm_2 = np.log(np.sum(group_sizes**2)) / (2 * np.log(num_nodes)) 
     A_r_log = (np.log(np.sum(group_sizes**2)) - np.log(num_nodes**2)) / np.log(num_nodes)
-    H_auto_normalized =  -np.sum(p_i * np.log(p_i + 1e-9)) / np.log(num_nodes)
+    automorphism_score = 1 - (len(node_groups) / num_nodes)
     return {
         "Automorphism Ratio (A_r1)": A_r1,
         "A_r_norm_2": A_r_norm_2,
         "A_r_norm_1": A_r_norm_1,
         "Number of Unique Groups (C_auto)": C_auto,
-        "Automorphism Entropy (H_auto)": H_auto,
         "Automorphism Ratio (A_r_log)": A_r_log,
         "num_nodes": num_nodes,
-        "H_auto_normalized": H_auto_normalized
+        "automorphism_score": automorphism_score
     }, num_nodes, group_sizes
 
 
 def entropy_gaussian(sigma):
     """Compute the entropy term (1/2) log (2πσ²)."""
     return 0.5 * np.log(2 * np.pi * sigma**2) + 0.5
+
 
 def plot_entropy():
     """Plot entropy as a function of sigma."""
@@ -467,6 +468,7 @@ def plot_entropy():
     plt.grid(True)
     plt.legend()
     plt.savefig('entropy_gaussian.png')
+
 
 # random split dataset
 def randomsplit(dataset, val_ratio: float=0.10, test_ratio: float=0.2):
@@ -487,6 +489,7 @@ def randomsplit(dataset, val_ratio: float=0.10, test_ratio: float=0.2):
     split_edge['test']['edge_neg'] = removerepeated(data.test_neg_edge_index).t()
     return split_edge
 
+
 def dataloader(args):
     if args.data_name in ['ogbl-ddi', 'ogbl-collab', 'ogbl-ppa', 'ogbl-citation2']:
         dataset = PygLinkPropPredDataset(name=args.data_name, 
@@ -498,7 +501,7 @@ def dataloader(args):
         print("data", data)
         edge_index = data.edge_index
         num_nodes = data.num_nodes
-        G = None 
+        G = data
         
     if args.data_name in ["Cora", "Citeseer", "Pubmed"]:
         dataset = Planetoid(root="dataset", name=args.data_name)
@@ -506,7 +509,7 @@ def dataloader(args):
         edge_index = data.edge_index
         data.num_nodes = data.x.shape[0]
         num_nodes = data.num_nodes
-        G = None 
+        G = data
 
     if args.data_name in ["Computers", "Photo"]:
         dataset = Amazon(root="dataset", name=args.data_name)
@@ -515,7 +518,7 @@ def dataloader(args):
         data.edge_index = to_undirected(split_edge["train"]["edge"].t())
         edge_index = data.edge_index
         num_nodes = data.x.shape[0]
-        G = None 
+        G = data 
         
     elif args.data_name in ['RegularTilling.SQUARE_GRID', 
                           'RegularTilling.HEXAGONAL', 
@@ -528,6 +531,7 @@ def dataloader(args):
         edge_index = data.edge_index
         print(f"Dataset: {args.data_name}")
         print("data", data)
+        
         
     elif args.data_name in ['GraphType.TREE', 
                             'GraphType.BARABASI_ALBERT',
@@ -542,6 +546,60 @@ def dataloader(args):
     return G, num_nodes, edge_index
 
 
+def process_random_regular_graph():
+
+    for degree in [10]:
+        N = 4000 
+        seed = random.randint(1, 100)
+        G = random_regular_graph(degree, N, seed)
+        # Visualize the graph
+        pos = nx.spring_layout(G, seed=42)
+        nx.draw(G, pos, with_labels=True, node_color='skyblue', edge_color='gray', node_size=500)
+        plt.title(f"Random Regular Graph (n={N}, d={degree})")
+        plt.savefig('random_graph.png')
+
+        data = from_networkx(G)
+        edge_index = data.edge_index
+        node_groups, _ = run_wl_test_and_group_nodes(edge_index, num_nodes=G.number_of_nodes(), num_iterations=100)
+        metrics, _, _ = compute_automorphism_metrics(node_groups, G.number_of_nodes())
+        
+        metrics.update({'data_name': 'random_regular'+'_'})
+        print(metrics)
+        csv_path = 'summary.csv'
+        file_exists = os.path.isfile(csv_path)
+        pd.DataFrame([metrics]).to_csv(csv_path, mode='a', index=False, header=not file_exists)
+
+        print(degree)
+        import pdb; pdb.set_trace()
+        
+        
+        
+def process_ERDOS_RENYI():
+
+    for degree in [2, 4, 6, 8, 10, 20]:
+        N = 2000 
+        seed = random.randint(1, 100)
+        G = nx.fast_gnp_random_graph(N, degree, seed, directed=False)
+
+        pos = nx.spring_layout(G, seed=42)
+        nx.draw(G, pos, with_labels=True, node_color='skyblue', edge_color='gray', node_size=500)
+        plt.title(f"Random Regular Graph (n={N}, d={degree})")
+        plt.savefig('random_graph.png')
+
+        data = from_networkx(G)
+        edge_index = data.edge_index
+        node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=G.number_of_nodes(), num_iterations=100)
+        metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, G.number_of_nodes())
+        
+        metrics.update({'data_name': 'random_gnp'+'_'})
+        print(metrics)
+        csv_path = 'summary.csv'
+        file_exists = os.path.isfile(csv_path)
+        pd.DataFrame([metrics]).to_csv(csv_path, mode='a', index=False, header=not file_exists)
+        
+        print(degree)
+        
+        
 def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     if graph_type == RegularTilling.SQUARE_GRID:
         G, _, _, pos = init_regular_tilling(N, RegularTilling.SQUARE_GRID, seed=None)
@@ -566,22 +624,25 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     
     metrics.update({'data_name': str(graph_type)})
     print(metrics)
-    pd.DataFrame([metrics]).to_csv(f'{graph_type}_{N}.csv', index=False)
-    print(f"save to {graph_type}_{N}.csv.")
-    plt.figure()
-    plt.plot(group_sizes)
-    plt.savefig(f'group_size_{graph_type}_{N}.png')
-    print(f"save to group_size_{graph_type}_{N}.png.")
+    csv_path = 'summary.csv'
+    file_exists = os.path.isfile(csv_path)
+    pd.DataFrame([metrics]).to_csv(csv_path, mode='a', index=False, header=not file_exists)
+    print(f"save to summary.csv.")
+
+    # plt.figure()
+    # plt.plot(group_sizes)
+    # plt.savefig(f'group_size_{graph_type}_{N}.png')
+    # print(f"save to group_size_{graph_type}_{N}.png.")
     
-    # Visualiz  e with WL-based coloring
-    plt.figure(figsize=(6, 6))
-    nx.draw(G, pos if is_grid else None, node_size=50, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
-    plt.title("Graph Visualization with WL-based Node Coloring")
-    plt.savefig(f'wl_test_{graph_type}_{N}.png')
-    plt.figure()
-    plt.plot(group_sizes)
-    plt.savefig(f'group_size_{graph_type}_{N}.png')
-    print(f"save to group_size_{graph_type}_{N}.png")
+    # # Visualiz  e with WL-based coloring
+    # plt.figure(figsize=(6, 6))
+    # nx.draw(G, pos if is_grid else None, node_size=50, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
+    # plt.title("Graph Visualization with WL-based Node Coloring")
+    # plt.savefig(f'wl_test_{graph_type}_{N}.png')
+    # plt.figure()
+    # plt.plot(group_sizes)
+    # plt.savefig(f'group_size_{graph_type}_{N}.png')
+    # print(f"save to group_size_{graph_type}_{N}.png")
 
 
 def process_perturbation(N, data_name):
@@ -597,7 +658,7 @@ def process_perturbation(N, data_name):
     plt.figure()
     plt.plot(group_sizes)
     plt.savefig(f'group_size_pr0_{data_name}.png')
-    perturb_dict.update({'0': metrics['A_r_norm']})
+    perturb_dict.update({'0': metrics['A_r_norm_1']})
 
 
     del node_groups, node_labels, metrics
@@ -607,7 +668,7 @@ def process_perturbation(N, data_name):
         edge_index = from_networkx(G_rewired).edge_index
         node_groups, _ = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
         metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
-        perturb_dict.update({str(pr): metrics['A_r_norm']})
+        perturb_dict.update({str(pr): metrics['A_r_norm_1']})
         
         plt.figure()
         plt.plot(group_sizes)
@@ -631,7 +692,6 @@ def test_automorphism():
     process_graph(500, GraphType.BARABASI_ALBERT)
     process_graph(10, GraphType.BARABASI_ALBERT)
     process_graph(100, GraphType.TREE)
-    process_graph(1000, GraphType.TREE)
     process_graph(10, GraphType.TREE)
 
     # Two Extreme Cases:
@@ -641,7 +701,6 @@ def test_automorphism():
     process_graph(100, 'GraphType.COMPLETE', is_grid=True, label="GraphType.COMPLETE")  # Regular tiling case
     process_graph(1000, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
     process_graph(100, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
-
 
     G, num_nodes, edge_index = dataloader(args)
     
@@ -654,11 +713,7 @@ def test_automorphism():
     metrics.update({'data_name': args.data_name})
     print(metrics)
     pd.DataFrame([metrics]).to_csv(f'{args.data_name}_alpha.csv', index=False)
-    # df = pd.DataFrame(node_labels.numpy(), columns=['node_labels'])
-    # df.to_csv(f'{args.data_name}_node_labels.csv', index=False)
     del node_labels, node_groups, metrics
-
-
 
 
 def plot_gaussian():
@@ -685,8 +740,16 @@ def plot_gaussian():
 if __name__ == "__main__":
     # DRAFT THE DATASET FROM THE SYNTHETIC GRAPH where their automophism should be 1 and for tree it should be very low
 
+
+    process_ERDOS_RENYI()
+    import pdb; pdb.set_trace()
+    process_random_regular_graph()
+
+
     test_automorphism()
     exit(-1)
     N = 800
     data_name = "RegularTilling.TRIANGULAR"
     process_perturbation(N, data_name)
+
+    plot_entropy()

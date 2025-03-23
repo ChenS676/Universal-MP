@@ -1,6 +1,5 @@
 # # adopted from benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
-# python gnn_ogb_heart.py  --use_valedges_as_input  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
-# OBGL-PPA,DDI, CITATION2, VESSEL, COLLAB
+# python barabasi_albert_tab2.py  --use_valedges_as_input  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
 # basic idea is to replace diffusion operator in mpnn and say whether it works better in ogbl-collab and citation2
 # and then expand to synthetic graph
 import os
@@ -14,37 +13,20 @@ from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_s
 # from logger import Logger
 from torch.utils.data import DataLoader
 from torch_sparse import SparseTensor
-from torch_geometric.utils import to_networkx, to_undirected
+from torch_geometric.utils import to_undirected
 import torch_geometric.transforms as T
-from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
+from ogb.linkproppred import Evaluator
 from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
-from torch_geometric.utils import negative_sampling
-from tqdm import tqdm 
-from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
 import torch
-from torch_geometric.data import Data
-import numpy as np
 import argparse
-import matplotlib.pyplot as plt
-import seaborn as sns
 import pandas as pd
-import itertools
 import networkx as nx
-import numpy as np
-import matplotlib.pyplot as plt
-import random
-from syn_random import (init_regular_tilling, 
-                        init_pyg_regtil, 
-                        RegularTilling, 
-                        local_edge_rewiring,
-                        nx2Data_split)
-import csv
+from syn_random import nx2Data_split
 from automorphism import run_wl_test_and_group_nodes, compute_automorphism_metrics
 from graph_generation import generate_graph, GraphType
-from torch_geometric.utils import (
-    from_networkx
-)
-
+from torch_geometric.utils import from_networkx
+import random 
+import torch.nn.utils as utils
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
@@ -54,13 +36,14 @@ def save_new_results(loggers, data_name, num_node, file_name='test_results_0.25_
     new_data = []
     
     for key in loggers.keys():
-        if len(loggers[key].results[0]) > 0:
-            print(key)
-            best_valid, best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
+        if key == 'AUC':
+            if len(loggers[key].results[0]) > 0:
+                print(key)
+                best_valid, best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
 
-            # Prepare row data
-            new_data.append([data_name, num_node, key, best_valid, best_valid_mean, mean_list, var_list, test_res])
-    
+                # Prepare row data
+                new_data.append([data_name, num_node, key, best_valid, best_valid_mean, mean_list, var_list, test_res])
+        
     # Merge and save the new results with the old ones
     load_and_merge_data(new_data, data_name, num_node, file_name)
 
@@ -364,30 +347,31 @@ def main():
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
-    parser.add_argument('--data_name', type=str, default='GraphType.BARABASI_ALBERT')
-    parser.add_argument('--N', type=str, help='number of the node in synthetic graph')
+    parser.add_argument('--data_name', type=str, default='GraphType.ERDOS_RENYI')
+    parser.add_argument('--N', type=int, default=2000,  help='number of the node in synthetic graph')
     parser.add_argument('--pr', type=float, help='percentage of perturbation of edges')
+    parser.add_argument('--p', type=float, help='probability in nx.fast_gnp_random_graph')
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
     parser.add_argument('--score_model', type=str, 
-                                            default='dot_product', 
+                                            default='mlp_score', 
                                             choices=['mlp_score', 'dot_product'])
     
     ## gnn setting
-    parser.add_argument('--num_layers', type=int, default=3)
-    parser.add_argument('--num_layers_predictor', type=int, default=3)
+    parser.add_argument('--num_layers', type=int, default=1)
+    parser.add_argument('--num_layers_predictor', type=int, default=1)
     parser.add_argument('--hidden_channels', type=int, default=256)
     parser.add_argument('--gnnout_hidden_channels', type=int, default=512)
     parser.add_argument('--dropout', type=float, default=0.1)
 
     ### train setting
-    parser.add_argument('--batch_size', type=int, default=2**12)
-    parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--epochs', type=int, default=999)
-    parser.add_argument('--eval_steps', type=int, default=1)
-    parser.add_argument('--runs', type=int, default=5)
+    parser.add_argument('--batch_size', type=int, default=2**6)
+    parser.add_argument('--lr', type=float, default=0.01)
+    parser.add_argument('--epochs', type=int, default=9999)
+    parser.add_argument('--eval_steps', type=int, default=10)
+    parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--kill_cnt', dest='kill_cnt', 
-                                        default=20,    
+                                        default=200,    
                                         type=int,       
                                         help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
@@ -407,11 +391,10 @@ def main():
     parser.add_argument('--cat_node_feat_mf', default=False, action='store_true')
     parser.add_argument('--test_batch_size', type=int, default=1024) 
     parser.add_argument('--use_hard_negative', default=False, action='store_true')
-
+    
     args = parser.parse_args()
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
-    print('cat_n2v_feat: ', args.cat_n2v_feat)
     print('use_hard_negative: ',args.use_hard_negative)
     print(args)
 
@@ -419,24 +402,7 @@ def main():
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
-    # dataset = PygLinkPropPredDataset(name=args.data_name, root=os.path.join(get_root_dir(), "dataset", args.data_name))
-    # data = dataset[0]
-
-    if args.data_name =='RegularTilling.TRIANGULAR':
-        eval_metric = 'AUC'
-        N = 8000 
-    if args.data_name =='RegularTilling.HEXAGONAL':
-        eval_metric = 'AUC'
-        N = 4000
-    if args.data_name =='RegularTilling.SQUARE_GRID':
-        eval_metric = 'AUC'
-        N = 100
-    if args.data_name =='RegularTilling.KAGOME_LATTICE':
-        eval_metric = 'AUC'
-        N = 100
-    if args.N is not None:
-        N = int(args.N)
-        
+  
     evaluator_hit = Evaluator(name='ogbl-collab')
     evaluator_mrr = Evaluator(name='ogbl-citation2')
 
@@ -452,36 +418,43 @@ def main():
         'mrr_hit50':  Logger(args.runs),
         'mrr_hit100':  Logger(args.runs),
     }
-    data = generate_graph(args.N, GraphType.BARABASI_ALBERT, seed=i)
+    if args.data_name =='GraphType.BARABASI_ALBERT':
+        eval_metric = 'AUC'
+    elif args.data_name == 'GraphType.ERDOS_RENYI':
+        eval_metric = 'AUC'
+    
+    seed = random.randint(1, 100)
+    
+    G = nx.fast_gnp_random_graph(args.N, args.p, seed, directed=False) 
     
     graph_stats = get_graph_statistics(G, graph_name=args.data_name, perturbation=args.pr)
     save_graph_statistics(graph_stats)
-
+    pd.DataFrame([graph_stats]).to_csv(f'summary_stats.csv', index=False)
+    print(f"save to {str(args.data_name)}.csv.")
+    
     for key, value in graph_stats.items():
         print(f"{key}: {value}")
     data = from_networkx(G)
     edge_index = data.edge_index
     node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=G.number_of_nodes(), num_iterations=100)
     metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, G.number_of_nodes())
-    metrics.update({'data_name': 'BARABASI_ALBERT'})
+    metrics.update({'data_name': str(args.p)+'_'+str(args.data_name)})
     print(metrics)
-    pd.DataFrame([metrics]).to_csv(f'BARABASI_ALBERT_{N}.csv', index=False)
-    print(f"save to BARABASI_ALBERT_{N}.csv.")
-    
-    data, split_edge, G, pos = nx2Data_split(G, pos, True, 0.25, 0.5)
 
+    pd.DataFrame([metrics]).to_csv(f'summary.csv', index=False)
+    print(f"save to {str(args.data_name)}.csv.")
+    
+    data, split_edge, G, pos = nx2Data_split(G, None, True, 0.25, 0.5)
     for k, val in split_edge.items():
         print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
     emb = None
+
+    file_name = f'{args.gnn_model}_{args.p}_{args.data_name}test_results_0.2_0.2.csv'
 
     if hasattr(data, 'x'):
         if data.x != None:
             x = data.x
             data.x = data.x.to(torch.float)
-            if args.cat_n2v_feat:
-                print('cat n2v embedding!!')
-                n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
-                data.x = torch.cat((data.x, n2v_emb), dim=-1)
             data.x = data.x.to(device)
             input_channel = data.x.size(1)
         else:
@@ -547,16 +520,20 @@ def main():
     best_valid_auc = best_test_auc = 2
     best_auc_valid_str = 2
 
+    import itertools
+
     # hyperparams = {
-    #     'batch_size': [512],
-    #     'lr': [0.001]
-    #     }
-    args.batch_size = 512
-    args.lr = 0.001
+    #     'batch_size': [2**6, 2**7, 2**8, 2**9, 2**10, 2**11, 2**12],
+    #     'lr': [0.01, 0.001, 0.0001],
+    # }
+
+    # for batch_size, lr in itertools.product(hyperparams['batch_size'], hyperparams['lr']):
+    args.batch_size = 2048
+    args.lr = 0.01
 
     print('#################################                    #################################')
     import wandb
-    wandb.init(project=f"GRAND4{args.data_name}{args.gnn_model}", name=f"{args.data_name}_{args.gnn_model}_bs{args.batch_size}_lr{args.lr}_perturb{args.pr}")
+    wandb.init(project=f"GRAND4_erdos_renyi_{args.gnn_model}", name=f"{args.data_name}_{args.gnn_model}_bs{args.batch_size}_lr{args.lr}_prob_{args.p}")
     wandb.config.update(args, allow_val_change=True)
     
     for run in range(args.runs):
@@ -625,16 +602,16 @@ def main():
                                 f'best test: {100*best_test_auc:.2f}%')
                 
                 print('---')
-                if best_valid_current > best_valid:
-                    best_valid = best_valid_current
-                    kill_cnt = 0
-                    if args.save: save_emb(score_emb, save_path)
-                else:
-                    kill_cnt += 1
+                # if best_valid_current > best_valid:
+                #     best_valid = best_valid_current
+                #     kill_cnt = 0
+                #     if args.save: save_emb(score_emb, save_path)
+                # else:
+                #     kill_cnt += 1
                     
-                    if kill_cnt > args.kill_cnt: 
-                        print("Early Stopping!!")
-                        break
+                #     if kill_cnt > args.kill_cnt: 
+                #         print("Early Stopping!!")
+                #         break
     wandb.finish()
                                 
     for key in loggers.keys():
@@ -646,7 +623,7 @@ def main():
             print(mean_list)
             print(var_list)
             print(test_res)
-    save_new_results(loggers, args.data_name, N, file_name=f'{args.gnn_model}_{args.pr}test_results_0.25_0.5.csv')
+    save_new_results(loggers, str(args.p)+'_'+str(args.data_name), args.N, file_name=file_name)
 
 
 
