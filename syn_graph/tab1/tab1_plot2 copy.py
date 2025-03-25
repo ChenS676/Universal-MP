@@ -1,4 +1,3 @@
-
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
@@ -39,7 +38,6 @@ colors = plt.cm.get_cmap('tab10', len(interpolated_data))
 # Define different line styles and transparency settings
 dashed_models = {"ChebGCN", "LINKX", "GIN"}  # Models that will have dashed lines
 line_styles = {model: "--" if model in dashed_models else "-" for model in interpolated_data.keys()}
-alpha_values = {model: 0.5 if model in dashed_models else 1.0 for model in interpolated_data.keys()}  # Reduce opacity for dashed lines
 
 # Plot interpolated data with solid markers and error bars
 for idx, (model, values) in enumerate(interpolated_data.items()):
@@ -79,7 +77,14 @@ ax.set_xlabel(r"$\alpha$", fontsize=fontsize)
 ax.set_ylabel("AUC (/%)", fontsize=fontsize)
 ax.set_xticks(new_alpha)
 ax.set_yticks(np.arange(0, 101, 10))
-ax.tick_params(axis='both', labelsize=fontsize) 
+ax.tick_params(axis='both', labelsize=fontsize)
+
+# Make x and y axis borders more transparent
+ax.spines['top'].set_alpha(0.3)
+ax.spines['right'].set_alpha(0.3)
+ax.spines['left'].set_alpha(0.3)
+ax.spines['bottom'].set_alpha(0.3)
+
 fontsize = 16
 ax.legend(fontsize=fontsize, loc="lower right")
 plt.tight_layout()

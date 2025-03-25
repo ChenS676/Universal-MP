@@ -1,0 +1,2 @@
+name,num_nodes,num_edges,edge_density,degree_gini,avg_deg,avg_deg2,deg_heterogeneity,avg_shortest_path,approximate_diameter,num_triangles,avg_degree,coreness_eq_1,coreness_geq_2,coreness_geq_5,coreness_geq_10,coreness_gini,avg_cc,transitivity,cc_size,power_law_estimate
+vessel_False,3538495.0,8553438.0,6.83130478026887e-07,0.19828713969705972,2.7005639048308367,2.6384044638209567,-0.42367052947462347,inf,inf,46085.0,2.417253017425537,0.20630522298321743,0.7725971069621407,0.0,0.0,0.11210359198971658,0.014828204094163203,0.018359509350727648,0.9578374421894054,1.8433837

@@ -1,5 +1,6 @@
-# # adopted from benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
-# python barabasi_albert_tab2.py  --use_valedges_as_input  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
+# adopted from benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
+# python gnn_ogb_heart.py  --use_valedges_as_input  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
+# OBGL-PPA,DDI, CITATION2, VESSEL, COLLAB
 # basic idea is to replace diffusion operator in mpnn and say whether it works better in ogbl-collab and citation2
 # and then expand to synthetic graph
 import os
@@ -7,29 +8,55 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
 
-from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, Logger, init_seed, save_emb
-from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score, dot_product
-
 # from logger import Logger
 from torch.utils.data import DataLoader
 from torch_sparse import SparseTensor
-from torch_geometric.utils import to_undirected
+from torch_geometric.utils import to_networkx, to_undirected
 import torch_geometric.transforms as T
-from ogb.linkproppred import Evaluator
+from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
+from torch_geometric.utils import negative_sampling
+from tqdm import tqdm 
+from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
 import torch
+from torch_geometric.data import Data
+import numpy as np
 import argparse
+import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
+import itertools
 import networkx as nx
-from syn_random import nx2Data_split
-from automorphism import run_wl_test_and_group_nodes, compute_automorphism_metrics
+import random
+from syn_random import (init_regular_tilling, 
+                        init_pyg_regtil, 
+                        RegularTilling, 
+                        local_edge_rewiring,
+                        nx2Data_split)
+from baselines.gnn_utils import (get_root_dir, 
+                                 get_logger, 
+                                 get_config_dir, 
+                                 Logger, 
+                                 init_seed, 
+                                 save_emb)
+from baselines.gnn_utils import (GCN, 
+                                 GAT, 
+                                 SAGE, 
+                                 GIN, 
+                                 MF, 
+                                 DGCNN, 
+                                 GCN_seal, 
+                                 SAGE_seal, 
+                                 DecoupleSEAL, 
+                                 mlp_score, 
+                                 dot_product, 
+                                 ChebGCN, 
+                                 MixHopGCN)
 from graph_generation import generate_graph, GraphType
-from torch_geometric.utils import from_networkx
-import random 
-import torch.nn.utils as utils
+
+
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
-
 
 
 def save_new_results(loggers, data_name, num_node, file_name='test_results_0.25_0.5.csv'):
@@ -44,7 +71,7 @@ def save_new_results(loggers, data_name, num_node, file_name='test_results_0.25_
                 # Prepare row data
                 new_data.append([data_name, num_node, key, best_valid, best_valid_mean, mean_list, var_list, test_res])
         
-    # Merge and save the new results with the old ones
+        # Merge and save the new results with the old ones
     load_and_merge_data(new_data, data_name, num_node, file_name)
 
 
@@ -65,7 +92,14 @@ def load_and_merge_data(new_data, data_name, num_node, file_name='test_results.c
         merged_data = new_data_df
     
     # Save the merged data back to the CSV file
-    merged_data.to_csv(file_name, index=False)
+    file_exists = os.path.exists(file_name)
+    merged_data.to_csv(
+        file_name,
+        mode='a',                     # Append mode
+        index=False,                  # Don't write row numbers
+        header=not file_exists        # Write header only if file doesn't exist
+    )
+    # merged_data.to_csv(file_name, index=False)
     print(f'Merged data saved to {file_name}')
     
     
@@ -96,10 +130,10 @@ def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_
                 edge_weight_mask = torch.cat((edge_weight_mask, edge_weight_mask), dim=0).to(torch.float)
             else:
                 edge_weight_mask = torch.ones(train_edge_mask.size(1)).to(torch.float).to(train_pos.device)
-        
             adj = SparseTensor.from_edge_index(train_edge_mask, edge_weight_mask, [num_nodes, num_nodes]).to(train_pos.device)
         else:
             adj = data.adj_t 
+        
         ###################
         h = model(x, adj)
         edge = train_pos[perm].t()
@@ -230,8 +264,6 @@ def eval_mrr(y_pred_pos, y_pred_neg):
         y_pred_neg is an array with shape (batch size, num_entities_neg).
         y_pred_pos is an array with shape (batch size, )
     '''
-
-
     # calculate ranks
     y_pred_pos = y_pred_pos.view(-1, 1)
     # optimistic rank: "how many negatives have at least the positive score?"
@@ -296,6 +328,26 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     return result
 
 
+def plot_test_sequences(test_pred, test_true):
+    """
+    Plots test_pred as a line plot with transparent circles for positive and negative samples.
+    """
+    test_pred = test_pred.detach().cpu().numpy()  
+    test_true = test_true.detach().cpu().numpy()
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(test_pred, marker='o', linestyle='-', label="Prediction Score", color='#7FCA85', alpha=0.7)
+    plt.plot(test_true, marker='o', linestyle='-', label="True Score", color='#BDAED2', alpha=0.7)
+    # Color true labels (1=Positive, 0=Negative)
+
+    plt.xlabel("Sample Index")
+    plt.ylabel("Prediction Score")
+    plt.title("Test Predictions with True Labels")
+    plt.legend()
+    plt.savefig('plot_prediction.png')
+
+
+
 def get_graph_statistics(G, graph_name="Graph", perturbation="None"):
     """Calculate and return statistics of a NetworkX graph."""
     num_nodes = G.number_of_nodes()
@@ -347,31 +399,29 @@ def main():
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
-    parser.add_argument('--data_name', type=str, default='GraphType.ERDOS_RENYI')
-    parser.add_argument('--N', type=int, default=2000,  help='number of the node in synthetic graph')
-    parser.add_argument('--pr', type=float, help='percentage of perturbation of edges')
-    parser.add_argument('--p', type=float, help='probability in nx.fast_gnp_random_graph')
+    parser.add_argument('--data_name', type=str, default='RegularTilling.TRIANGULAR')
+    parser.add_argument('--N', type=str, help='number of the node in synthetic graph')
+    parser.add_argument('--pr', type=float, default=0.3, help='percentage of perturbation of edges')
     parser.add_argument('--neg_mode', type=str, default='equal')
-    parser.add_argument('--gnn_model', type=str, default='GCN')
+    parser.add_argument('--gnn_model', type=str, default='ChebGCN')
     parser.add_argument('--score_model', type=str, 
                                             default='mlp_score', 
                                             choices=['mlp_score', 'dot_product'])
-    
     ## gnn setting
-    parser.add_argument('--num_layers', type=int, default=1)
-    parser.add_argument('--num_layers_predictor', type=int, default=1)
+    parser.add_argument('--num_layers', type=int, default=3)
+    parser.add_argument('--num_layers_predictor', type=int, default=3)
     parser.add_argument('--hidden_channels', type=int, default=256)
     parser.add_argument('--gnnout_hidden_channels', type=int, default=512)
     parser.add_argument('--dropout', type=float, default=0.1)
 
     ### train setting
-    parser.add_argument('--batch_size', type=int, default=2**6)
-    parser.add_argument('--lr', type=float, default=0.01)
-    parser.add_argument('--epochs', type=int, default=9999)
-    parser.add_argument('--eval_steps', type=int, default=10)
-    parser.add_argument('--runs', type=int, default=20)
+    parser.add_argument('--batch_size', type=int, default=2**12)
+    parser.add_argument('--lr', type=float, default=0.0001)
+    parser.add_argument('--epochs', type=int, default=500)
+    parser.add_argument('--eval_steps', type=int, default=1)
+    parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--kill_cnt', dest='kill_cnt', 
-                                        default=200,    
+                                        default=20,    
                                         type=int,       
                                         help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
@@ -379,22 +429,33 @@ def main():
                                     default=0.0,			
                                     help='L2 Regularization for Optimizer')
     parser.add_argument('--seed', type=int, default=999)
+    
     parser.add_argument('--save', action='store_true', default=False)
     parser.add_argument('--use_saved_model', action='store_true', default=False)
+    # parser.add_argument('--metric', type=str, default='Hits@50')
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--log_steps', type=int, default=1)
     parser.add_argument('--use_valedges_as_input', action='store_true', default=False)
     parser.add_argument('--remove_edge_aggre', action='store_true', default=False)
     parser.add_argument('--name_tag', type=str, default='')
+    ####### gin
     parser.add_argument('--gin_mlp_layer', type=int, default=2)
+
+    ######gat
     parser.add_argument('--gat_head', type=int, default=1)
+
+    ######mf
     parser.add_argument('--cat_node_feat_mf', default=False, action='store_true')
+
+    ##### n2v
+    parser.add_argument('--cat_n2v_feat', default=False, action='store_true')
     parser.add_argument('--test_batch_size', type=int, default=1024) 
     parser.add_argument('--use_hard_negative', default=False, action='store_true')
-    
+
     args = parser.parse_args()
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
+    print('cat_n2v_feat: ', args.cat_n2v_feat)
     print('use_hard_negative: ',args.use_hard_negative)
     print(args)
 
@@ -402,7 +463,24 @@ def main():
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
-  
+    # dataset = PygLinkPropPredDataset(name=args.data_name, root=os.path.join(get_root_dir(), "dataset", args.data_name))
+    # data = dataset[0]
+
+    if args.data_name =='RegularTilling.TRIANGULAR':
+        eval_metric = 'MRR'
+        N = 4000
+    if args.data_name =='RegularTilling.HEXAGONAL':
+        eval_metric = 'MRR'
+        N = 4000
+    if args.data_name =='RegularTilling.SQUARE_GRID':
+        eval_metric = 'MRR'
+        N = 100
+    if args.data_name =='RegularTilling.KAGOME_LATTICE':
+        eval_metric = 'MRR'
+        N = 100
+    if args.N is not None:
+        N = int(args.N)
+        
     evaluator_hit = Evaluator(name='ogbl-collab')
     evaluator_mrr = Evaluator(name='ogbl-citation2')
 
@@ -418,43 +496,41 @@ def main():
         'mrr_hit50':  Logger(args.runs),
         'mrr_hit100':  Logger(args.runs),
     }
-    if args.data_name =='GraphType.BARABASI_ALBERT':
-        eval_metric = 'AUC'
-    elif args.data_name == 'GraphType.ERDOS_RENYI':
-        eval_metric = 'AUC'
     
-    seed = random.randint(1, 100)
-    
-    G = nx.fast_gnp_random_graph(args.N, args.p, seed, directed=False) 
+    G, _, _, pos = init_regular_tilling(N, eval(args.data_name), seed=None)
     
     graph_stats = get_graph_statistics(G, graph_name=args.data_name, perturbation=args.pr)
     save_graph_statistics(graph_stats)
-    pd.DataFrame([graph_stats]).to_csv(f'summary_stats.csv', index=False)
-    print(f"save to {str(args.data_name)}.csv.")
-    
+
     for key, value in graph_stats.items():
         print(f"{key}: {value}")
-    data = from_networkx(G)
-    edge_index = data.edge_index
-    node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=G.number_of_nodes(), num_iterations=100)
-    metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, G.number_of_nodes())
-    metrics.update({'data_name': str(args.p)+'_'+str(args.data_name)})
-    print(metrics)
-
-    pd.DataFrame([metrics]).to_csv(f'summary.csv', index=False)
-    print(f"save to {str(args.data_name)}.csv.")
     
-    data, split_edge, G, pos = nx2Data_split(G, None, True, 0.25, 0.5)
+    G_rewired, rewired_list = local_edge_rewiring(G, num_rewirings=int(args.pr * G.number_of_edges()), seed=None)
+    rewired_stats = get_graph_statistics(G_rewired, graph_name=args.data_name, perturbation=args.pr)
+    save_graph_statistics(rewired_stats)
+    
+    node_colors = ["gray"] * len(G_rewired.nodes())
+    highlight_nodes = rewired_list
+
+    # Set selected nodes to green
+    for i, node in enumerate(G_rewired.nodes()):
+        if node in highlight_nodes:
+            node_colors[i] = "green"
+    
+    data, split_edge, G, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
+
     for k, val in split_edge.items():
         print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
     emb = None
-
-    file_name = f'{args.gnn_model}_{args.p}_{args.data_name}test_results_0.2_0.2.csv'
 
     if hasattr(data, 'x'):
         if data.x != None:
             x = data.x
             data.x = data.x.to(torch.float)
+            if args.cat_n2v_feat:
+                print('cat n2v embedding!!')
+                n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
+                data.x = torch.cat((data.x, n2v_emb), dim=-1)
             data.x = data.x.to(device)
             input_channel = data.x.size(1)
         else:
@@ -494,13 +570,17 @@ def main():
         print(data.adj_t)
     data = data.to(device)
 
-
+    if args.gnn_model == 'MixHopGCN':
+        args.num_layers = 1
+        
     model = eval(args.gnn_model)(input_channel, args.hidden_channels,
                     args.hidden_channels, args.num_layers, args.dropout, 
                     mlp_layer=args.gin_mlp_layer, head=args.gat_head, 
                     node_num=data.num_nodes, cat_node_feat_mf=args.cat_node_feat_mf,  
                     data_name=args.data_name).to(device)
-
+    
+    if args.gnn_model == 'MixHopGCN':
+        args.hidden_channels = 3 * args.hidden_channels
     score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
                     1, args.num_layers_predictor, args.dropout).to(device)
 
@@ -520,20 +600,16 @@ def main():
     best_valid_auc = best_test_auc = 2
     best_auc_valid_str = 2
 
-    import itertools
-
     # hyperparams = {
-    #     'batch_size': [2**6, 2**7, 2**8, 2**9, 2**10, 2**11, 2**12],
-    #     'lr': [0.01, 0.001, 0.0001],
-    # }
-
-    # for batch_size, lr in itertools.product(hyperparams['batch_size'], hyperparams['lr']):
-        # args.batch_size = 2048
-        # args.lr = 0.01
+    #     'batch_size': [512],
+    #     'lr': [0.001]
+    #     }
+    args.batch_size = 512
+    args.lr = 0.001
 
     print('#################################                    #################################')
     import wandb
-    wandb.init(project=f"GRAND4_erdos_renyi_{args.gnn_model}", name=f"{args.data_name}_{args.gnn_model}_bs{args.batch_size}_lr{args.lr}_prob_{args.p}")
+    wandb.init(project=f"GRAND4_{args.data_name}_{args.gnn_model}_latest", name=f"{args.data_name}_{args.gnn_model}_bs{args.batch_size}_lr{args.lr}_perturb{args.pr}")
     wandb.config.update(args, allow_val_change=True)
     
     for run in range(args.runs):
@@ -602,16 +678,16 @@ def main():
                                 f'best test: {100*best_test_auc:.2f}%')
                 
                 print('---')
-                # if best_valid_current > best_valid:
-                #     best_valid = best_valid_current
-                #     kill_cnt = 0
-                #     if args.save: save_emb(score_emb, save_path)
-                # else:
-                #     kill_cnt += 1
+                if best_valid_current > best_valid:
+                    best_valid = best_valid_current
+                    kill_cnt = 0
+                    if args.save: save_emb(score_emb, save_path)
+                else:
+                    kill_cnt += 1
                     
-                #     if kill_cnt > args.kill_cnt: 
-                #         print("Early Stopping!!")
-                #         break
+                    if kill_cnt > args.kill_cnt: 
+                        print("Early Stopping!!")
+                        break
     wandb.finish()
                                 
     for key in loggers.keys():
@@ -623,12 +699,47 @@ def main():
             print(mean_list)
             print(var_list)
             print(test_res)
-    save_new_results(loggers, str(args.p)+'_'+str(args.data_name), args.N, file_name=file_name)
+    save_new_results(loggers, f"{args.data_name}_{args.pr}", N, file_name=f'{args.data_name}_{args.gnn_model}_test_results_0.25_0.5.csv')
+
+
+# Example usage function
+def rewiring():
+    perturb_ratio = [0, 0.1, 0.5, 0.7]
+    N = 20
+    node_size =150
+    font_size = 100
+    g_type = RegularTilling.TRIANGULAR
+    G, _, _, pos = init_regular_tilling(N, g_type, seed=None)
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    nx.draw(G, pos, node_size=node_size, font_size=font_size, node_color="gray", edge_color="gray")
+    # plt.title(f"Original Triangular {G.number_of_edges()}")
+    
+    for pr in perturb_ratio:
+        G_rewired, rewired_list = local_edge_rewiring(G, num_rewirings=int(pr * G.number_of_edges()), seed=None) # num_rewirting = int(pr * G.number_of_edges())
+
+        node_colors = ["gray"] * len(G_rewired.nodes())
+        highlight_nodes = rewired_list
+
+        # Set selected nodes to green
+        for i, node in enumerate(G_rewired.nodes()):
+            if node in highlight_nodes:
+                node_colors[i] = "green"
+
+        # Draw the rewired graph
+        
+        plt.subplot(1, 2, 2)
+        nx.draw(G_rewired, pos, node_size=node_size, font_size=font_size, node_color=node_colors, edge_color="gray")
+        # plt.title(f"Rewired Triangular {G_rewired.number_of_edges()}")
+        plt.savefig(f'rewired_{pr}.png')
+        data_rewired, split_rewired, G_rewired, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
+    
+    return data_rewired, split_rewired, G_rewired, pos
 
 
 
 if __name__ == "__main__":
-    main()
-    # for i in range(100):
-    #     data = generate_graph(10, GraphType.BARABASI_ALBERT, seed=i)
-    # rewiring()
+#     for i in range(100):
+#         data = generate_graph(10, GraphType.TREE, seed=i)
+#    rewiring()
+   main()

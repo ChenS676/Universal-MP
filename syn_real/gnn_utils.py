@@ -1,9 +1,13 @@
 import argparse
-import math
-import torch
 from pickle import FALSE
+
+import torch
+import torch.nn.functional as F
+
 from torch_sparse import SparseTensor
 import torch_geometric.transforms as T
+from torch_geometric.nn import GCNConv, SAGEConv, GINConv, GATConv
+
 # from logger import Logger
 from torch.nn import Embedding
 # from utils import init_seed, get_param
@@ -11,99 +15,7 @@ from torch.nn.init import xavier_normal_
 from torch.nn import (ModuleList, Linear, Conv1d, MaxPool1d, Embedding, ReLU, 
                       Sequential, BatchNorm1d as BN)
 from torch_geometric.nn import global_sort_pool
-from torch_geometric.nn import GCNConv, SAGEConv, GINConv, GATConv
-import torch.nn.functional as F
-from torch_geometric.nn import MixHopConv, ChebConv  # Import ChebConv
-
-
-
-class ChebGCN(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
-                 dropout, mlp_layer=None, head=None, node_num=None,  cat_node_feat_mf=False, data_name=None):
-        super(ChebGCN, self).__init__()
-
-        self.convs = torch.nn.ModuleList()
-
-        if data_name == 'ogbl-citation2':
-            if num_layers == 1:
-                self.convs.append(ChebConv(in_channels, out_channels, K=3))  # K is the order of Chebyshev polynomials
-            elif num_layers > 1:
-                self.convs.append(ChebConv(in_channels, hidden_channels, K=3))
-                for _ in range(num_layers - 2):
-                    self.convs.append(ChebConv(hidden_channels, hidden_channels, K=3))
-                self.convs.append(ChebConv(hidden_channels, out_channels, K=3))
-        else:
-            if num_layers == 1:
-                self.convs.append(ChebConv(in_channels, out_channels, K=3))
-            elif num_layers > 1:
-                self.convs.append(ChebConv(in_channels, hidden_channels, K=3))
-                for _ in range(num_layers - 2):
-                    self.convs.append(ChebConv(hidden_channels, hidden_channels, K=3))
-                self.convs.append(ChebConv(hidden_channels, out_channels, K=3))
-        self.dropout = dropout
-        self.invest = 1
-
-    def reset_parameters(self):
-        for conv in self.convs:
-            conv.reset_parameters()
-
-    def forward(self, x, adj_t):
-        if self.invest == 1:
-            print('layers in chebconv: ', len(self.convs))
-            self.invest = 0
-        s, t, edge_weight = adj_t.coo()
-        edge_index = torch.stack([s, t], dim=0)
-    
-        for conv in self.convs[:-1]:
-            x = conv(x, edge_index, edge_weight)
-            x = F.relu(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
-            
-        x = self.convs[-1](x, edge_index, edge_weight)
-        return x
-
-
-class MixHopGCN(torch.nn.Module):
-    # Not Tested
-    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
-                 dropout, mlp_layer=None, head=None, node_num=None,  cat_node_feat_mf=False, data_name=None):
-        super(MixHopGCN, self).__init__()
-
-        self.convs = torch.nn.ModuleList()
-        if data_name == 'ogbl-citation2':
-            if num_layers == 1:
-                self.convs.append(MixHopConv(in_channels, out_channels, powers=[0, 1, 2], normalize=False))
-            elif num_layers > 1:
-                self.convs.append(MixHopConv(in_channels, hidden_channels, powers=[0, 1, 2], normalize=False))
-                for _ in range(num_layers - 2):
-                    self.convs.append(MixHopConv(hidden_channels, hidden_channels, powers=[0, 1, 2], normalize=False))
-                self.convs.append(MixHopConv(hidden_channels, out_channels, powers=[0, 1, 2], normalize=False))
-        else:
-            if num_layers == 1:
-                self.convs.append(MixHopConv(in_channels, out_channels, powers=[0, 1, 2]))
-            elif num_layers > 1:
-                self.convs.append(MixHopConv(in_channels, hidden_channels, powers=[0, 1, 2], ))
-                for _ in range(num_layers - 2):
-                    self.convs.append(MixHopConv(hidden_channels, hidden_channels, powers=[0, 1, 2], ))
-                self.convs.append(MixHopConv(hidden_channels, out_channels, powers=[0, 1, 2], ))
-        self.dropout = dropout
-        self.invest = 1
-
-    def reset_parameters(self):
-        for conv in self.convs:
-            conv.reset_parameters()
-
-    def forward(self, x, adj_t):
-        if self.invest == 1:
-            print('layers in mixhop: ', len(self.convs))
-            self.invest = 0
-        for conv in self.convs[:-1]:
-            x = conv(x, adj_t)
-            x = F.relu(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.convs[-1](x, adj_t)
-        return x
-
+import math
 
 class GCN(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,

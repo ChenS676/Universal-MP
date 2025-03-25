@@ -299,6 +299,66 @@ def quasi_random_features(num_nodes, feature_dim=3, method='halton'):
     return torch.tensor(features, dtype=torch.float)
 
 
+import torch
+import numpy as np
+from collections import Counter
+from torch_geometric.utils import to_undirected
+
+def higher_order_wl(edge_index, num_nodes, k=2, num_iterations=1000):
+    """
+    Runs the Higher-Order Weisfeiler-Lehman (k-WL) test and groups nodes with similar hashed labels.
+
+    Args:
+        edge_index (Tensor): The edge index tensor (2, |E|) representing the graph.
+        num_nodes (int): The number of nodes in the graph.
+        k (int): Order of WL test (1 = standard WL, 2+ = higher-order WL).
+        num_iterations (int): Number of WL iterations.
+
+    Returns:
+        node_groups (dict): Mapping from WL hashes to node sets.
+        node_labels (Tensor): Final hashed labels for each node.
+    """
+    
+    def hash_function(vals):
+        """Simple multi-dimensional hash function."""
+        return hash(tuple(sorted(vals)))
+
+    # Initialize node labels (unique IDs)
+    node_labels = torch.arange(num_nodes, dtype=torch.long)
+
+    # Convert edge list to undirected (ensuring bidirectional links)
+    edge_index = to_undirected(edge_index)
+
+    for _ in range(num_iterations):
+        new_labels = {}
+        
+        # Iterate over nodes in k-tuples
+        for node in range(num_nodes):
+            # Get k-hop neighborhood nodes
+            neighbors = [node]
+            for _ in range(k):
+                neighbors = set(neighbors).union(edge_index[1][edge_index[0] == node].tolist())
+
+            # Collect and hash labels from neighbors
+            neighbor_labels = [node_labels[n].item() for n in neighbors]
+            new_labels[node] = hash_function([node_labels[node].item()] + neighbor_labels)
+
+        # Convert to tensor
+        new_labels = torch.tensor([new_labels[n] for n in range(num_nodes)], dtype=torch.long)
+
+        # Check for convergence (stop if labels don't change)
+        if torch.equal(new_labels, node_labels):
+            break
+        node_labels = new_labels
+
+    # Group nodes based on final hashed values
+    unique_labels, inverse_indices = torch.unique(node_labels, return_inverse=True)
+    node_groups = {label.item(): (inverse_indices == i).nonzero(as_tuple=True)[0].tolist()
+                   for i, label in enumerate(unique_labels)}
+
+    return node_groups, node_labels
+
+
 def run_wl_test_and_group_nodes(edge_index, num_nodes, num_iterations=1000):
     """
     Runs the Weisfeiler-Lehman (WL) test and groups nodes with similar hashed labels.

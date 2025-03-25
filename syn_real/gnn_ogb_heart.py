@@ -8,8 +8,10 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
 
-from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, Logger, init_seed, save_emb
-from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
+from syn_real.gnn_utils import get_root_dir, get_logger, get_config_dir, Logger, init_seed, save_emb
+from syn_real.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
+from syn_real.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
+from data_utils.data_utils import loaddataset, randomsplit
 
 # from logger import Logger
 from torch.utils.data import DataLoader
@@ -17,17 +19,21 @@ from torch_sparse import SparseTensor
 from torch_geometric.utils import to_networkx, to_undirected
 import torch_geometric.transforms as T
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
-from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
-from torch_geometric.utils import negative_sampling
 import os
-from tqdm import tqdm 
 from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
 import torch
 from torch_geometric.data import Data
-import numpy as np
 import argparse
 import matplotlib.pyplot as plt
-import seaborn as sns
+from torch_geometric.transforms import RandomLinkSplit
+import torch_geometric.transforms as T
+import scipy.sparse as sp
+from typing import Dict, Union
+from torch_geometric.utils import (to_undirected, 
+                                coalesce, 
+                                remove_self_loops,
+                                from_networkx)
+
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
@@ -44,24 +50,7 @@ def get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos
         result[f'mrr_hit{K}'] = (result_mrr_train[f'mrr_hit{K}'], result_mrr_val[f'mrr_hit{K}'], result_mrr_test[f'mrr_hit{K}'])
     return result
 
-def plot_test_sequences(test_pred, test_true):
-    """
-    Plots test_pred as a line plot with transparent circles for positive and negative samples.
-    """
-    test_pred = test_pred.detach().cpu().numpy()  
-    test_true = test_true.detach().cpu().numpy()
 
-    plt.figure(figsize=(8, 5))
-    plt.plot(test_pred, marker='o', linestyle='-', label="Prediction Score", color='#7FCA85', alpha=0.7)
-    plt.plot(test_true, marker='o', linestyle='-', label="True Score", color='#BDAED2', alpha=0.7)
-    # Color true labels (1=Positive, 0=Negative)
-
-    plt.xlabel("Sample Index")
-    plt.ylabel("Prediction Score")
-    plt.title("Test Predictions with True Labels")
-    plt.legend()
-    plt.savefig('plot_prediction.png')
-    
 def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
 
     # result_hit = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred)
@@ -262,30 +251,29 @@ def test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit
 
 
 
-def visualize_predictions(pos_train_pred, neg_train_pred, 
-                          pos_valid_pred, neg_valid_pred, 
-                          pos_test_pred, neg_test_pred):
-  
+def random_edge_split(data: Data,
+                      undirected: bool,
+                      device: Union[str, int],
+                      val_pct: float,
+                      test_pct: float,
+                      split_labels: bool,
+                      include_negatives: bool = False) -> Dict[str, Data]:
     """
-    Visualizes the distribution of positive and negative predictions for train, validation, and test sets.
+    Split the edges into train, validation, and test sets for link prediction.
     """
-    plt.figure(figsize=(15, 5))
-    
-    datasets = [(pos_train_pred, neg_train_pred, 'Train'),
-                (pos_valid_pred, neg_valid_pred, 'Validation'),
-                (pos_test_pred, neg_test_pred, 'Test')]
-    
-    for i, (pos_pred, neg_pred, title) in enumerate(datasets):
-        plt.subplot(1, 3, i + 1)
-        sns.histplot(pos_pred, bins=50, kde=True, color='#7FCA85', stat='density', label='Positive')
-        sns.histplot(neg_pred, bins=50, kde=True, color='#BDAED2', stat='density', label='Negative', alpha=0.6)
-        plt.title(f'{title} Set')
-        plt.xlabel('Prediction Score')
-        plt.ylabel('Density')
-        plt.legend()
-    
-    plt.tight_layout()
-    plt.savefig('visual_grand.png')
+    transform = T.Compose([
+        T.NormalizeFeatures(),
+        T.ToDevice(device),
+        RandomLinkSplit(is_undirected=undirected,
+                        num_val=val_pct,
+                        num_test=test_pct,
+                        add_negative_train_samples=include_negatives,
+                        split_labels=split_labels),
+    ])
+    train_data, val_data, test_data = transform(data)
+    del train_data.neg_edge_label, train_data.neg_edge_label_index
+    return {'train': train_data, 'valid': val_data, 'test': test_data}
+
     
     
 @torch.no_grad()
@@ -390,6 +378,17 @@ def main():
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     dataset = PygLinkPropPredDataset(name=args.data_name, root=DATASET_PATH) #args.data_name
+    split_edge = randomsplit(dataset,  val_ratio=0.10, test_ratio=0.2) 
+    if data.is_directed():
+        data.edge_index = to_undirected(data.edge_index)
+        undirected = True
+    data.edge_index, _ = coalesce(data.edge_index, None, num_nodes=data.num_nodes)
+    data.edge_index, _ = remove_self_loops(data.edge_index)
+    if  undirected:
+        data.edge_index = to_undirected(data.edge_index, data.edge_weight, reduce='add')[0]
+        data.edge_weight = torch.ones(data.edge_index.size(1), dtype=float)
+    data.adj_t = sp.csr_matrix((data.edge_weight.cpu(), (data.edge_index[0].cpu(), data.edge_index[1].cpu())), 
+                shape=(data.num_nodes, data.num_nodes))
 
     data = dataset[0]
     edge_index = data.edge_index
@@ -474,23 +473,21 @@ def main():
         'Hits@50': Logger(args.runs),
         'Hits@100': Logger(args.runs),
         'MRR': Logger(args.runs),
-        'AUC': Logger(args.runs),
-        'AP': Logger(args.runs),
-        'mrr_hit1':  Logger(args.runs),
-        'mrr_hit10':  Logger(args.runs),
+        'AUC':Logger(args.runs),
+        'AP':Logger(args.runs),
         'mrr_hit20':  Logger(args.runs),
         'mrr_hit50':  Logger(args.runs),
         'mrr_hit100':  Logger(args.runs),
-    } 
+    }
 
     if args.data_name =='ogbl-collab':
-        eval_metric = 'Hits@50'
+        eval_metric = 'AUC'
     elif args.data_name =='ogbl-ddi':
-        eval_metric = 'Hits@20'
+        eval_metric = 'AUC'
     elif args.data_name =='ogbl-ppa':
-        eval_metric = 'Hits@100'
+        eval_metric = 'AUC'
     elif args.data_name =='ogbl-citation2':
-        eval_metric = 'MRR'
+        eval_metric = 'AUC'
 
     if args.data_name != 'ogbl-citation2':
         pos_train_edge = split_edge['train']['edge']
@@ -631,5 +628,6 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
 
