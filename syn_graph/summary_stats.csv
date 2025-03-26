@@ -1,2 +1,2 @@
 Graph Name,Number of Nodes,Number of Edges,Density,Average Degree,Min Degree,Max Degree
-GraphType.ERDOS_RENYI_Perturbation_None,2000,1598853,0.7998264132066033,1598.853,1540,1660
+GraphType.ERDOS_RENYI_Perturbation_None,2000,199831,0.09996548274137068,199.831,158,251
