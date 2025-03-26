@@ -334,7 +334,7 @@ def init_regular_tilling(N, type=RegularTilling.SQUARE_GRID, seed=None):
     random.shuffle(nodes)
     adj_matrix = nx.to_scipy_sparse_array(G, nodes)
     plt.figure(figsize=(12, 6))
-    nx.draw(G, pos, node_size=50, font_size=10)
+    nx.draw(G, pos, node_size=20, font_size=10)
     plt.title("Original Kagome Lattice")
     plt.savefig('draw.png')
     return G, adj_matrix, type, pos

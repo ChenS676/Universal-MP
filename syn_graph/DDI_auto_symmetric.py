@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 import networkx as nx
@@ -7,6 +8,8 @@ from torch_geometric.data import Data
 from torch_geometric.utils import from_networkx, to_networkx
 import random
 from automorphism import run_wl_test_and_group_nodes, compute_automorphism_metrics
+import itertools 
+import pandas as pd
 
 # --- 1️⃣ Load Real-World Graph (Cora) ---
 def load_real_world_graph(dataset_name="Cora"):
@@ -157,34 +160,97 @@ def compute_wl_automorphism(edge_index, num_nodes, num_iterations=100):
 
 # --- 🚀 Main Execution ---
 if __name__ == "__main__":
-    dataset_name = "Cora"  # Can be changed to "Citeseer", "PubMed", etc.
-
-    # Load Real-World Graph
+    dataset_name = "Citeseer"  
+    csv_path = f'{dataset_name}_Node_Merging.csv'
+    file_exists = os.path.isfile(csv_path)
     original_data = load_real_world_graph(dataset_name)
-
-    # Visualize Original Graph
-    visualize_graph(original_data, title="Original Cora Graph")
-
-    # Generate the Modified Graph
     graph_data = create_disjoint_graph(original_data)
-
-    # Visualize Merged Graph Before Random Edge Addition
-    visualize_graph(graph_data, title="Cora Graph with Two Disjoint Copies")
-
-    # Compute Automorphism Before Adding Random Edges
     num_nodes = graph_data.num_nodes
     node_groups, node_labels = run_wl_test_and_group_nodes(graph_data.edge_index, num_nodes=num_nodes, num_iterations=30)
-    metrics, _, _ = compute_automorphism_metrics(node_groups, num_nodes)
-    
-    print(f"Automorphism fraction before adding random edges: {metrics}")
+    metrics_before, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
+    metrics_before.update({'head': f'{dataset_name}_original'})
+    df = pd.DataFrame([metrics_before])
+    df.to_csv(csv_path, mode='a', index=False, header=not file_exists)
 
-    # Add Controlled Random Edges
-    graph_data = add_random_edges(graph_data, inter_ratio=0.6, intra_ratio=0.4, total_edges=1000)
 
-    # Visualize Graph After Adding Random Edges
-    visualize_graph(graph_data, title="Cora Graph After Adding Controlled Random Edges")
+    # Visualiz  e with WL-based coloring
+    plt.figure(figsize=(6, 6))
+    G = to_networkx(graph_data, to_undirected=True)
+    nx.draw(G, node_size=20, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
+    plt.title("Graph Visualization with WL-based Node Coloring")
+    plt.savefig(f'plots/wl_test_{dataset_name}_original.png')
+    plt.figure()
+    plt.plot(group_sizes)
+    plt.savefig(f'plots/group_size_{dataset_name}.png')
+    print(f"save to group_size_{dataset_name}_original.png")
+            
+    import matplotlib.pyplot as plt
+    import networkx as nx
 
-    # Compute Automorphism After Adding Random Edges
-    node_groups, node_labels = run_wl_test_and_group_nodes(graph_data.edge_index, num_nodes=num_nodes, num_iterations=30)
-    metrics, _, _ = compute_automorphism_metrics(node_groups, num_nodes)
-    print(f"Automorphism fraction after adding random edges: {metrics}")
+    # Visualize with WL-based coloring
+    plt.figure(figsize=(6, 6))
+    G = to_networkx(graph_data, to_undirected=True)
+    nx.draw(G, node_size=20, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
+    plt.title("Graph Visualization with WL-based Node Coloring")
+    plt.savefig(f'plots/wl_test_{dataset_name}_original.png')
+
+    # Plot histogram of group_sizes
+    plt.figure(figsize=(6, 4))
+    counts, bins, patches = plt.hist(group_sizes, bins=20, edgecolor='black', alpha=0.75, density=True)
+    counts = counts * 100 * np.diff(bins)
+    plt.bar(bins[:-1], counts, width=np.diff(bins), edgecolor='black', alpha=0.75)
+
+    plt.xlabel("Group Size")
+    plt.ylabel("Frequency")
+    plt.title(f"Histogram of Group Sizes {metrics_before['A_r_norm_1']}")
+    plt.savefig(f'plots/hist_group_size_{dataset_name}.png')
+
+    print(f"Saved to plots/group_size_{dataset_name}.png")
+
+    import pdb; pdb.set_trace()
+    print(f"Automorphism fraction before adding random edges: {metrics_before}")
+    hyperparams = {
+        'inter_ratio': [0.5],
+        'intra_ratio': [0.1, 0.2, 0.3],
+        'total_edges': [10**3],
+    }
+
+    for inter_ratio, intra_ratio, total_edgeds in itertools.product(hyperparams['inter_ratio'], hyperparams['intra_ratio'], hyperparams['total_edges']):
+        inter_ratio = inter_ratio
+        intra_ratio = intra_ratio
+        total_edgeds = total_edgeds
+        graph_data = add_random_edges(graph_data, inter_ratio=inter_ratio, intra_ratio=intra_ratio, total_edges=total_edgeds)
+
+        # Compute Automorphism After Adding Random Edges
+        node_groups, node_labels = run_wl_test_and_group_nodes(graph_data.edge_index, num_nodes=num_nodes, num_iterations=30)
+        metrics_after, num_nodes, group_sizes  = compute_automorphism_metrics(node_groups, num_nodes)
+        
+        print(f"Automorphism fraction after adding random edges: {metrics_after}")
+        metrics_after.update({'head': f'{dataset_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edgeds}'})
+        df = pd.DataFrame([metrics_after])
+        df.to_csv(csv_path, mode='a', index=False, header=not file_exists)
+
+        plt.figure()
+        plt.plot(group_sizes)
+        plt.savefig(f'plots/group_size_{dataset_name}_{inter_ratio}_{intra_ratio}_{total_edgeds}.png')
+
+        # Visualiz  e with WL-based coloring
+        plt.figure(figsize=(6, 6))
+        G = to_networkx(graph_data, to_undirected=True)
+        nx.draw(G, node_size=20, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
+        plt.title("Graph Visualization with WL-based Node Coloring")
+        plt.savefig(f'plots/wl_test_{dataset_name}_{inter_ratio}_{intra_ratio}_{total_edgeds}.png')
+        plt.figure()
+        plt.plot(group_sizes)
+        plt.savefig(f'plots/group_size_{dataset_name}.png')
+
+        # Plot histogram of group_sizes
+        plt.figure(figsize=(6, 4))
+        counts, bins, patches = plt.hist(group_sizes, bins=20, edgecolor='black', alpha=0.75, density=True)
+        counts = counts * 100 * np.diff(bins)
+        plt.bar(bins[:-1], counts, width=np.diff(bins), edgecolor='black', alpha=0.75)
+
+        plt.xlabel("Group Size")
+        plt.ylabel("Frequency")
+        plt.title(f"Histogram of Group Sizes {metrics_after['A_r_norm_1']}")
+        plt.savefig(f'plots/hist_group_size_{dataset_name}_{inter_ratio}_{intra_ratio}_{total_edgeds}.png')

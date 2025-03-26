@@ -689,20 +689,20 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     pd.DataFrame([metrics]).to_csv(csv_path, mode='a', index=False, header=not file_exists)
     print(f"save to summary.csv.")
 
-    # plt.figure()
-    # plt.plot(group_sizes)
-    # plt.savefig(f'group_size_{graph_type}_{N}.png')
-    # print(f"save to group_size_{graph_type}_{N}.png.")
+    plt.figure()
+    plt.plot(group_sizes)
+    plt.savefig(f'group_size_{graph_type}_{N}.png')
+    print(f"save to group_size_{graph_type}_{N}.png.")
     
-    # # Visualiz  e with WL-based coloring
-    # plt.figure(figsize=(6, 6))
-    # nx.draw(G, pos if is_grid else None, node_size=50, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
-    # plt.title("Graph Visualization with WL-based Node Coloring")
-    # plt.savefig(f'wl_test_{graph_type}_{N}.png')
-    # plt.figure()
-    # plt.plot(group_sizes)
-    # plt.savefig(f'group_size_{graph_type}_{N}.png')
-    # print(f"save to group_size_{graph_type}_{N}.png")
+    # Visualiz  e with WL-based coloring
+    plt.figure(figsize=(6, 6))
+    nx.draw(G, pos if is_grid else None, node_size=20, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
+    plt.title("Graph Visualization with WL-based Node Coloring")
+    plt.savefig(f'wl_test_{graph_type}_{N}.png')
+    plt.figure()
+    plt.plot(group_sizes)
+    plt.savefig(f'group_size_{graph_type}_{N}.png')
+    print(f"save to group_size_{graph_type}_{N}.png")
 
 
 def process_perturbation(N, data_name):
