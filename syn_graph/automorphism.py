@@ -482,7 +482,6 @@ def compute_structural_similarity(A, k=6):
 def compute_automorphism_metrics(node_groups, num_nodes):
     """
     Computes numerical metrics for graph automorphism based on WL node grouping.
-
     Args:
         node_groups (dict): Dictionary mapping WL hash values to lists of node indices.
         num_nodes (int): Total number of nodes in the graph.
@@ -799,15 +798,11 @@ def plot_gaussian():
 
 if __name__ == "__main__":
     # DRAFT THE DATASET FROM THE SYNTHETIC GRAPH where their automophism should be 1 and for tree it should be very low
-
-
-    process_ERDOS_RENYI()
-    import pdb; pdb.set_trace()
-    process_random_regular_graph()
-
-
     test_automorphism()
     exit(-1)
+    process_ERDOS_RENYI()
+    process_random_regular_graph()
+
     N = 800
     data_name = "RegularTilling.TRIANGULAR"
     process_perturbation(N, data_name)

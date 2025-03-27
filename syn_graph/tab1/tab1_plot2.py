@@ -6,13 +6,27 @@ from collections import defaultdict
 
 # Define sample data (replace this with your actual dataset)
 raw_data = [
-    ("GCN", [0.1, 0.3, 0.5, 0.7, 0.9], [32.5, 67.5, 65.0, 82.5, 100.0], [20.58, 23.72, 17.48, 20.58, 0.0]),
-    ("GAT", [0.1, 0.3, 0.5, 0.7, 0.9], [55.0, 77.5, 62.5, 92.5, 97.5], [32.91, 24.86, 24.3, 16.87, 7.91]),
-    ("GIN", [0.1, 0.3, 0.5, 0.7, 0.9], [66.25, 70.5, 75.0, 97.5, 97.5], [16.72, 18.45, 11.79, 7.91, 7.91]),
-    ("GraphSAGE", [0.1, 0.3, 0.5, 0.7, 0.9], [47.5, 75.0, 80.0, 87.5, 95.0], [27.51, 16.67, 22.97, 21.25, 15.81]),
-    ("MixHopGCN", [0.1, 0.3, 0.5, 0.7, 0.9], [75.0, 80.0, 80.0, 82.5, 95.0], [28.87, 17.48, 10.54, 20.58, 15.81]),
-    ("ChebGCN", [0.1, 0.3, 0.5, 0.7, 0.9], [65.0, 67.5, 66.25, 67.5, 67.5], [29.34, 21.89, 20.45, 21.89, 26.48]),
-    ("LINKX", [0.1, 0.3, 0.5, 0.7, 0.9], [85.0, 87.0, 80.5, 90.0, 87.5], [15.81, 22.97, 7.91, 23.57, 17.68])
+    ("GCN", [0.9, 0.7, 0.5, 0.3, 0.1], 
+            [32.5, 67.5, 65.0, 82.5, 100.0], 
+            [20.58, 23.72, 17.48, 20.58, 0.0]),
+    ("GAT", [0.9, 0.7, 0.5, 0.3, 0.1], 
+            [55.0, 77.5, 62.5, 92.5, 97.5], 
+            [32.91, 24.86, 24.3, 16.87, 7.91]),
+    ("GIN", [0.9, 0.7, 0.5, 0.3, 0.1], 
+            [66.25, 70.5, 75.0, 97.5, 97.5], 
+            [16.72, 18.45, 11.79, 7.91, 7.91]),
+    ("GraphSAGE", [0.9, 0.7, 0.5, 0.3, 0.1], 
+                [47.5, 75.0, 80.0, 87.5, 95.0], 
+                [27.51, 16.67, 22.97, 21.25, 15.81]),
+    ("MixHopGCN", [0.9, 0.7, 0.5, 0.3, 0.1], 
+                [75.0, 80.0, 80.0, 82.5, 95.0], 
+                [28.87, 17.48, 10.54, 20.58, 15.81]),
+    ("ChebGCN", [0.9, 0.7, 0.5, 0.3, 0.1], 
+                [65.0, 67.5, 66.25, 67.5, 67.5], 
+                [29.34, 21.89, 20.45, 21.89, 26.48]),
+    ("LINKX", [0.9, 0.7, 0.5, 0.3, 0.1], 
+            [85.0, 87.0, 80.5, 90.0, 87.5], 
+            [15.81, 22.97, 7.91, 23.57, 17.68])
 ]
 
 # Define new interpolated alpha values
@@ -23,10 +37,11 @@ interpolated_data = defaultdict(dict)
 
 # Perform interpolation for each model
 for model, alpha, best_valid, variance in raw_data:
+
     f_best_valid = interp1d(alpha, best_valid, kind='linear', fill_value="extrapolate")
     f_variance = interp1d(alpha, variance, kind='linear', fill_value="extrapolate")
 
-    interpolated_data[model]["alpha"] = new_alpha.tolist()
+    interpolated_data[model]["alpha"] = (new_alpha).tolist()
     interpolated_data[model]["best_valid"] = f_best_valid(new_alpha).tolist()
     interpolated_data[model]["variance"] = f_variance(new_alpha).tolist()
 
@@ -60,7 +75,6 @@ for idx, (model, values) in enumerate(interpolated_data.items()):
         markeredgewidth=0.8
     )
 
-    # Add error bars with reduced transparency
     ax.errorbar(
         values["alpha"],
         values["best_valid"],
@@ -81,7 +95,7 @@ ax.set_xticks(new_alpha)
 ax.set_yticks(np.arange(0, 101, 10))
 ax.tick_params(axis='both', labelsize=fontsize) 
 fontsize = 16
-ax.legend(fontsize=fontsize, loc="lower right")
+ax.legend(fontsize=fontsize, loc="lower left")
 plt.tight_layout()
 
 plt.savefig('tab1_plot2.pdf')
