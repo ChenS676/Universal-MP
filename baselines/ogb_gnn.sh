@@ -34,13 +34,13 @@ echo ">>> Environment and modules are set up. <<<"
 
 # Define GNN models and hyperparameters
 gnn_models=( "GIN" "GAT") #"GCN" "SAGE" "GIN" "GAT"
-data_name="ogbl-ppa"
+data_name="ogbl-citation2"
 HIDDEN_DIM=256
 LR=0.001
 DROPOUT=0.0
 N_LAYERS=3
 N_PREDICTORS=3
-EPOCHS=2
+EPOCHS=9999
 KILL_CNT=100
 BATCH_SIZE=16384
 RUNS=2
@@ -75,4 +75,3 @@ echo ">>> All models completed successfully <<<"
 echo "Job finished at: $(date)"
 
 
-python gnn_ogb_heart.py --data_name ogbl-collab --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 3 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024

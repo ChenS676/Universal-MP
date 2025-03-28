@@ -1,0 +1,7 @@
+data_name,num_node,Metric,Best Valid,Best Valid Mean,Mean List,Variance List,Test Result
+0.1_RegularTilling.TRIANGULAR,4000,AUC,95.0 ± 10.54,95.0,"[100.0, 95.0, 50.0]","[0.0, 10.54, 35.36]",50.00 ± 35.36
+0.3_RegularTilling.TRIANGULAR,4000,AUC,90.0 ± 17.48,90.0,"[100.0, 90.0, 52.5]","[0.0, 17.48, 29.93]",52.50 ± 29.93
+0.5_RegularTilling.TRIANGULAR,4000,AUC,75.0 ± 28.87,75.0,"[100.0, 75.0, 62.5]","[0.0, 28.87, 29.46]",62.50 ± 29.46
+0.7_RegularTilling.TRIANGULAR,4000,AUC,82.5 ± 20.58,82.5,"[100.0, 82.5, 45.0]","[0.0, 20.58, 38.73]",45.00 ± 38.73
+0.9_RegularTilling.TRIANGULAR,4000,AUC,95.0 ± 15.81,95.0,"[100.0, 95.0, 12.5]","[0.0, 15.81, 17.68]",12.50 ± 17.68
+

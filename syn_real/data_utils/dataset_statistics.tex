@@ -1,0 +1,66 @@
+
+
+\section{Dataset Statistics}
+\begin{table*}[ht]
+    \centering
+    \caption{Statistics of standard benchmark graphs}
+    \begin{adjustbox}{width=\textwidth}
+    \begin{tabular}{lccccccccccc}
+        \toprule 
+        & \textbf{ogbl-ddi} & \textbf{collab} & \textbf{citation2} & \textbf{ppa} & \textbf{vessel} & \textbf{Computers} & \textbf{Photo} & \textbf{Cora} & \textbf{Citeseer} & \textbf{Pubmed} \\
+        \midrule
+        \textbf{\#Nodes $|\mathcal{V}|$} & 4267 & 235868 & 2927963 & 576289 & \textbf{3538495} & 13752 & 7650 & 2708 & 3327 & 19716 \\
+        \textbf{\#Edges $|\mathcal{E}|$} & 2135822 & 1935264 & \textbf{60703760} & 42463862 & 8553438 & 344206 & 166716 & 7392 & 6374 & 62056 \\
+        \textbf{Avg Deg (G)} & \textbf{804.51} & 24.86 & 89.75 & 149.17 & 2.70 & 114.81 & 70.66 & 7.85 & 3.62 & 11.55 \\
+        \textbf{Avg Deg (G2)} & \textbf{796} & 20.70 & 68.21 & 133.13 & 2.64 & 85.01 & 51.57 & 5.63 & 3.28 & 7.85 \\
+        \textbf{Clustering} & 0.51 & \textbf{0.73} & 0.18 & 0.22 & 0.01 & 0.24 & 0.28 & 0.12 & 0.07 & 0.03 \\
+        % \textbf{Shortest Paths} & 2.12 & \textbf{inf} & \textbf{inf} & \textbf{inf} & \textbf{inf} & \textbf{inf} & \textbf{inf} & \textbf{inf} & \textbf{inf} & \textbf{inf} \\
+        \textbf{Transitivity} & \textbf{0.47} & 0.36 & 0.06 & 0.22 & 0.02 & 0.08 & 0.12 & 0.06 & 0.09 & 0.04 \\
+        \textbf{Deg Gini} & 0.47 & 0.55 & 0.57 & 0.55 & 0.20 & 0.56 & 0.52 & 0.45 & 0.50 & \textbf{0.63} \\
+        \textbf{Coreness Gini} & 0.35 & 0.43 & 0.42 & \textbf{0.45} & 0.11 & 0.41 & 0.37 & 0.27 & 0.36 & 0.45 \\
+        \textbf{Heterogeneity} & -0.08 & 0.21 & \textbf{0.31} & 0.13 & -0.42 & 0.30 & 0.18 & 0.14 & 0.11 & 0.23 \\
+        \textbf{Power Law $\alpha$} & 1.21 & 1.89 & 1.39 & 1.33 & 1.84 & 1.37 & 1.38 & \textbf{1.89} & \textbf{2.13} & 1.97 \\
+        \bottomrule
+    \end{tabular}
+    \end{adjustbox}
+    \label{tab:graph-stats}
+\end{table*}
+
+
+\subsection{Structure Statistics}
+\label{subsec:app-dataset_statistics}
+Considerable work has demonstrated that local and global structural characterization's are more effective for LP. To translate the homophily assumption, local and global graph heuristics, small-world phenomenon, and scale-free network properties into task-specific statistics, we provided the following graph metrics. Text length and diversity are critical factors influencing the performance of a model. In this context, we present the distribution of text lengths within our dataset in Table \ref{tab:data-text}.
+
+\begin{enumerate}[left=0pt, labelsep=0.5em, itemsep=0em]
+    \item \textbf{Graph Density}: Number of Nodes, Edges, Arithmetic Deg are used to measure the graph's size, density and sparsity. Average degree of each central node $v \in \mathcal{V}$ and its of 2-order neighborhood $\mathcal{N}_{v}$' average degree measures the graph's local connectivity.
+    \item \textbf{Graph Locality}: We utilize two metrics to quantify the locality of one graph. 
+    \textit{Transitivity}: Transitivity measures the fraction of all possible triangles in the graph. It quantifies the likelihood that if two nodes are connected to a common node, they will also be connected to each other. The formula for transitivity is given by:
+    \begin{equation}
+    T = \frac{3 \times \# \text{triangles}}{\# \text{triads}}
+    \end{equation}
+    where, the numerator represents the number of triangles in the graph; the denominator represents the number of possible triads (sets of three nodes that are connected by at least two edges). Transitivity gives an overall measure of how many triangles (closed 3-node subgraphs) exist relative to the total number of possible connections between three nodes in the graph.
+    \textit{Average Clustering Coefficient}: It measures the fraction of possible triangles through that node that actually exist. It can be computed for a node $i$ as:
+    \begin{equation}
+        C_i = \frac{2 \times T(i)}{\text{deg}(i)(\text{deg}(i) - 1)}
+    \end{equation}
+    $T(i)$ is the number of triangles through node $i$ and $\text{deg}(i)$ is the degree of node $i$. The \textit{average clustering coefficient} is simply the average value of $C_i$ for all nodes in the graph. It gives a measure of how close the graph is to a complete clique, i.e., how often neighbors of a node are connected to each other.
+    \item \textbf{Hierarchical level}: We leverage k-Core graph's fraction and degree distribution to calculate Gini and Coreness Gini. 
+    \item \textbf{Scale-free}: If its node degree distribution $P(d)$ follows a power law $P(d) \sim d^{-\gamma}$, where $\gamma$ typically lies within the range $2 < \gamma < 3$. We approximate power law $\alpha$ based on the following estimator. \text{Citeseer} is scale-free networks.
+    \begin{equation}
+        \hat{\alpha} = 1 + N\left( \sum_{i=1}^{n} \log\left(\frac{d_i + 1}{d_{\min} + 1}\right) \right)^{-1}
+\end{equation}
+\end{enumerate}
+
+\subsection{Detailed Information about Datasets}
+\label{subsec:detail-dataset}
+In this work, we evaluate the performance of the models on the Link Prediction task using a diverse collection of reference datasets. Our analysis includes 10 datasets obtained from three main sources: Planetoid \cite{Sen2008CollectiveClassification}, Amazon \cite{Shchur2018Pitfalls} and OGB \cite{Hu2020OGB}. The Planetoid datasets include \textit{Cora} and \textit{PubMed}. The Amazon datasets include \textit{Photo} and \textit{Computer}. The OGB datasets include \textit{ogbl-ddi}, \textit{ogbl-ppa}, \textit{ogbl-collab}, \textit{ogbl-vessel}, \textit{ogbl-citation2}. The detailed statistics for each dataset are presented in Table\ref{tab:graph-stats}. Below are descriptions of each dataset that were used in the experiments:
+\begin{itemize}
+    \item \textbf{Cora \cite{McCallum2000}}: It consists of 2,708 scientific publications, it contains 5,429 links and each paper is either cited or referenced by at least one other paper. Each publication in the dataset is described by a 0/1-value vector indicating the absence/presence of the corresponding word in the dictionary. The dictionary consists of 1,433 unique words.
+    \item \textbf{Pubmed \cite{Sen_Namata_Bilgic_Getoor_Galligher_Eliassi-Rad_2008}}: It contains 19,717 scientific publications from the PubMed database about diabetes research. It includes a citation network with 44,338 links, where nodes represent publications and edges denote citation relationships. Each publication is characterized by a TF/IDF weighted word vector derived from a dictionary of 500 unique terms.
+    \item \textbf{Photo \cite{Shchur2018Pitfalls}}: The Amazon Photos dataset represents a collaborative shopping network, where nodes correspond to one of eight product categories, and edges indicate co-purchase relationships between products. Each node is characterized by a fixed-size object vector with 745 dimensions, which captures the relevant attributes of the corresponding product. 
+
+
+    \item \textbf{History \citep{li2024tegdb}}: The Goodread-History is a dataset in book recommendations. The Goodreads datasets are the main source. Nodes represent meta information of nodes such as types of books and reviewers, while edges indicate book reviews. Node labels are assigned based on the book categories. The descriptions of books and user information are used as book and user node textual information. The task is to predict the preference of users for products.
+
+\end{itemize}
+ 

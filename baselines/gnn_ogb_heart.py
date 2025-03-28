@@ -474,12 +474,14 @@ def main():
         'Hits@50': Logger(args.runs),
         'Hits@100': Logger(args.runs),
         'MRR': Logger(args.runs),
-        'AUC':Logger(args.runs),
-        'AP':Logger(args.runs),
+        'AUC': Logger(args.runs),
+        'AP': Logger(args.runs),
+        'mrr_hit1':  Logger(args.runs),
+        'mrr_hit10':  Logger(args.runs),
         'mrr_hit20':  Logger(args.runs),
         'mrr_hit50':  Logger(args.runs),
         'mrr_hit100':  Logger(args.runs),
-    }
+    } 
 
     if args.data_name =='ogbl-collab':
         eval_metric = 'Hits@50'
@@ -629,6 +631,5 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()
 

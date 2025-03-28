@@ -369,7 +369,7 @@ def main():
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--epochs', type=int, default=9999)
     parser.add_argument('--eval_steps', type=int, default=10)
-    parser.add_argument('--runs', type=int, default=10)
+    parser.add_argument('--runs', type=int, default=20)
     parser.add_argument('--kill_cnt', dest='kill_cnt', 
                                         default=200,    
                                         type=int,       
@@ -528,8 +528,8 @@ def main():
     # }
 
     # for batch_size, lr in itertools.product(hyperparams['batch_size'], hyperparams['lr']):
-    args.batch_size = 2048
-    args.lr = 0.01
+        # args.batch_size = 2048
+        # args.lr = 0.01
 
     print('#################################                    #################################')
     import wandb

@@ -1,0 +1,6 @@
+Automorphism Ratio (A_r1),A_r_norm_2,A_r_norm_1,Number of Unique Groups (C_auto),Automorphism Ratio (A_r_log),num_nodes,automorphism_score,head
+0.0014132252198556304,0.6375377805233465,0.2750755610466932,3871,-0.7249244389533069,8534,0.5464026247949378,ogbl-ddi_original
+Automorphism Ratio (A_r1),A_r_norm_2,A_r_norm_1,Number of Unique Groups (C_auto),Automorphism Ratio (A_r_log),num_nodes,automorphism_score,head
+0.0007415985982317302,0.6019194130120206,0.20383882602404124,7833,-0.7961611739759589,8534,0.08214202015467542,ogbl-ddi_inter0.5_intra0.5_edges1000
+Automorphism Ratio (A_r1),A_r_norm_2,A_r_norm_1,Number of Unique Groups (C_auto),Automorphism Ratio (A_r_log),num_nodes,automorphism_score,head
+0.00022669492421414304,0.5364517052748119,0.07290341054962379,8308,-0.9270965894503762,8534,0.026482306069838257,ogbl-ddi_inter0.5_intra0.5_edges10000
