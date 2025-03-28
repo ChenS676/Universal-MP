@@ -36,26 +36,23 @@ def load_real_world_graph(dataset_name="Cora"):
 def create_disjoint_graph(data):
     """
     Creates two disjoint copies of a real-world graph (e.g., Cora).
-
     Args:
         data (Data): PyG Data object representing the original graph.
-
     Returns:
         Data: PyG Data object representing the new merged graph.
     """
     num_nodes = data.num_nodes
-
-    # Convert PyG data to NetworkX graph
     G = to_networkx(data, to_undirected=True)
-
-    # Create second copy with relabeled nodes
     G2 = nx.relabel_nodes(G, lambda x: x + num_nodes)
-
-    # Merge both graphs
     merged_graph = nx.compose(G, G2)
     merged_edge_index = torch.tensor(list(merged_graph.edges)).T
 
-    return Data(edge_index=merged_edge_index, num_nodes=2 * num_nodes)
+    if hasattr(data, "x") and data.x is not None:
+        merged_x = torch.cat([data.x, data.x], dim=0)
+    merged_data = Data(edge_index=merged_edge_index, num_nodes=2 * num_nodes)
+    if hasattr(data, "x") and data.x is not None:
+        merged_data.x = merged_x  
+    return merged_data
 
 
 # --- 3️⃣ Add Controllable Random Edges ---
@@ -118,54 +115,10 @@ def visualize_graph(data, title="Graph Visualization"):
     plt.savefig(title)
 
 
-# --- 5️⃣ Compute Automorphism Fraction (Using WL-1) ---
-def compute_wl_automorphism(edge_index, num_nodes, num_iterations=100):
-    """
-    Runs the 1-WL test to compute the fraction of automorphic nodes.
-
-    Args:
-        edge_index (Tensor): The edge index tensor representing the graph.
-        num_nodes (int): Number of nodes in the graph.
-        num_iterations (int): Number of WL iterations.
-
-    Returns:
-        float: The fraction of nodes that are automorphic.
-    """
-    from collections import Counter
-
-    # Initialize node labels as unique IDs
-    node_labels = torch.arange(num_nodes, dtype=torch.long)
-
-    for _ in range(num_iterations):
-        new_labels = {}
-        for node in range(num_nodes):
-            # Get neighbors
-            neighbors = edge_index[1][edge_index[0] == node]
-            neighbor_labels = [node_labels[n].item() for n in neighbors]
-            new_labels[node] = hash(tuple(sorted([node_labels[node].item()] + neighbor_labels)))
-
-        # Convert to tensor
-        new_labels = torch.tensor([new_labels[n] for n in range(num_nodes)], dtype=torch.long)
-
-        # Stop if labels don't change
-        if torch.equal(new_labels, node_labels):
-            break
-
-        node_labels = new_labels
-
-    # Count occurrences of each label
-    label_counts = Counter(node_labels.tolist())
-
-    # Compute automorphic fraction
-    num_automorphic_nodes = sum(count for count in label_counts.values() if count > 1)
-    automorphism_fraction = num_automorphic_nodes / num_nodes
-
-    return automorphism_fraction
-
 
 # --- 🚀 Main Execution ---
 if __name__ == "__main__":
-    dataset_name = "Citeseer"   #ogbl-ddi
+    dataset_name = "CiteSeer"   #ogbl-ddi
 
     if os.path.exists(f'plots/{dataset_name}') == False:
         os.makedirs(f'plots/{dataset_name}')
@@ -173,6 +126,7 @@ if __name__ == "__main__":
     csv_path = f'plots/{dataset_name}/_Node_Merging.csv'
     file_exists = os.path.isfile(csv_path)
     original_data = load_real_world_graph(dataset_name)
+
     graph_data = create_disjoint_graph(original_data)
     num_nodes = graph_data.num_nodes
     node_groups, node_labels = run_wl_test_and_group_nodes(graph_data.edge_index, num_nodes=num_nodes, num_iterations=30)
@@ -184,19 +138,32 @@ if __name__ == "__main__":
     plt.figure(figsize=(6, 6))
     G = to_networkx(graph_data, to_undirected=True)
     nx.draw(G, node_size=20, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
-    plt.title("Graph Visualization with WL-based Node Coloring")
+    plt.title(f"WL-based Node Coloring {metrics_before['A_r_norm_1'], metrics_before['automorphism_score']}")
     plt.savefig(f'plots/{dataset_name}/wl_test_{dataset_name}_original.png')
+    
     plt.figure()
     plt.plot(group_sizes)
+    plt.xscale('log')
+    plt.yscale('log') 
     plt.savefig(f'plots/{dataset_name}/group_size_{dataset_name}.png')
     print(f"save to group_size_{dataset_name}_original.png")
-        
+    # plot log log
 
-    plt.figure(figsize=(6, 6))
+    # Convert graph to NetworkX and plot
     G = to_networkx(graph_data, to_undirected=True)
     nx.draw(G, node_size=20, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
     plt.title("Graph Visualization with WL-based Node Coloring")
     plt.savefig(f'plots/{dataset_name}/wl_test_{dataset_name}_original.png')
+
+    # Plot group sizes with log-log scaling
+    plt.figure()
+    plt.plot(group_sizes)
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel("Group Index (log scale)")
+    plt.ylabel("Group Size (log scale)")
+    plt.title("Group Size Distribution (Log-Log Scale)")
+    plt.savefig(f'plots/{dataset_name}/group_size_{dataset_name}.png')
 
 
     # Plot histogram of group_sizes
@@ -213,11 +180,12 @@ if __name__ == "__main__":
     print(f"Automorphism fraction before adding random edges: {metrics_before}")
     
     hyperparams = {
-        'inter_ratio': [0.5],
-        'intra_ratio': [0.5], #0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9
-        'total_edges': [10**3, 10**4, 10**5],
+        'inter_ratio': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+        'intra_ratio': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9], #0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9
+        'total_edges': [1000, 2000, 3000, 4000, 5000],
     }
 
+    # TODO - Add Random Edges and Compute Automorphism
     for inter_ratio, intra_ratio, total_edgeds in itertools.product(hyperparams['inter_ratio'], hyperparams['intra_ratio'], hyperparams['total_edges']):
         inter_ratio = inter_ratio
         intra_ratio = intra_ratio

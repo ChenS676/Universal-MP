@@ -14,6 +14,9 @@ from syn_real.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
 from data_utils.data_utils import loaddataset, randomsplit
 
 # from logger import Logger
+
+
+
 from torch.utils.data import DataLoader
 from torch_sparse import SparseTensor
 from torch_geometric.utils import to_networkx, to_undirected
@@ -39,16 +42,6 @@ dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 DATASET_PATH = '/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines/dataset'
 
-def get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
-    k_list = [1, 10, 20, 50, 100]
-    result = {}
-    result_mrr_train = evaluate_mrr( evaluator_mrr,  pos_train_pred, neg_val_pred)
-    result_mrr_val = evaluate_mrr( evaluator_mrr, pos_val_pred, neg_val_pred )
-    result_mrr_test = evaluate_mrr( evaluator_mrr, pos_test_pred, neg_test_pred )
-    result['MRR'] = (result_mrr_train['MRR'], result_mrr_val['MRR'], result_mrr_test['MRR'])
-    for K in k_list:
-        result[f'mrr_hit{K}'] = (result_mrr_train[f'mrr_hit{K}'], result_mrr_val[f'mrr_hit{K}'], result_mrr_test[f'mrr_hit{K}'])
-    return result
 
 
 def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
@@ -219,37 +212,6 @@ def test_edge(score_func, input_data, h, batch_size, mrr_mode=False, negative_da
     return pred_all
 
 
-@torch.no_grad()
-def test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size):
-    model.eval()
-    score_func.eval()
-    train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
-    if emb == None: x = data.x
-    else: x = emb.weight
-    h = model(x, data.adj_t.to(x.device))
-    x1 = h
-    x2 = torch.tensor(1)
-    # print(h[0][:10])
-    train_val_edge = train_val_edge.to(x.device)
-    pos_valid_edge = pos_valid_edge.to(x.device) 
-    neg_valid_edge = neg_valid_edge.to(x.device)
-    pos_test_edge = pos_test_edge.to(x.device) 
-    neg_test_edge = neg_test_edge.to(x.device)
-    neg_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size, mrr_mode=True, negative_data=neg_valid_edge)
-    pos_valid_pred = test_edge(score_func, pos_valid_edge, h, batch_size)
-    pos_test_pred = test_edge(score_func, pos_test_edge, h, batch_size)
-    neg_test_pred = test_edge(score_func, pos_test_edge, h, batch_size, mrr_mode=True, negative_data=neg_test_edge)
-    pos_train_pred = test_edge(score_func, train_val_edge, h, batch_size)
-    pos_valid_pred = pos_valid_pred.view(-1)
-    pos_test_pred =pos_test_pred.view(-1)
-    pos_train_pred = pos_valid_pred.view(-1)
-    print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
-    
-    result = get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
-    score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x1.cpu(), x2.cpu()]
-    return result, score_emb
-
-
 
 def random_edge_split(data: Data,
                       undirected: bool,
@@ -331,7 +293,6 @@ def main():
     parser.add_argument('--hidden_channels', type=int, default=256)
     parser.add_argument('--gnnout_hidden_channels', type=int, default=512)
     parser.add_argument('--dropout', type=float, default=0.1)
-
 
     ### train setting
     parser.add_argument('--batch_size', type=int, default=16384)
