@@ -1,3 +1,9 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import io
+
+# Data provided
+data = """
 Automorphism Ratio (A_r1),A_r_norm_2,A_r_norm_1,Number of Unique Groups (C_auto),Automorphism Ratio (A_r_log),num_nodes,automorphism_score,head
 0.0014132252198556304,0.6375377805233465,0.2750755610466932,3871,-0.7249244389533069,8534,0.5464026247949378,ogbl-ddi_original
 0.0007564003625141557,0.6030110557016604,0.20602211140332094,7836,-0.7939778885966792,8534,0.08179048511835008,ogbl-ddi_inter0.5_intra0.5_edges1000
@@ -24,4 +30,26 @@ Automorphism Ratio (A_r1),A_r_norm_2,A_r_norm_1,Number of Unique Groups (C_auto)
 0.000259017144177807,0.5438142678373743,0.0876285356747486,8248,-0.9123714643252514,8534,0.03351300679634406,ogbl-ddi_inter0.5_intra0.9_edges1000
 0.0007564003625141557,0.6030110557016604,0.20602211140332094,7836,-0.7939778885966792,8534,0.08179048511835008,ogbl-ddi_inter0.5_intra0.5_edges1000
 0.00020318785514966011,0.5304046174803541,0.060809234960708336,8326,-0.9391907650392919,8534,0.024373095851886517,ogbl-ddi_inter0.5_intra0.5_edges10000
-0.00011717834544176236,0.5,0.0,8534,-1.0,8534,0.0,ogbl-ddi_inter0.5_intra0.5_edges100000
+0.00011717834544176236,0.5,0.0,8534,-1.0,8534,0.0,ogbl-ddi_inter0.5_intra0.5_edges100000"""
+
+# Convert data to DataFrame
+df = pd.read_csv(io.StringIO(data))
+
+# Extract inter, intra, and edges from 'head' column
+df[['inter', 'intra', 'edges']] = df['head'].str.extract(r'inter(\d\.\d+)_intra(\d\.\d+)_edges(\d+)').astype(float)
+
+# Define scatter plot function
+def scatter_plot(x_var, y_var='automorphism_score', color='b'):
+    plt.figure(figsize=(8, 6))
+    plt.scatter(df[x_var], df[y_var], alpha=0.7, color=color)
+    plt.xlabel(x_var)
+    plt.ylabel(y_var)
+    plt.title(f'Scatter Plot of {y_var} vs {x_var}')
+    plt.grid(True)
+    import random 
+    plt.savefig(f'scatter_plot_ddi_{random.randint(0, 10)}.png')
+
+# Generate scatter plots
+scatter_plot('inter', color='blue')  # Inter vs Automorphism Score
+scatter_plot('intra', color='red')   # Intra vs Automorphism Score
+scatter_plot('edges', color='green') # Number of Edges vs Automorphism Score

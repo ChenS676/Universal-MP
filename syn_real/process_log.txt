@@ -1,0 +1,19 @@
+Running with inter_ratio=0.1, intra_ratio=0.1, total_edges=1000
+/home/hk-project-test-p0021478/cc7738/anaconda3/envs/EAsF/lib/python3.10/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(data_name='CiteSeer', neg_mode='equal', gnn_model='GCN', score_model='mlp_score', num_layers=3, num_layers_predictor=3, hidden_channels=256, gnnout_hidden_channels=512, dropout=0.1, batch_size=16384, lr=0.001, epochs=10, eval_steps=1, runs=2, kill_cnt=20, output_dir='output_test', l2=0.0, seed=999, save=False, use_saved_model=False, device=0, log_steps=1, use_valedges_as_input=False, remove_edge_aggre=False, name_tag='', gin_mlp_layer=2, gat_head=1, cat_node_feat_mf=False, cat_n2v_feat=False, test_batch_size=65536, use_hard_negative=False, inter_ratio=0.1, intra_ratio=0.1, total_edges=1000)
+   Automorphism Ratio (A_r1)  A_r_norm_2  A_r_norm_1  Number of Unique Groups (C_auto)  Automorphism Ratio (A_r_log)  num_nodes  automorphism_score               head
+0                   0.181174     0.90297    0.805941                               658                     -0.194059       6654            0.901112  CiteSeer_original
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': np.float64(0.18117407745591285), 'A_r_norm_2': np.float64(0.9029704585370183), 'A_r_norm_1': np.float64(0.8059409170740368), 'Number of Unique Groups (C_auto)': 658, 'Automorphism Ratio (A_r_log)': np.float64(-0.19405908292596336), 'num_nodes': 6654, 'automorphism_score': 0.9011121130147279, 'head': 'CiteSeer_original'}
+Started with inter_ratio=0.1, intra_ratio=0.1, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.1_intra0.1_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': np.float64(0.12807426987741993), 'A_r_norm_2': np.float64(0.8832698428518094), 'A_r_norm_1': np.float64(0.766539685703619), 'Number of Unique Groups (C_auto)': 1848, 'Automorphism Ratio (A_r_log)': np.float64(-0.23346031429638117), 'num_nodes': 6654, 'automorphism_score': 0.7222723174030659, 'head': 'CiteSeer_inter0.1_intra0.1_edges1000'}
+Finished with inter_ratio=0.1, intra_ratio=0.1, total_edges=1000
+Finished with inter_ratio=0.1, intra_ratio=0.1, total_edges=1000
+Running with inter_ratio=0.1, intra_ratio=0.1, total_edges=2000
+/home/hk-project-test-p0021478/cc7738/anaconda3/envs/EAsF/lib/python3.10/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "

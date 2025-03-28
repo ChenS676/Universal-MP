@@ -27,13 +27,7 @@ from ogb.linkproppred import PygLinkPropPredDataset
 from baselines.gnn_utils import (
     get_root_dir
 )
-from syn_random import (
-    init_regular_tilling, 
-    RegularTilling, 
-    local_edge_rewiring, 
-    nx2Data_split
-)
-from graph_generation import generate_graph, GraphType
+
 import numpy as np
 import matplotlib.pyplot as plt
 from torch_geometric.datasets import Planetoid, Amazon
