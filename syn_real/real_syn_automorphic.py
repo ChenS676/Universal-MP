@@ -31,7 +31,7 @@ from syn_real.gnn_utils import (
 )
 import matplotlib.pyplot as plt
 import networkx as nx
-from torch_geometric.utils import to_networkx
+
 from gnn_ogb_heart import init_seed
 from torch_geometric.utils import train_test_split_edges, to_undirected
 import copy
@@ -44,6 +44,7 @@ from torch_geometric.datasets import Planetoid
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from graphgps.utility.utils import mvari_str2csv
 from torch.utils.data import DataLoader
+from syn_real_generator import extract_induced_subgraph, use_lcc
 
 # python real_syn_automorphic.py --data_name Citeseer --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024 
 # python real_syn_automorphic.py --data_name Cora --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024 
@@ -67,10 +68,15 @@ def load_real_world_graph(dataset_name="Cora"):
         Data: PyTorch Geometric Data object.
     """
     if dataset_name in ['Cora', 'Citeseer', 'PubMed']:
+    if dataset_name in ['Cora', 'Citeseer', 'PubMed']:
         dataset = Planetoid(root='/tmp/' + dataset_name, name=dataset_name)
+        data = dataset[0]  
     elif dataset_name.startswith('ogbl'):
-        dataset = PygLinkPropPredDataset(name=dataset_name, root='/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/syn_graph/dataset/')
-    data = dataset[0]  
+        data = extract_induced_subgraph()
+        print(f"before data {data}")
+        # dataset = PygLinkPropPredDataset(name=dataset_name, root='/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-MP/syn_graph/dataset/')
+        data, lcc_index, G = use_lcc(data)
+        print(f"after lcc {data}")
     return data
 
 
@@ -87,7 +93,7 @@ def create_disjoint_graph(data):
     G = to_networkx(data, to_undirected=True)
     G2 = nx.relabel_nodes(G, lambda x: x + num_nodes)
     merged_graph = nx.compose(G, G2)
-    merged_edge_index = torch.tensor(list(merged_graph.edges)).T
+    merged_edge_index = torch.tensor(list(merged_graph.edges)).mT
 
     if hasattr(data, "x") and data.x is not None:
         merged_x = torch.cat([data.x, data.x], dim=0)
@@ -180,7 +186,7 @@ def plot_histogram_group_size(group_sizes, metrics_before, args):
     plt.savefig(save_path)
     plt.close()
     print(f"Saved to {save_path}")
-    print(f"Automorphism fraction before adding random edges: {metrics_before}")
+    # print(f"Automorphism fraction before adding random edges: {metrics_before}")
 
 
 
@@ -215,7 +221,6 @@ def plot_histogram_group_size_log_scale(group_sizes, metrics_before, args, save_
     counts, bins, _ = plt.hist(group_sizes, bins=20, edgecolor='black', alpha=0.75, density=True)
     counts = counts * 100 * np.diff(bins)
     plt.bar(bins[:-1], counts, width=np.diff(bins), edgecolor='black', alpha=0.75)
-    plt.xscale('log') 
     plt.yscale('log') 
     plt.xlabel("Group Size (log scale)")
     plt.ylabel("Frequency (log scale)")
@@ -228,6 +233,7 @@ def plot_histogram_group_size_log_scale(group_sizes, metrics_before, args, save_
     
 def parse_args():
     parser = argparse.ArgumentParser(description='homo')
+    parser.add_argument('--data_name', type=str, default="ogbl-ddi")
     parser.add_argument('--data_name', type=str, default="ogbl-ddi")
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')

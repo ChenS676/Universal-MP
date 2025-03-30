@@ -1,19 +1,1152 @@
-Running with inter_ratio=0.1, intra_ratio=0.1, total_edges=1000
-/home/hk-project-test-p0021478/cc7738/anaconda3/envs/EAsF/lib/python3.10/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+Running with inter_ratio=0.9, intra_ratio=0.1, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
   warnings.warn("Please install 'pytorch_lightning' via  "
 cat_node_feat_mf:  False
 use_val_edge: False
 use_hard_negative:  False
-Namespace(data_name='CiteSeer', neg_mode='equal', gnn_model='GCN', score_model='mlp_score', num_layers=3, num_layers_predictor=3, hidden_channels=256, gnnout_hidden_channels=512, dropout=0.1, batch_size=16384, lr=0.001, epochs=10, eval_steps=1, runs=2, kill_cnt=20, output_dir='output_test', l2=0.0, seed=999, save=False, use_saved_model=False, device=0, log_steps=1, use_valedges_as_input=False, remove_edge_aggre=False, name_tag='', gin_mlp_layer=2, gat_head=1, cat_node_feat_mf=False, cat_n2v_feat=False, test_batch_size=65536, use_hard_negative=False, inter_ratio=0.1, intra_ratio=0.1, total_edges=1000)
-   Automorphism Ratio (A_r1)  A_r_norm_2  A_r_norm_1  Number of Unique Groups (C_auto)  Automorphism Ratio (A_r_log)  num_nodes  automorphism_score               head
-0                   0.181174     0.90297    0.805941                               658                     -0.194059       6654            0.901112  CiteSeer_original
-Saved to plots/CiteSeer/hist_group_size_log_CiteSeer.png
-Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': np.float64(0.18117407745591285), 'A_r_norm_2': np.float64(0.9029704585370183), 'A_r_norm_1': np.float64(0.8059409170740368), 'Number of Unique Groups (C_auto)': 658, 'Automorphism Ratio (A_r_log)': np.float64(-0.19405908292596336), 'num_nodes': 6654, 'automorphism_score': 0.9011121130147279, 'head': 'CiteSeer_original'}
-Started with inter_ratio=0.1, intra_ratio=0.1, total_edges=1000
-Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.1_intra0.1_edges1000.png
-Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': np.float64(0.12807426987741993), 'A_r_norm_2': np.float64(0.8832698428518094), 'A_r_norm_1': np.float64(0.766539685703619), 'Number of Unique Groups (C_auto)': 1848, 'Automorphism Ratio (A_r_log)': np.float64(-0.23346031429638117), 'num_nodes': 6654, 'automorphism_score': 0.7222723174030659, 'head': 'CiteSeer_inter0.1_intra0.1_edges1000'}
-Finished with inter_ratio=0.1, intra_ratio=0.1, total_edges=1000
-Finished with inter_ratio=0.1, intra_ratio=0.1, total_edges=1000
-Running with inter_ratio=0.1, intra_ratio=0.1, total_edges=2000
-/home/hk-project-test-p0021478/cc7738/anaconda3/envs/EAsF/lib/python3.10/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.1, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.1, intra_ratio=0.9, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.1_intra0.9_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.04608594020252547, 'A_r_norm_2': 0.8252154584222864, 'A_r_norm_1': 0.6504309168445728, 'Number of Unique Groups (C_auto)': 3837, 'Automorphism Ratio (A_r_log)': -0.34956908315542684, 'num_nodes': 6654, 'automorphism_score': 0.4233543733092876, 'head': 'CiteSeer_inter0.1_intra0.9_edges4000'}
+Finished with inter_ratio=0.1, intra_ratio=0.9, total_edges=4000
+Finished with inter_ratio=0.1, intra_ratio=0.9, total_edges=4000
+Running with inter_ratio=0.1, intra_ratio=0.9, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
   warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.1, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.1_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.1341412073381264, 'A_r_norm_2': 0.8858986535812274, 'A_r_norm_1': 0.7717973071624551, 'Number of Unique Groups (C_auto)': 1646, 'Automorphism Ratio (A_r_log)': -0.2282026928375448, 'num_nodes': 6654, 'automorphism_score': 0.7526299969942891, 'head': 'CiteSeer_inter0.9_intra0.1_edges1000'}
+Finished with inter_ratio=0.9, intra_ratio=0.1, total_edges=1000
+Finished with inter_ratio=0.9, intra_ratio=0.1, total_edges=1000
+Running with inter_ratio=0.9, intra_ratio=0.1, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.1, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.1, intra_ratio=0.9, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.1_intra0.9_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.03319472010345355, 'A_r_norm_2': 0.8065787392446081, 'A_r_norm_1': 0.6131574784892164, 'Number of Unique Groups (C_auto)': 4358, 'Automorphism Ratio (A_r_log)': -0.3868425215107833, 'num_nodes': 6654, 'automorphism_score': 0.34505560565073645, 'head': 'CiteSeer_inter0.1_intra0.9_edges5000'}
+Finished with inter_ratio=0.1, intra_ratio=0.9, total_edges=5000
+Finished with inter_ratio=0.1, intra_ratio=0.9, total_edges=5000
+Running with inter_ratio=0.2, intra_ratio=0.1, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.1, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.1_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.10407393524703248, 'A_r_norm_2': 0.8714835545202056, 'A_r_norm_1': 0.7429671090404113, 'Number of Unique Groups (C_auto)': 2092, 'Automorphism Ratio (A_r_log)': -0.25703289095958826, 'num_nodes': 6654, 'automorphism_score': 0.6856026450255486, 'head': 'CiteSeer_inter0.9_intra0.1_edges2000'}
+Finished with inter_ratio=0.9, intra_ratio=0.1, total_edges=2000
+Finished with inter_ratio=0.9, intra_ratio=0.1, total_edges=2000
+Running with inter_ratio=0.9, intra_ratio=0.1, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.1, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.1_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.12935171957467612, 'A_r_norm_2': 0.883833565637828, 'A_r_norm_1': 0.7676671312756562, 'Number of Unique Groups (C_auto)': 1842, 'Automorphism Ratio (A_r_log)': -0.23233286872434364, 'num_nodes': 6654, 'automorphism_score': 0.7231740306582507, 'head': 'CiteSeer_inter0.2_intra0.1_edges1000'}
+Finished with inter_ratio=0.2, intra_ratio=0.1, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.1, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.1_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.08637050612575074, 'A_r_norm_2': 0.8608930813084945, 'A_r_norm_1': 0.7217861626169891, 'Number of Unique Groups (C_auto)': 2431, 'Automorphism Ratio (A_r_log)': -0.2782138373830105, 'num_nodes': 6654, 'automorphism_score': 0.6346558461076044, 'head': 'CiteSeer_inter0.9_intra0.1_edges3000'}
+Finished with inter_ratio=0.9, intra_ratio=0.1, total_edges=3000
+Finished with inter_ratio=0.9, intra_ratio=0.1, total_edges=3000
+Running with inter_ratio=0.9, intra_ratio=0.1, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.1, total_edges=1000
+Running with inter_ratio=0.2, intra_ratio=0.1, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.1, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.1_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.07237710170514239, 'A_r_norm_2': 0.8508535032305226, 'A_r_norm_1': 0.7017070064610453, 'Number of Unique Groups (C_auto)': 2746, 'Automorphism Ratio (A_r_log)': -0.2982929935389545, 'num_nodes': 6654, 'automorphism_score': 0.5873159002103998, 'head': 'CiteSeer_inter0.9_intra0.1_edges4000'}
+Finished with inter_ratio=0.9, intra_ratio=0.1, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.1, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.1_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.09171637111413398, 'A_r_norm_2': 0.8643041241470466, 'A_r_norm_1': 0.7286082482940934, 'Number of Unique Groups (C_auto)': 2485, 'Automorphism Ratio (A_r_log)': -0.27139175170590635, 'num_nodes': 6654, 'automorphism_score': 0.6265404268109408, 'head': 'CiteSeer_inter0.2_intra0.1_edges2000'}
+Finished with inter_ratio=0.2, intra_ratio=0.1, total_edges=2000
+Finished with inter_ratio=0.9, intra_ratio=0.1, total_edges=4000
+Running with inter_ratio=0.9, intra_ratio=0.1, total_edges=5000
+Finished with inter_ratio=0.2, intra_ratio=0.1, total_edges=2000
+Running with inter_ratio=0.2, intra_ratio=0.1, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.1, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.1_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.060637212507190175, 'A_r_norm_2': 0.8408011497240534, 'A_r_norm_1': 0.6816022994481068, 'Number of Unique Groups (C_auto)': 3067, 'Automorphism Ratio (A_r_log)': -0.3183977005518928, 'num_nodes': 6654, 'automorphism_score': 0.5390742410580103, 'head': 'CiteSeer_inter0.9_intra0.1_edges5000'}
+Finished with inter_ratio=0.9, intra_ratio=0.1, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.1, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.1_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.06505403548979309, 'A_r_norm_2': 0.8447946564482697, 'A_r_norm_1': 0.6895893128965394, 'Number of Unique Groups (C_auto)': 3175, 'Automorphism Ratio (A_r_log)': -0.3104106871034603, 'num_nodes': 6654, 'automorphism_score': 0.5228434024646829, 'head': 'CiteSeer_inter0.2_intra0.1_edges3000'}
+Finished with inter_ratio=0.2, intra_ratio=0.1, total_edges=3000
+Finished with inter_ratio=0.9, intra_ratio=0.1, total_edges=5000
+Running with inter_ratio=0.9, intra_ratio=0.2, total_edges=1000
+Finished with inter_ratio=0.2, intra_ratio=0.1, total_edges=3000
+Running with inter_ratio=0.2, intra_ratio=0.1, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.2, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.2, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.2_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.1341412073381264, 'A_r_norm_2': 0.8858986535812274, 'A_r_norm_1': 0.7717973071624551, 'Number of Unique Groups (C_auto)': 1646, 'Automorphism Ratio (A_r_log)': -0.2282026928375448, 'num_nodes': 6654, 'automorphism_score': 0.7526299969942891, 'head': 'CiteSeer_inter0.9_intra0.2_edges1000'}
+Finished with inter_ratio=0.9, intra_ratio=0.2, total_edges=1000
+Finished with inter_ratio=0.9, intra_ratio=0.2, total_edges=1000
+Running with inter_ratio=0.9, intra_ratio=0.2, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.1, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.1_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.046532595881679246, 'A_r_norm_2': 0.8257632923469703, 'A_r_norm_1': 0.6515265846939408, 'Number of Unique Groups (C_auto)': 3774, 'Automorphism Ratio (A_r_log)': -0.3484734153060589, 'num_nodes': 6654, 'automorphism_score': 0.43282236248872863, 'head': 'CiteSeer_inter0.2_intra0.1_edges4000'}
+Finished with inter_ratio=0.2, intra_ratio=0.1, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.1, total_edges=4000
+Running with inter_ratio=0.2, intra_ratio=0.1, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.2, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.2, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.2_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.10407393524703248, 'A_r_norm_2': 0.8714835545202056, 'A_r_norm_1': 0.7429671090404113, 'Number of Unique Groups (C_auto)': 2092, 'Automorphism Ratio (A_r_log)': -0.25703289095958826, 'num_nodes': 6654, 'automorphism_score': 0.6856026450255486, 'head': 'CiteSeer_inter0.9_intra0.2_edges2000'}
+Finished with inter_ratio=0.9, intra_ratio=0.2, total_edges=2000
+Finished with inter_ratio=0.9, intra_ratio=0.2, total_edges=2000
+Running with inter_ratio=0.9, intra_ratio=0.2, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.1, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.1_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.03406725257701084, 'A_r_norm_2': 0.8080524320694539, 'A_r_norm_1': 0.616104864138908, 'Number of Unique Groups (C_auto)': 4301, 'Automorphism Ratio (A_r_log)': -0.3838951358610919, 'num_nodes': 6654, 'automorphism_score': 0.3536218815749925, 'head': 'CiteSeer_inter0.2_intra0.1_edges5000'}
+Finished with inter_ratio=0.2, intra_ratio=0.1, total_edges=5000
+Finished with inter_ratio=0.2, intra_ratio=0.1, total_edges=5000
+Running with inter_ratio=0.2, intra_ratio=0.2, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.2, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.2, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.2_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.08637050612575074, 'A_r_norm_2': 0.8608930813084945, 'A_r_norm_1': 0.7217861626169891, 'Number of Unique Groups (C_auto)': 2431, 'Automorphism Ratio (A_r_log)': -0.2782138373830105, 'num_nodes': 6654, 'automorphism_score': 0.6346558461076044, 'head': 'CiteSeer_inter0.9_intra0.2_edges3000'}
+Finished with inter_ratio=0.9, intra_ratio=0.2, total_edges=3000
+Finished with inter_ratio=0.9, intra_ratio=0.2, total_edges=3000
+Running with inter_ratio=0.9, intra_ratio=0.2, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.2, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.2, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.2_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.12935171957467612, 'A_r_norm_2': 0.883833565637828, 'A_r_norm_1': 0.7676671312756562, 'Number of Unique Groups (C_auto)': 1842, 'Automorphism Ratio (A_r_log)': -0.23233286872434364, 'num_nodes': 6654, 'automorphism_score': 0.7231740306582507, 'head': 'CiteSeer_inter0.2_intra0.2_edges1000'}
+Finished with inter_ratio=0.2, intra_ratio=0.2, total_edges=1000
+Finished with inter_ratio=0.2, intra_ratio=0.2, total_edges=1000
+Running with inter_ratio=0.2, intra_ratio=0.2, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.2, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.2, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.2_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.07237710170514239, 'A_r_norm_2': 0.8508535032305226, 'A_r_norm_1': 0.7017070064610453, 'Number of Unique Groups (C_auto)': 2746, 'Automorphism Ratio (A_r_log)': -0.2982929935389545, 'num_nodes': 6654, 'automorphism_score': 0.5873159002103998, 'head': 'CiteSeer_inter0.9_intra0.2_edges4000'}
+Finished with inter_ratio=0.9, intra_ratio=0.2, total_edges=4000
+Finished with inter_ratio=0.9, intra_ratio=0.2, total_edges=4000
+Running with inter_ratio=0.9, intra_ratio=0.2, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.2, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.2, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.2_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.09171637111413398, 'A_r_norm_2': 0.8643041241470466, 'A_r_norm_1': 0.7286082482940934, 'Number of Unique Groups (C_auto)': 2485, 'Automorphism Ratio (A_r_log)': -0.27139175170590635, 'num_nodes': 6654, 'automorphism_score': 0.6265404268109408, 'head': 'CiteSeer_inter0.2_intra0.2_edges2000'}
+Finished with inter_ratio=0.2, intra_ratio=0.2, total_edges=2000
+Finished with inter_ratio=0.2, intra_ratio=0.2, total_edges=2000
+Running with inter_ratio=0.2, intra_ratio=0.2, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.2, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.2, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.2_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.060637212507190175, 'A_r_norm_2': 0.8408011497240534, 'A_r_norm_1': 0.6816022994481068, 'Number of Unique Groups (C_auto)': 3067, 'Automorphism Ratio (A_r_log)': -0.3183977005518928, 'num_nodes': 6654, 'automorphism_score': 0.5390742410580103, 'head': 'CiteSeer_inter0.9_intra0.2_edges5000'}
+Finished with inter_ratio=0.9, intra_ratio=0.2, total_edges=5000
+Finished with inter_ratio=0.9, intra_ratio=0.2, total_edges=5000
+Running with inter_ratio=0.9, intra_ratio=0.3, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.2, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.2, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.2_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.06505403548979309, 'A_r_norm_2': 0.8447946564482697, 'A_r_norm_1': 0.6895893128965394, 'Number of Unique Groups (C_auto)': 3175, 'Automorphism Ratio (A_r_log)': -0.3104106871034603, 'num_nodes': 6654, 'automorphism_score': 0.5228434024646829, 'head': 'CiteSeer_inter0.2_intra0.2_edges3000'}
+Finished with inter_ratio=0.2, intra_ratio=0.2, total_edges=3000
+Finished with inter_ratio=0.2, intra_ratio=0.2, total_edges=3000
+Running with inter_ratio=0.2, intra_ratio=0.2, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.3, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.3, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.3_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.1341412073381264, 'A_r_norm_2': 0.8858986535812274, 'A_r_norm_1': 0.7717973071624551, 'Number of Unique Groups (C_auto)': 1646, 'Automorphism Ratio (A_r_log)': -0.2282026928375448, 'num_nodes': 6654, 'automorphism_score': 0.7526299969942891, 'head': 'CiteSeer_inter0.9_intra0.3_edges1000'}
+Finished with inter_ratio=0.9, intra_ratio=0.3, total_edges=1000
+Finished with inter_ratio=0.9, intra_ratio=0.3, total_edges=1000
+Running with inter_ratio=0.9, intra_ratio=0.3, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.2, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.2, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.2_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.046532595881679246, 'A_r_norm_2': 0.8257632923469703, 'A_r_norm_1': 0.6515265846939408, 'Number of Unique Groups (C_auto)': 3774, 'Automorphism Ratio (A_r_log)': -0.3484734153060589, 'num_nodes': 6654, 'automorphism_score': 0.43282236248872863, 'head': 'CiteSeer_inter0.2_intra0.2_edges4000'}
+Finished with inter_ratio=0.2, intra_ratio=0.2, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.2, total_edges=4000
+Running with inter_ratio=0.2, intra_ratio=0.2, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.3, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.3, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.3_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.10407393524703248, 'A_r_norm_2': 0.8714835545202056, 'A_r_norm_1': 0.7429671090404113, 'Number of Unique Groups (C_auto)': 2092, 'Automorphism Ratio (A_r_log)': -0.25703289095958826, 'num_nodes': 6654, 'automorphism_score': 0.6856026450255486, 'head': 'CiteSeer_inter0.9_intra0.3_edges2000'}
+Finished with inter_ratio=0.9, intra_ratio=0.3, total_edges=2000
+Finished with inter_ratio=0.9, intra_ratio=0.3, total_edges=2000
+Running with inter_ratio=0.9, intra_ratio=0.3, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.2, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.2, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.2_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.03406725257701084, 'A_r_norm_2': 0.8080524320694539, 'A_r_norm_1': 0.616104864138908, 'Number of Unique Groups (C_auto)': 4301, 'Automorphism Ratio (A_r_log)': -0.3838951358610919, 'num_nodes': 6654, 'automorphism_score': 0.3536218815749925, 'head': 'CiteSeer_inter0.2_intra0.2_edges5000'}
+Finished with inter_ratio=0.2, intra_ratio=0.2, total_edges=5000
+Finished with inter_ratio=0.2, intra_ratio=0.2, total_edges=5000
+Running with inter_ratio=0.2, intra_ratio=0.3, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.3, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.3, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.3_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.08637050612575074, 'A_r_norm_2': 0.8608930813084945, 'A_r_norm_1': 0.7217861626169891, 'Number of Unique Groups (C_auto)': 2431, 'Automorphism Ratio (A_r_log)': -0.2782138373830105, 'num_nodes': 6654, 'automorphism_score': 0.6346558461076044, 'head': 'CiteSeer_inter0.9_intra0.3_edges3000'}
+Finished with inter_ratio=0.9, intra_ratio=0.3, total_edges=3000
+Finished with inter_ratio=0.9, intra_ratio=0.3, total_edges=3000
+Running with inter_ratio=0.9, intra_ratio=0.3, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.3, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.3, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.3_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.12935171957467612, 'A_r_norm_2': 0.883833565637828, 'A_r_norm_1': 0.7676671312756562, 'Number of Unique Groups (C_auto)': 1842, 'Automorphism Ratio (A_r_log)': -0.23233286872434364, 'num_nodes': 6654, 'automorphism_score': 0.7231740306582507, 'head': 'CiteSeer_inter0.2_intra0.3_edges1000'}
+Finished with inter_ratio=0.2, intra_ratio=0.3, total_edges=1000
+Finished with inter_ratio=0.2, intra_ratio=0.3, total_edges=1000
+Running with inter_ratio=0.2, intra_ratio=0.3, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.3, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.3, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.3_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.07237710170514239, 'A_r_norm_2': 0.8508535032305226, 'A_r_norm_1': 0.7017070064610453, 'Number of Unique Groups (C_auto)': 2746, 'Automorphism Ratio (A_r_log)': -0.2982929935389545, 'num_nodes': 6654, 'automorphism_score': 0.5873159002103998, 'head': 'CiteSeer_inter0.9_intra0.3_edges4000'}
+Finished with inter_ratio=0.9, intra_ratio=0.3, total_edges=4000
+Finished with inter_ratio=0.9, intra_ratio=0.3, total_edges=4000
+Running with inter_ratio=0.9, intra_ratio=0.3, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.3, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.3, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.3_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.09171637111413398, 'A_r_norm_2': 0.8643041241470466, 'A_r_norm_1': 0.7286082482940934, 'Number of Unique Groups (C_auto)': 2485, 'Automorphism Ratio (A_r_log)': -0.27139175170590635, 'num_nodes': 6654, 'automorphism_score': 0.6265404268109408, 'head': 'CiteSeer_inter0.2_intra0.3_edges2000'}
+Finished with inter_ratio=0.2, intra_ratio=0.3, total_edges=2000
+Finished with inter_ratio=0.2, intra_ratio=0.3, total_edges=2000
+Running with inter_ratio=0.2, intra_ratio=0.3, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.3, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.3, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.3_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.060637212507190175, 'A_r_norm_2': 0.8408011497240534, 'A_r_norm_1': 0.6816022994481068, 'Number of Unique Groups (C_auto)': 3067, 'Automorphism Ratio (A_r_log)': -0.3183977005518928, 'num_nodes': 6654, 'automorphism_score': 0.5390742410580103, 'head': 'CiteSeer_inter0.9_intra0.3_edges5000'}
+Finished with inter_ratio=0.9, intra_ratio=0.3, total_edges=5000
+Finished with inter_ratio=0.9, intra_ratio=0.3, total_edges=5000
+Running with inter_ratio=0.9, intra_ratio=0.4, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.3, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.3, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.3_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.06505403548979309, 'A_r_norm_2': 0.8447946564482697, 'A_r_norm_1': 0.6895893128965394, 'Number of Unique Groups (C_auto)': 3175, 'Automorphism Ratio (A_r_log)': -0.3104106871034603, 'num_nodes': 6654, 'automorphism_score': 0.5228434024646829, 'head': 'CiteSeer_inter0.2_intra0.3_edges3000'}
+Finished with inter_ratio=0.2, intra_ratio=0.3, total_edges=3000
+Finished with inter_ratio=0.2, intra_ratio=0.3, total_edges=3000
+Running with inter_ratio=0.2, intra_ratio=0.3, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.4, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.4, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.4_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.1341412073381264, 'A_r_norm_2': 0.8858986535812274, 'A_r_norm_1': 0.7717973071624551, 'Number of Unique Groups (C_auto)': 1646, 'Automorphism Ratio (A_r_log)': -0.2282026928375448, 'num_nodes': 6654, 'automorphism_score': 0.7526299969942891, 'head': 'CiteSeer_inter0.9_intra0.4_edges1000'}
+Finished with inter_ratio=0.9, intra_ratio=0.4, total_edges=1000
+Finished with inter_ratio=0.9, intra_ratio=0.4, total_edges=1000
+Running with inter_ratio=0.9, intra_ratio=0.4, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.3, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.3, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.3_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.046532595881679246, 'A_r_norm_2': 0.8257632923469703, 'A_r_norm_1': 0.6515265846939408, 'Number of Unique Groups (C_auto)': 3774, 'Automorphism Ratio (A_r_log)': -0.3484734153060589, 'num_nodes': 6654, 'automorphism_score': 0.43282236248872863, 'head': 'CiteSeer_inter0.2_intra0.3_edges4000'}
+Finished with inter_ratio=0.2, intra_ratio=0.3, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.3, total_edges=4000
+Running with inter_ratio=0.2, intra_ratio=0.3, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.4, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.4, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.4_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.10407393524703248, 'A_r_norm_2': 0.8714835545202056, 'A_r_norm_1': 0.7429671090404113, 'Number of Unique Groups (C_auto)': 2092, 'Automorphism Ratio (A_r_log)': -0.25703289095958826, 'num_nodes': 6654, 'automorphism_score': 0.6856026450255486, 'head': 'CiteSeer_inter0.9_intra0.4_edges2000'}
+Finished with inter_ratio=0.9, intra_ratio=0.4, total_edges=2000
+Finished with inter_ratio=0.9, intra_ratio=0.4, total_edges=2000
+Running with inter_ratio=0.9, intra_ratio=0.4, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.3, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.3, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.3_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.03406725257701084, 'A_r_norm_2': 0.8080524320694539, 'A_r_norm_1': 0.616104864138908, 'Number of Unique Groups (C_auto)': 4301, 'Automorphism Ratio (A_r_log)': -0.3838951358610919, 'num_nodes': 6654, 'automorphism_score': 0.3536218815749925, 'head': 'CiteSeer_inter0.2_intra0.3_edges5000'}
+Finished with inter_ratio=0.2, intra_ratio=0.3, total_edges=5000
+Finished with inter_ratio=0.2, intra_ratio=0.3, total_edges=5000
+Running with inter_ratio=0.2, intra_ratio=0.4, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.4, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.4, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.4_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.08637050612575074, 'A_r_norm_2': 0.8608930813084945, 'A_r_norm_1': 0.7217861626169891, 'Number of Unique Groups (C_auto)': 2431, 'Automorphism Ratio (A_r_log)': -0.2782138373830105, 'num_nodes': 6654, 'automorphism_score': 0.6346558461076044, 'head': 'CiteSeer_inter0.9_intra0.4_edges3000'}
+Finished with inter_ratio=0.9, intra_ratio=0.4, total_edges=3000
+Finished with inter_ratio=0.9, intra_ratio=0.4, total_edges=3000
+Running with inter_ratio=0.9, intra_ratio=0.4, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.4, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.4, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.4_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.12935171957467612, 'A_r_norm_2': 0.883833565637828, 'A_r_norm_1': 0.7676671312756562, 'Number of Unique Groups (C_auto)': 1842, 'Automorphism Ratio (A_r_log)': -0.23233286872434364, 'num_nodes': 6654, 'automorphism_score': 0.7231740306582507, 'head': 'CiteSeer_inter0.2_intra0.4_edges1000'}
+Finished with inter_ratio=0.2, intra_ratio=0.4, total_edges=1000
+Finished with inter_ratio=0.2, intra_ratio=0.4, total_edges=1000
+Running with inter_ratio=0.2, intra_ratio=0.4, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.4, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.4, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.4_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.07237710170514239, 'A_r_norm_2': 0.8508535032305226, 'A_r_norm_1': 0.7017070064610453, 'Number of Unique Groups (C_auto)': 2746, 'Automorphism Ratio (A_r_log)': -0.2982929935389545, 'num_nodes': 6654, 'automorphism_score': 0.5873159002103998, 'head': 'CiteSeer_inter0.9_intra0.4_edges4000'}
+Finished with inter_ratio=0.9, intra_ratio=0.4, total_edges=4000
+Finished with inter_ratio=0.9, intra_ratio=0.4, total_edges=4000
+Running with inter_ratio=0.9, intra_ratio=0.4, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.4, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.4, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.4_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.09171637111413398, 'A_r_norm_2': 0.8643041241470466, 'A_r_norm_1': 0.7286082482940934, 'Number of Unique Groups (C_auto)': 2485, 'Automorphism Ratio (A_r_log)': -0.27139175170590635, 'num_nodes': 6654, 'automorphism_score': 0.6265404268109408, 'head': 'CiteSeer_inter0.2_intra0.4_edges2000'}
+Finished with inter_ratio=0.2, intra_ratio=0.4, total_edges=2000
+Finished with inter_ratio=0.2, intra_ratio=0.4, total_edges=2000
+Running with inter_ratio=0.2, intra_ratio=0.4, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.4, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.4, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.4_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.060637212507190175, 'A_r_norm_2': 0.8408011497240534, 'A_r_norm_1': 0.6816022994481068, 'Number of Unique Groups (C_auto)': 3067, 'Automorphism Ratio (A_r_log)': -0.3183977005518928, 'num_nodes': 6654, 'automorphism_score': 0.5390742410580103, 'head': 'CiteSeer_inter0.9_intra0.4_edges5000'}
+Finished with inter_ratio=0.9, intra_ratio=0.4, total_edges=5000
+Finished with inter_ratio=0.9, intra_ratio=0.4, total_edges=5000
+Running with inter_ratio=0.9, intra_ratio=0.5, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.4, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.4, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.4_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.06505403548979309, 'A_r_norm_2': 0.8447946564482697, 'A_r_norm_1': 0.6895893128965394, 'Number of Unique Groups (C_auto)': 3175, 'Automorphism Ratio (A_r_log)': -0.3104106871034603, 'num_nodes': 6654, 'automorphism_score': 0.5228434024646829, 'head': 'CiteSeer_inter0.2_intra0.4_edges3000'}
+Finished with inter_ratio=0.2, intra_ratio=0.4, total_edges=3000
+Finished with inter_ratio=0.2, intra_ratio=0.4, total_edges=3000
+Running with inter_ratio=0.2, intra_ratio=0.4, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.5, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.5, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.5_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.1341412073381264, 'A_r_norm_2': 0.8858986535812274, 'A_r_norm_1': 0.7717973071624551, 'Number of Unique Groups (C_auto)': 1646, 'Automorphism Ratio (A_r_log)': -0.2282026928375448, 'num_nodes': 6654, 'automorphism_score': 0.7526299969942891, 'head': 'CiteSeer_inter0.9_intra0.5_edges1000'}
+Finished with inter_ratio=0.9, intra_ratio=0.5, total_edges=1000
+Finished with inter_ratio=0.9, intra_ratio=0.5, total_edges=1000
+Running with inter_ratio=0.9, intra_ratio=0.5, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.4, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.4, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.4_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.046532595881679246, 'A_r_norm_2': 0.8257632923469703, 'A_r_norm_1': 0.6515265846939408, 'Number of Unique Groups (C_auto)': 3774, 'Automorphism Ratio (A_r_log)': -0.3484734153060589, 'num_nodes': 6654, 'automorphism_score': 0.43282236248872863, 'head': 'CiteSeer_inter0.2_intra0.4_edges4000'}
+Finished with inter_ratio=0.2, intra_ratio=0.4, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.4, total_edges=4000
+Running with inter_ratio=0.2, intra_ratio=0.4, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.5, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.5, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.5_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.10407393524703248, 'A_r_norm_2': 0.8714835545202056, 'A_r_norm_1': 0.7429671090404113, 'Number of Unique Groups (C_auto)': 2092, 'Automorphism Ratio (A_r_log)': -0.25703289095958826, 'num_nodes': 6654, 'automorphism_score': 0.6856026450255486, 'head': 'CiteSeer_inter0.9_intra0.5_edges2000'}
+Finished with inter_ratio=0.9, intra_ratio=0.5, total_edges=2000
+Finished with inter_ratio=0.9, intra_ratio=0.5, total_edges=2000
+Running with inter_ratio=0.9, intra_ratio=0.5, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.4, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.4, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.4_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.03406725257701084, 'A_r_norm_2': 0.8080524320694539, 'A_r_norm_1': 0.616104864138908, 'Number of Unique Groups (C_auto)': 4301, 'Automorphism Ratio (A_r_log)': -0.3838951358610919, 'num_nodes': 6654, 'automorphism_score': 0.3536218815749925, 'head': 'CiteSeer_inter0.2_intra0.4_edges5000'}
+Finished with inter_ratio=0.2, intra_ratio=0.4, total_edges=5000
+Finished with inter_ratio=0.2, intra_ratio=0.4, total_edges=5000
+Running with inter_ratio=0.2, intra_ratio=0.5, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.5, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.5, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.5_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.08637050612575074, 'A_r_norm_2': 0.8608930813084945, 'A_r_norm_1': 0.7217861626169891, 'Number of Unique Groups (C_auto)': 2431, 'Automorphism Ratio (A_r_log)': -0.2782138373830105, 'num_nodes': 6654, 'automorphism_score': 0.6346558461076044, 'head': 'CiteSeer_inter0.9_intra0.5_edges3000'}
+Finished with inter_ratio=0.9, intra_ratio=0.5, total_edges=3000
+Finished with inter_ratio=0.9, intra_ratio=0.5, total_edges=3000
+Running with inter_ratio=0.9, intra_ratio=0.5, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.5, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.5, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.5_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.12935171957467612, 'A_r_norm_2': 0.883833565637828, 'A_r_norm_1': 0.7676671312756562, 'Number of Unique Groups (C_auto)': 1842, 'Automorphism Ratio (A_r_log)': -0.23233286872434364, 'num_nodes': 6654, 'automorphism_score': 0.7231740306582507, 'head': 'CiteSeer_inter0.2_intra0.5_edges1000'}
+Finished with inter_ratio=0.2, intra_ratio=0.5, total_edges=1000
+Finished with inter_ratio=0.2, intra_ratio=0.5, total_edges=1000
+Running with inter_ratio=0.2, intra_ratio=0.5, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.5, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.5, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.5_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.07237710170514239, 'A_r_norm_2': 0.8508535032305226, 'A_r_norm_1': 0.7017070064610453, 'Number of Unique Groups (C_auto)': 2746, 'Automorphism Ratio (A_r_log)': -0.2982929935389545, 'num_nodes': 6654, 'automorphism_score': 0.5873159002103998, 'head': 'CiteSeer_inter0.9_intra0.5_edges4000'}
+Finished with inter_ratio=0.9, intra_ratio=0.5, total_edges=4000
+Finished with inter_ratio=0.9, intra_ratio=0.5, total_edges=4000
+Running with inter_ratio=0.9, intra_ratio=0.5, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.5, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.5, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.5_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.09171637111413398, 'A_r_norm_2': 0.8643041241470466, 'A_r_norm_1': 0.7286082482940934, 'Number of Unique Groups (C_auto)': 2485, 'Automorphism Ratio (A_r_log)': -0.27139175170590635, 'num_nodes': 6654, 'automorphism_score': 0.6265404268109408, 'head': 'CiteSeer_inter0.2_intra0.5_edges2000'}
+Finished with inter_ratio=0.2, intra_ratio=0.5, total_edges=2000
+Finished with inter_ratio=0.2, intra_ratio=0.5, total_edges=2000
+Running with inter_ratio=0.2, intra_ratio=0.5, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.5, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.5, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.5_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.060637212507190175, 'A_r_norm_2': 0.8408011497240534, 'A_r_norm_1': 0.6816022994481068, 'Number of Unique Groups (C_auto)': 3067, 'Automorphism Ratio (A_r_log)': -0.3183977005518928, 'num_nodes': 6654, 'automorphism_score': 0.5390742410580103, 'head': 'CiteSeer_inter0.9_intra0.5_edges5000'}
+Finished with inter_ratio=0.9, intra_ratio=0.5, total_edges=5000
+Finished with inter_ratio=0.9, intra_ratio=0.5, total_edges=5000
+Running with inter_ratio=0.9, intra_ratio=0.6, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.5, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.5, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.5_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.06505403548979309, 'A_r_norm_2': 0.8447946564482697, 'A_r_norm_1': 0.6895893128965394, 'Number of Unique Groups (C_auto)': 3175, 'Automorphism Ratio (A_r_log)': -0.3104106871034603, 'num_nodes': 6654, 'automorphism_score': 0.5228434024646829, 'head': 'CiteSeer_inter0.2_intra0.5_edges3000'}
+Finished with inter_ratio=0.2, intra_ratio=0.5, total_edges=3000
+Finished with inter_ratio=0.2, intra_ratio=0.5, total_edges=3000
+Running with inter_ratio=0.2, intra_ratio=0.5, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.6, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.6, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.6_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.1341412073381264, 'A_r_norm_2': 0.8858986535812274, 'A_r_norm_1': 0.7717973071624551, 'Number of Unique Groups (C_auto)': 1646, 'Automorphism Ratio (A_r_log)': -0.2282026928375448, 'num_nodes': 6654, 'automorphism_score': 0.7526299969942891, 'head': 'CiteSeer_inter0.9_intra0.6_edges1000'}
+Finished with inter_ratio=0.9, intra_ratio=0.6, total_edges=1000
+Finished with inter_ratio=0.9, intra_ratio=0.6, total_edges=1000
+Running with inter_ratio=0.9, intra_ratio=0.6, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.5, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.5, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.5_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.046532595881679246, 'A_r_norm_2': 0.8257632923469703, 'A_r_norm_1': 0.6515265846939408, 'Number of Unique Groups (C_auto)': 3774, 'Automorphism Ratio (A_r_log)': -0.3484734153060589, 'num_nodes': 6654, 'automorphism_score': 0.43282236248872863, 'head': 'CiteSeer_inter0.2_intra0.5_edges4000'}
+Finished with inter_ratio=0.2, intra_ratio=0.5, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.5, total_edges=4000
+Running with inter_ratio=0.2, intra_ratio=0.5, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.6, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.6, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.6_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.10407393524703248, 'A_r_norm_2': 0.8714835545202056, 'A_r_norm_1': 0.7429671090404113, 'Number of Unique Groups (C_auto)': 2092, 'Automorphism Ratio (A_r_log)': -0.25703289095958826, 'num_nodes': 6654, 'automorphism_score': 0.6856026450255486, 'head': 'CiteSeer_inter0.9_intra0.6_edges2000'}
+Finished with inter_ratio=0.9, intra_ratio=0.6, total_edges=2000
+Finished with inter_ratio=0.9, intra_ratio=0.6, total_edges=2000
+Running with inter_ratio=0.9, intra_ratio=0.6, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.5, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.5, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.5_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.03406725257701084, 'A_r_norm_2': 0.8080524320694539, 'A_r_norm_1': 0.616104864138908, 'Number of Unique Groups (C_auto)': 4301, 'Automorphism Ratio (A_r_log)': -0.3838951358610919, 'num_nodes': 6654, 'automorphism_score': 0.3536218815749925, 'head': 'CiteSeer_inter0.2_intra0.5_edges5000'}
+Finished with inter_ratio=0.2, intra_ratio=0.5, total_edges=5000
+Finished with inter_ratio=0.2, intra_ratio=0.5, total_edges=5000
+Running with inter_ratio=0.2, intra_ratio=0.6, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.6, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.6, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.6_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.08637050612575074, 'A_r_norm_2': 0.8608930813084945, 'A_r_norm_1': 0.7217861626169891, 'Number of Unique Groups (C_auto)': 2431, 'Automorphism Ratio (A_r_log)': -0.2782138373830105, 'num_nodes': 6654, 'automorphism_score': 0.6346558461076044, 'head': 'CiteSeer_inter0.9_intra0.6_edges3000'}
+Finished with inter_ratio=0.9, intra_ratio=0.6, total_edges=3000
+Finished with inter_ratio=0.9, intra_ratio=0.6, total_edges=3000
+Running with inter_ratio=0.9, intra_ratio=0.6, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.6, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.6, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.6_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.12935171957467612, 'A_r_norm_2': 0.883833565637828, 'A_r_norm_1': 0.7676671312756562, 'Number of Unique Groups (C_auto)': 1842, 'Automorphism Ratio (A_r_log)': -0.23233286872434364, 'num_nodes': 6654, 'automorphism_score': 0.7231740306582507, 'head': 'CiteSeer_inter0.2_intra0.6_edges1000'}
+Finished with inter_ratio=0.2, intra_ratio=0.6, total_edges=1000
+Finished with inter_ratio=0.2, intra_ratio=0.6, total_edges=1000
+Running with inter_ratio=0.2, intra_ratio=0.6, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.6, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.6, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.6_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.07237710170514239, 'A_r_norm_2': 0.8508535032305226, 'A_r_norm_1': 0.7017070064610453, 'Number of Unique Groups (C_auto)': 2746, 'Automorphism Ratio (A_r_log)': -0.2982929935389545, 'num_nodes': 6654, 'automorphism_score': 0.5873159002103998, 'head': 'CiteSeer_inter0.9_intra0.6_edges4000'}
+Finished with inter_ratio=0.9, intra_ratio=0.6, total_edges=4000
+Finished with inter_ratio=0.9, intra_ratio=0.6, total_edges=4000
+Running with inter_ratio=0.9, intra_ratio=0.6, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.6, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.6, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.6_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.09171637111413398, 'A_r_norm_2': 0.8643041241470466, 'A_r_norm_1': 0.7286082482940934, 'Number of Unique Groups (C_auto)': 2485, 'Automorphism Ratio (A_r_log)': -0.27139175170590635, 'num_nodes': 6654, 'automorphism_score': 0.6265404268109408, 'head': 'CiteSeer_inter0.2_intra0.6_edges2000'}
+Finished with inter_ratio=0.2, intra_ratio=0.6, total_edges=2000
+Finished with inter_ratio=0.2, intra_ratio=0.6, total_edges=2000
+Running with inter_ratio=0.2, intra_ratio=0.6, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.6, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.6, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.6_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.060637212507190175, 'A_r_norm_2': 0.8408011497240534, 'A_r_norm_1': 0.6816022994481068, 'Number of Unique Groups (C_auto)': 3067, 'Automorphism Ratio (A_r_log)': -0.3183977005518928, 'num_nodes': 6654, 'automorphism_score': 0.5390742410580103, 'head': 'CiteSeer_inter0.9_intra0.6_edges5000'}
+Finished with inter_ratio=0.9, intra_ratio=0.6, total_edges=5000
+Finished with inter_ratio=0.9, intra_ratio=0.6, total_edges=5000
+Running with inter_ratio=0.9, intra_ratio=0.7, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.6, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.6, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.6_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.06505403548979309, 'A_r_norm_2': 0.8447946564482697, 'A_r_norm_1': 0.6895893128965394, 'Number of Unique Groups (C_auto)': 3175, 'Automorphism Ratio (A_r_log)': -0.3104106871034603, 'num_nodes': 6654, 'automorphism_score': 0.5228434024646829, 'head': 'CiteSeer_inter0.2_intra0.6_edges3000'}
+Finished with inter_ratio=0.2, intra_ratio=0.6, total_edges=3000
+Finished with inter_ratio=0.2, intra_ratio=0.6, total_edges=3000
+Running with inter_ratio=0.2, intra_ratio=0.6, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.7, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.7, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.7_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.1341412073381264, 'A_r_norm_2': 0.8858986535812274, 'A_r_norm_1': 0.7717973071624551, 'Number of Unique Groups (C_auto)': 1646, 'Automorphism Ratio (A_r_log)': -0.2282026928375448, 'num_nodes': 6654, 'automorphism_score': 0.7526299969942891, 'head': 'CiteSeer_inter0.9_intra0.7_edges1000'}
+Finished with inter_ratio=0.9, intra_ratio=0.7, total_edges=1000
+Finished with inter_ratio=0.9, intra_ratio=0.7, total_edges=1000
+Running with inter_ratio=0.9, intra_ratio=0.7, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.6, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.6, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.6_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.046532595881679246, 'A_r_norm_2': 0.8257632923469703, 'A_r_norm_1': 0.6515265846939408, 'Number of Unique Groups (C_auto)': 3774, 'Automorphism Ratio (A_r_log)': -0.3484734153060589, 'num_nodes': 6654, 'automorphism_score': 0.43282236248872863, 'head': 'CiteSeer_inter0.2_intra0.6_edges4000'}
+Finished with inter_ratio=0.2, intra_ratio=0.6, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.6, total_edges=4000
+Running with inter_ratio=0.2, intra_ratio=0.6, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.7, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.7, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.7_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.10407393524703248, 'A_r_norm_2': 0.8714835545202056, 'A_r_norm_1': 0.7429671090404113, 'Number of Unique Groups (C_auto)': 2092, 'Automorphism Ratio (A_r_log)': -0.25703289095958826, 'num_nodes': 6654, 'automorphism_score': 0.6856026450255486, 'head': 'CiteSeer_inter0.9_intra0.7_edges2000'}
+Finished with inter_ratio=0.9, intra_ratio=0.7, total_edges=2000
+Finished with inter_ratio=0.9, intra_ratio=0.7, total_edges=2000
+Running with inter_ratio=0.9, intra_ratio=0.7, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.6, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.6, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.6_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.03406725257701084, 'A_r_norm_2': 0.8080524320694539, 'A_r_norm_1': 0.616104864138908, 'Number of Unique Groups (C_auto)': 4301, 'Automorphism Ratio (A_r_log)': -0.3838951358610919, 'num_nodes': 6654, 'automorphism_score': 0.3536218815749925, 'head': 'CiteSeer_inter0.2_intra0.6_edges5000'}
+Finished with inter_ratio=0.2, intra_ratio=0.6, total_edges=5000
+Finished with inter_ratio=0.2, intra_ratio=0.6, total_edges=5000
+Running with inter_ratio=0.2, intra_ratio=0.7, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.7, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.7, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.7_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.08637050612575074, 'A_r_norm_2': 0.8608930813084945, 'A_r_norm_1': 0.7217861626169891, 'Number of Unique Groups (C_auto)': 2431, 'Automorphism Ratio (A_r_log)': -0.2782138373830105, 'num_nodes': 6654, 'automorphism_score': 0.6346558461076044, 'head': 'CiteSeer_inter0.9_intra0.7_edges3000'}
+Finished with inter_ratio=0.9, intra_ratio=0.7, total_edges=3000
+Finished with inter_ratio=0.9, intra_ratio=0.7, total_edges=3000
+Running with inter_ratio=0.9, intra_ratio=0.7, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.7, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.7, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.7_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.12935171957467612, 'A_r_norm_2': 0.883833565637828, 'A_r_norm_1': 0.7676671312756562, 'Number of Unique Groups (C_auto)': 1842, 'Automorphism Ratio (A_r_log)': -0.23233286872434364, 'num_nodes': 6654, 'automorphism_score': 0.7231740306582507, 'head': 'CiteSeer_inter0.2_intra0.7_edges1000'}
+Finished with inter_ratio=0.2, intra_ratio=0.7, total_edges=1000
+Finished with inter_ratio=0.2, intra_ratio=0.7, total_edges=1000
+Running with inter_ratio=0.2, intra_ratio=0.7, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.7, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.7, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.7_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.07237710170514239, 'A_r_norm_2': 0.8508535032305226, 'A_r_norm_1': 0.7017070064610453, 'Number of Unique Groups (C_auto)': 2746, 'Automorphism Ratio (A_r_log)': -0.2982929935389545, 'num_nodes': 6654, 'automorphism_score': 0.5873159002103998, 'head': 'CiteSeer_inter0.9_intra0.7_edges4000'}
+Finished with inter_ratio=0.9, intra_ratio=0.7, total_edges=4000
+Finished with inter_ratio=0.9, intra_ratio=0.7, total_edges=4000
+Running with inter_ratio=0.9, intra_ratio=0.7, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.7, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.7, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.7_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.09171637111413398, 'A_r_norm_2': 0.8643041241470466, 'A_r_norm_1': 0.7286082482940934, 'Number of Unique Groups (C_auto)': 2485, 'Automorphism Ratio (A_r_log)': -0.27139175170590635, 'num_nodes': 6654, 'automorphism_score': 0.6265404268109408, 'head': 'CiteSeer_inter0.2_intra0.7_edges2000'}
+Finished with inter_ratio=0.2, intra_ratio=0.7, total_edges=2000
+Finished with inter_ratio=0.2, intra_ratio=0.7, total_edges=2000
+Running with inter_ratio=0.2, intra_ratio=0.7, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.7, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.7, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.7_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.060637212507190175, 'A_r_norm_2': 0.8408011497240534, 'A_r_norm_1': 0.6816022994481068, 'Number of Unique Groups (C_auto)': 3067, 'Automorphism Ratio (A_r_log)': -0.3183977005518928, 'num_nodes': 6654, 'automorphism_score': 0.5390742410580103, 'head': 'CiteSeer_inter0.9_intra0.7_edges5000'}
+Finished with inter_ratio=0.9, intra_ratio=0.7, total_edges=5000
+Finished with inter_ratio=0.9, intra_ratio=0.7, total_edges=5000
+Running with inter_ratio=0.9, intra_ratio=0.8, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.7, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.7, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.7_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.06505403548979309, 'A_r_norm_2': 0.8447946564482697, 'A_r_norm_1': 0.6895893128965394, 'Number of Unique Groups (C_auto)': 3175, 'Automorphism Ratio (A_r_log)': -0.3104106871034603, 'num_nodes': 6654, 'automorphism_score': 0.5228434024646829, 'head': 'CiteSeer_inter0.2_intra0.7_edges3000'}
+Finished with inter_ratio=0.2, intra_ratio=0.7, total_edges=3000
+Finished with inter_ratio=0.2, intra_ratio=0.7, total_edges=3000
+Running with inter_ratio=0.2, intra_ratio=0.7, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.8, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.8, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.8_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.1341412073381264, 'A_r_norm_2': 0.8858986535812274, 'A_r_norm_1': 0.7717973071624551, 'Number of Unique Groups (C_auto)': 1646, 'Automorphism Ratio (A_r_log)': -0.2282026928375448, 'num_nodes': 6654, 'automorphism_score': 0.7526299969942891, 'head': 'CiteSeer_inter0.9_intra0.8_edges1000'}
+Finished with inter_ratio=0.9, intra_ratio=0.8, total_edges=1000
+Finished with inter_ratio=0.9, intra_ratio=0.8, total_edges=1000
+Running with inter_ratio=0.9, intra_ratio=0.8, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.7, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.7, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.7_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.046532595881679246, 'A_r_norm_2': 0.8257632923469703, 'A_r_norm_1': 0.6515265846939408, 'Number of Unique Groups (C_auto)': 3774, 'Automorphism Ratio (A_r_log)': -0.3484734153060589, 'num_nodes': 6654, 'automorphism_score': 0.43282236248872863, 'head': 'CiteSeer_inter0.2_intra0.7_edges4000'}
+Finished with inter_ratio=0.2, intra_ratio=0.7, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.7, total_edges=4000
+Running with inter_ratio=0.2, intra_ratio=0.7, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.8, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.8, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.8_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.10407393524703248, 'A_r_norm_2': 0.8714835545202056, 'A_r_norm_1': 0.7429671090404113, 'Number of Unique Groups (C_auto)': 2092, 'Automorphism Ratio (A_r_log)': -0.25703289095958826, 'num_nodes': 6654, 'automorphism_score': 0.6856026450255486, 'head': 'CiteSeer_inter0.9_intra0.8_edges2000'}
+Finished with inter_ratio=0.9, intra_ratio=0.8, total_edges=2000
+Finished with inter_ratio=0.9, intra_ratio=0.8, total_edges=2000
+Running with inter_ratio=0.9, intra_ratio=0.8, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.7, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.7, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.7_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.03406725257701084, 'A_r_norm_2': 0.8080524320694539, 'A_r_norm_1': 0.616104864138908, 'Number of Unique Groups (C_auto)': 4301, 'Automorphism Ratio (A_r_log)': -0.3838951358610919, 'num_nodes': 6654, 'automorphism_score': 0.3536218815749925, 'head': 'CiteSeer_inter0.2_intra0.7_edges5000'}
+Finished with inter_ratio=0.2, intra_ratio=0.7, total_edges=5000
+Finished with inter_ratio=0.2, intra_ratio=0.7, total_edges=5000
+Running with inter_ratio=0.2, intra_ratio=0.8, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.8, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.8, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.8_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.08637050612575074, 'A_r_norm_2': 0.8608930813084945, 'A_r_norm_1': 0.7217861626169891, 'Number of Unique Groups (C_auto)': 2431, 'Automorphism Ratio (A_r_log)': -0.2782138373830105, 'num_nodes': 6654, 'automorphism_score': 0.6346558461076044, 'head': 'CiteSeer_inter0.9_intra0.8_edges3000'}
+Finished with inter_ratio=0.9, intra_ratio=0.8, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.8, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.8, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.8_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.12935171957467612, 'A_r_norm_2': 0.883833565637828, 'A_r_norm_1': 0.7676671312756562, 'Number of Unique Groups (C_auto)': 1842, 'Automorphism Ratio (A_r_log)': -0.23233286872434364, 'num_nodes': 6654, 'automorphism_score': 0.7231740306582507, 'head': 'CiteSeer_inter0.2_intra0.8_edges1000'}
+Finished with inter_ratio=0.2, intra_ratio=0.8, total_edges=1000
+Finished with inter_ratio=0.9, intra_ratio=0.8, total_edges=3000
+Running with inter_ratio=0.9, intra_ratio=0.8, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.8, total_edges=1000
+Running with inter_ratio=0.2, intra_ratio=0.8, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.8, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.8, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.8_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.09171637111413398, 'A_r_norm_2': 0.8643041241470466, 'A_r_norm_1': 0.7286082482940934, 'Number of Unique Groups (C_auto)': 2485, 'Automorphism Ratio (A_r_log)': -0.27139175170590635, 'num_nodes': 6654, 'automorphism_score': 0.6265404268109408, 'head': 'CiteSeer_inter0.2_intra0.8_edges2000'}
+Finished with inter_ratio=0.2, intra_ratio=0.8, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.8, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.8, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.8_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.07237710170514239, 'A_r_norm_2': 0.8508535032305226, 'A_r_norm_1': 0.7017070064610453, 'Number of Unique Groups (C_auto)': 2746, 'Automorphism Ratio (A_r_log)': -0.2982929935389545, 'num_nodes': 6654, 'automorphism_score': 0.5873159002103998, 'head': 'CiteSeer_inter0.9_intra0.8_edges4000'}
+Finished with inter_ratio=0.9, intra_ratio=0.8, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.8, total_edges=2000
+Running with inter_ratio=0.2, intra_ratio=0.8, total_edges=3000
+Finished with inter_ratio=0.9, intra_ratio=0.8, total_edges=4000
+Running with inter_ratio=0.9, intra_ratio=0.8, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.8, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.8, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.8_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.060637212507190175, 'A_r_norm_2': 0.8408011497240534, 'A_r_norm_1': 0.6816022994481068, 'Number of Unique Groups (C_auto)': 3067, 'Automorphism Ratio (A_r_log)': -0.3183977005518928, 'num_nodes': 6654, 'automorphism_score': 0.5390742410580103, 'head': 'CiteSeer_inter0.9_intra0.8_edges5000'}
+Finished with inter_ratio=0.9, intra_ratio=0.8, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.8, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.8, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.8_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.06505403548979309, 'A_r_norm_2': 0.8447946564482697, 'A_r_norm_1': 0.6895893128965394, 'Number of Unique Groups (C_auto)': 3175, 'Automorphism Ratio (A_r_log)': -0.3104106871034603, 'num_nodes': 6654, 'automorphism_score': 0.5228434024646829, 'head': 'CiteSeer_inter0.2_intra0.8_edges3000'}
+Finished with inter_ratio=0.2, intra_ratio=0.8, total_edges=3000
+Finished with inter_ratio=0.9, intra_ratio=0.8, total_edges=5000
+Running with inter_ratio=0.9, intra_ratio=0.9, total_edges=1000
+Finished with inter_ratio=0.2, intra_ratio=0.8, total_edges=3000
+Running with inter_ratio=0.2, intra_ratio=0.8, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.9, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.9_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.1341412073381264, 'A_r_norm_2': 0.8858986535812274, 'A_r_norm_1': 0.7717973071624551, 'Number of Unique Groups (C_auto)': 1646, 'Automorphism Ratio (A_r_log)': -0.2282026928375448, 'num_nodes': 6654, 'automorphism_score': 0.7526299969942891, 'head': 'CiteSeer_inter0.9_intra0.9_edges1000'}
+Finished with inter_ratio=0.9, intra_ratio=0.9, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.8, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.8, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.8_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.046532595881679246, 'A_r_norm_2': 0.8257632923469703, 'A_r_norm_1': 0.6515265846939408, 'Number of Unique Groups (C_auto)': 3774, 'Automorphism Ratio (A_r_log)': -0.3484734153060589, 'num_nodes': 6654, 'automorphism_score': 0.43282236248872863, 'head': 'CiteSeer_inter0.2_intra0.8_edges4000'}
+Finished with inter_ratio=0.2, intra_ratio=0.8, total_edges=4000
+Finished with inter_ratio=0.9, intra_ratio=0.9, total_edges=1000
+Running with inter_ratio=0.9, intra_ratio=0.9, total_edges=2000
+Finished with inter_ratio=0.2, intra_ratio=0.8, total_edges=4000
+Running with inter_ratio=0.2, intra_ratio=0.8, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.9, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.9_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.10407393524703248, 'A_r_norm_2': 0.8714835545202056, 'A_r_norm_1': 0.7429671090404113, 'Number of Unique Groups (C_auto)': 2092, 'Automorphism Ratio (A_r_log)': -0.25703289095958826, 'num_nodes': 6654, 'automorphism_score': 0.6856026450255486, 'head': 'CiteSeer_inter0.9_intra0.9_edges2000'}
+Finished with inter_ratio=0.9, intra_ratio=0.9, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.8, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.8, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.8_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.03406725257701084, 'A_r_norm_2': 0.8080524320694539, 'A_r_norm_1': 0.616104864138908, 'Number of Unique Groups (C_auto)': 4301, 'Automorphism Ratio (A_r_log)': -0.3838951358610919, 'num_nodes': 6654, 'automorphism_score': 0.3536218815749925, 'head': 'CiteSeer_inter0.2_intra0.8_edges5000'}
+Finished with inter_ratio=0.2, intra_ratio=0.8, total_edges=5000
+Finished with inter_ratio=0.9, intra_ratio=0.9, total_edges=2000
+Running with inter_ratio=0.9, intra_ratio=0.9, total_edges=3000
+Finished with inter_ratio=0.2, intra_ratio=0.8, total_edges=5000
+Running with inter_ratio=0.2, intra_ratio=0.9, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.9, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.9_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.08637050612575074, 'A_r_norm_2': 0.8608930813084945, 'A_r_norm_1': 0.7217861626169891, 'Number of Unique Groups (C_auto)': 2431, 'Automorphism Ratio (A_r_log)': -0.2782138373830105, 'num_nodes': 6654, 'automorphism_score': 0.6346558461076044, 'head': 'CiteSeer_inter0.9_intra0.9_edges3000'}
+Finished with inter_ratio=0.9, intra_ratio=0.9, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.9, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.9_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.12935171957467612, 'A_r_norm_2': 0.883833565637828, 'A_r_norm_1': 0.7676671312756562, 'Number of Unique Groups (C_auto)': 1842, 'Automorphism Ratio (A_r_log)': -0.23233286872434364, 'num_nodes': 6654, 'automorphism_score': 0.7231740306582507, 'head': 'CiteSeer_inter0.2_intra0.9_edges1000'}
+Finished with inter_ratio=0.2, intra_ratio=0.9, total_edges=1000
+Finished with inter_ratio=0.9, intra_ratio=0.9, total_edges=3000
+Running with inter_ratio=0.9, intra_ratio=0.9, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.9, total_edges=1000
+Running with inter_ratio=0.2, intra_ratio=0.9, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.9, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.9_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.09171637111413398, 'A_r_norm_2': 0.8643041241470466, 'A_r_norm_1': 0.7286082482940934, 'Number of Unique Groups (C_auto)': 2485, 'Automorphism Ratio (A_r_log)': -0.27139175170590635, 'num_nodes': 6654, 'automorphism_score': 0.6265404268109408, 'head': 'CiteSeer_inter0.2_intra0.9_edges2000'}
+Finished with inter_ratio=0.2, intra_ratio=0.9, total_edges=2000
+Finished with inter_ratio=0.2, intra_ratio=0.9, total_edges=2000
+Running with inter_ratio=0.2, intra_ratio=0.9, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.9, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.9_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.07237710170514239, 'A_r_norm_2': 0.8508535032305226, 'A_r_norm_1': 0.7017070064610453, 'Number of Unique Groups (C_auto)': 2746, 'Automorphism Ratio (A_r_log)': -0.2982929935389545, 'num_nodes': 6654, 'automorphism_score': 0.5873159002103998, 'head': 'CiteSeer_inter0.9_intra0.9_edges4000'}
+Finished with inter_ratio=0.9, intra_ratio=0.9, total_edges=4000
+Finished with inter_ratio=0.9, intra_ratio=0.9, total_edges=4000
+Running with inter_ratio=0.9, intra_ratio=0.9, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.9, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.9_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.06505403548979309, 'A_r_norm_2': 0.8447946564482697, 'A_r_norm_1': 0.6895893128965394, 'Number of Unique Groups (C_auto)': 3175, 'Automorphism Ratio (A_r_log)': -0.3104106871034603, 'num_nodes': 6654, 'automorphism_score': 0.5228434024646829, 'head': 'CiteSeer_inter0.2_intra0.9_edges3000'}
+Finished with inter_ratio=0.2, intra_ratio=0.9, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.9, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.9, intra_ratio=0.9, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.9_intra0.9_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.060637212507190175, 'A_r_norm_2': 0.8408011497240534, 'A_r_norm_1': 0.6816022994481068, 'Number of Unique Groups (C_auto)': 3067, 'Automorphism Ratio (A_r_log)': -0.3183977005518928, 'num_nodes': 6654, 'automorphism_score': 0.5390742410580103, 'head': 'CiteSeer_inter0.9_intra0.9_edges5000'}
+Finished with inter_ratio=0.9, intra_ratio=0.9, total_edges=5000
+Finished with inter_ratio=0.2, intra_ratio=0.9, total_edges=3000
+Running with inter_ratio=0.2, intra_ratio=0.9, total_edges=4000
+Finished with inter_ratio=0.9, intra_ratio=0.9, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.9, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.9_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.046532595881679246, 'A_r_norm_2': 0.8257632923469703, 'A_r_norm_1': 0.6515265846939408, 'Number of Unique Groups (C_auto)': 3774, 'Automorphism Ratio (A_r_log)': -0.3484734153060589, 'num_nodes': 6654, 'automorphism_score': 0.43282236248872863, 'head': 'CiteSeer_inter0.2_intra0.9_edges4000'}
+Finished with inter_ratio=0.2, intra_ratio=0.9, total_edges=4000
+Finished with inter_ratio=0.2, intra_ratio=0.9, total_edges=4000
+Running with inter_ratio=0.2, intra_ratio=0.9, total_edges=5000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.2, intra_ratio=0.9, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=5000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.2, intra_ratio=0.9, total_edges=5000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.2_intra0.9_edges5000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.03406725257701084, 'A_r_norm_2': 0.8080524320694539, 'A_r_norm_1': 0.616104864138908, 'Number of Unique Groups (C_auto)': 4301, 'Automorphism Ratio (A_r_log)': -0.3838951358610919, 'num_nodes': 6654, 'automorphism_score': 0.3536218815749925, 'head': 'CiteSeer_inter0.2_intra0.9_edges5000'}
+Finished with inter_ratio=0.2, intra_ratio=0.9, total_edges=5000
+Finished with inter_ratio=0.2, intra_ratio=0.9, total_edges=5000
+Running with inter_ratio=0.3, intra_ratio=0.1, total_edges=1000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.3, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=1000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.3, intra_ratio=0.1, total_edges=1000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.3_intra0.1_edges1000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.1296727533440679, 'A_r_norm_2': 0.8839743585361978, 'A_r_norm_1': 0.7679487170723956, 'Number of Unique Groups (C_auto)': 1823, 'Automorphism Ratio (A_r_log)': -0.23205128292760416, 'num_nodes': 6654, 'automorphism_score': 0.7260294559663361, 'head': 'CiteSeer_inter0.3_intra0.1_edges1000'}
+Finished with inter_ratio=0.3, intra_ratio=0.1, total_edges=1000
+Finished with inter_ratio=0.3, intra_ratio=0.1, total_edges=1000
+Running with inter_ratio=0.3, intra_ratio=0.1, total_edges=2000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.3, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=2000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.3, intra_ratio=0.1, total_edges=2000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.3_intra0.1_edges2000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.09094357728737804, 'A_r_norm_2': 0.8638235133618039, 'A_r_norm_1': 0.7276470267236078, 'Number of Unique Groups (C_auto)': 2481, 'Automorphism Ratio (A_r_log)': -0.2723529732763918, 'num_nodes': 6654, 'automorphism_score': 0.627141568981064, 'head': 'CiteSeer_inter0.3_intra0.1_edges2000'}
+Finished with inter_ratio=0.3, intra_ratio=0.1, total_edges=2000
+Finished with inter_ratio=0.3, intra_ratio=0.1, total_edges=2000
+Running with inter_ratio=0.3, intra_ratio=0.1, total_edges=3000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.3, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=3000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.3, intra_ratio=0.1, total_edges=3000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.3_intra0.1_edges3000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.06685940437417207, 'A_r_norm_2': 0.8463494568099074, 'A_r_norm_1': 0.692698913619815, 'Number of Unique Groups (C_auto)': 3095, 'Automorphism Ratio (A_r_log)': -0.30730108638018494, 'num_nodes': 6654, 'automorphism_score': 0.5348662458671476, 'head': 'CiteSeer_inter0.3_intra0.1_edges3000'}
+Finished with inter_ratio=0.3, intra_ratio=0.1, total_edges=3000
+Finished with inter_ratio=0.3, intra_ratio=0.1, total_edges=3000
+Running with inter_ratio=0.3, intra_ratio=0.1, total_edges=4000
+/home/kit/aifb/cc7738/anaconda3/envs/TAG-LP_g/lib/python3.8/site-packages/torch_geometric/graphgym/imports.py:14: UserWarning: Please install 'pytorch_lightning' via  'pip install pytorch_lightning' in order to use GraphGym
+  warnings.warn("Please install 'pytorch_lightning' via  "
+cat_node_feat_mf:  False
+use_val_edge: False
+use_hard_negative:  False
+Namespace(batch_size=16384, cat_n2v_feat=False, cat_node_feat_mf=False, data_name='CiteSeer', device=0, dropout=0.1, epochs=10, eval_steps=1, gat_head=1, gin_mlp_layer=2, gnn_model='GCN', gnnout_hidden_channels=512, hidden_channels=256, inter_ratio=0.3, intra_ratio=0.1, kill_cnt=20, l2=0.0, log_steps=1, lr=0.001, name_tag='', neg_mode='equal', num_layers=3, num_layers_predictor=3, output_dir='output_test', remove_edge_aggre=False, runs=2, save=False, score_model='mlp_score', seed=999, test_batch_size=65536, total_edges=4000, use_hard_negative=False, use_saved_model=False, use_valedges_as_input=False)
+Started with inter_ratio=0.3, intra_ratio=0.1, total_edges=4000
+Saved to plots/CiteSeer/hist_group_size_log_CiteSeer_inter0.3_intra0.1_edges4000.png
+Automorphism fraction before adding random edges: {'Automorphism Ratio (A_r1)': 0.047804625000304905, 'A_r_norm_2': 0.827295123526437, 'A_r_norm_1': 0.6545902470528739, 'Number of Unique Groups (C_auto)': 3663, 'Automorphism Ratio (A_r_log)': -0.3454097529471257, 'num_nodes': 6654, 'automorphism_score': 0.4495040577096483, 'head': 'CiteSeer_inter0.3_intra0.1_edges4000'}
+Finished with inter_ratio=0.3, intra_ratio=0.1, total_edges=4000
+Finished with inter_ratio=0.3, intra_ratio=0.1, total_edges=4000
+Running with inter_ratio=0.3, intra_ratio=0.1, total_edges=5000
