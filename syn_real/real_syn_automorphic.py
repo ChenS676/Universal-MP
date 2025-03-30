@@ -20,7 +20,7 @@ from torch_geometric.utils import (
 )
 from ogb.linkproppred import PygLinkPropPredDataset
 from automorphism import run_wl_test_and_group_nodes, compute_automorphism_metrics
-
+from baselines.data_utils.lcc import get_largest_connected_component, use_lcc
 from syn_real.gnn_utils import (
     get_root_dir, 
     get_logger, 
@@ -32,8 +32,13 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from torch_geometric.utils import to_networkx
 from gnn_ogb_heart import init_seed
-
-
+from syn_graph.syn_random import (
+    init_regular_tilling, 
+    RegularTilling, 
+    local_edge_rewiring, 
+    nx2Data_split
+)
+from  syn_graph.graph_generation import generate_graph, GraphType
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
@@ -50,7 +55,7 @@ def load_real_world_graph(dataset_name="Cora"):
     Returns:
         Data: PyTorch Geometric Data object.
     """
-    if dataset_name in ['Cora', 'CiteSeer', 'PubMed']:
+    if dataset_name in ['Cora', 'Citeseer', 'PubMed']:
         dataset = Planetoid(root='/tmp/' + dataset_name, name=dataset_name)
     elif dataset_name.startswith('ogbl'):
         dataset = PygLinkPropPredDataset(name=dataset_name, root='/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/syn_graph/dataset/')
@@ -163,7 +168,7 @@ def plot_histogram_group_size(group_sizes, metrics_before, args):
     plt.savefig(save_path)
     plt.close()
     print(f"Saved to {save_path}")
-    print(f"Automorphism fraction before adding random edges: {metrics_before}")
+    # print(f"Automorphism fraction before adding random edges: {metrics_before}")
 
 
 
@@ -206,11 +211,46 @@ def plot_histogram_group_size_log_scale(group_sizes, metrics_before, args, save_
     plt.savefig(save_path)
     plt.close()
     print(f"Saved to {save_path}")
-    print(f"Automorphism fraction before adding random edges: {metrics_before}")
+    # print(f"Automorphism fraction before adding random edges: {metrics_before}")
+
+
+
+def run_experiment(graph_data, args, inter_ratio, intra_ratio, total_edges):
+    """
+    Run the experiment with the given parameters.
+    
+    Parameters:
+        graph_data (torch_geometric.data.Data): The input graph data.
+        args (argparse.Namespace): Arguments containing dataset name.
+        inter_ratio (float): Fraction of edges to add between the two graph copies.
+        intra_ratio (float): Fraction of edges to add within each graph copy.
+        total_edges (int): Total number of random edges to add.
+    """
+    # Add random edges to the graph
+    updated_graph_data = add_random_edges(graph_data, inter_ratio=inter_ratio, intra_ratio=intra_ratio, total_edges=total_edges)
+    
+    # Convert to NetworkX graph for visualization
+    G = to_networkx(updated_graph_data, to_undirected=True)
+    num_nodes = updated_graph_data.num_nodes
+    node_groups, node_labels = run_wl_test_and_group_nodes(updated_graph_data.edge_index, num_nodes=num_nodes, num_iterations=30)
+    
+    metrics_after, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
+    metrics_after.update({'head': f'{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}'})
+    csv_path = f'plots/{args.data_name}/_Node_Merging.csv'
+    file_exists = os.path.isfile(csv_path)
+    df = pd.DataFrame([metrics_after])
+    df.to_csv(csv_path, mode='a', index=False, header=not file_exists)
+    print(df)
+    
+    # plot_group_size_distribution(group_sizes, args, f'plots/{args.data_name}/group_size_log1p{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
+    # plot_histogram_group_size_log_scale(group_sizes, metrics_after, args, f'plots/{args.data_name}/hist_group_size_log_{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
+    # plot_graph_visualization(graph_data, node_labels, args,  f'plots/{args.data_name}/wl_test_{args.data_name}_vis_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
+    print(f"Finished with inter_ratio={inter_ratio}, intra_ratio={intra_ratio}, total_edges={total_edges}")
+    
     
 def parse_args():
     parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default="CiteSeer")
+    parser.add_argument('--data_name', type=str, default="ogbl-ddi")
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
     parser.add_argument('--score_model', type=str, default='mlp_score')
@@ -261,48 +301,44 @@ def parse_args():
 def main():
     args = parse_args()
     init_seed(args.seed)
-    
+
     if os.path.exists(f'plots/{args.data_name}') == False:
         os.makedirs(f'plots/{args.data_name}')
         
     csv_path = f'plots/{args.data_name}/_Node_Merging.csv'
     file_exists = os.path.isfile(csv_path)
     original_data = load_real_world_graph(args.data_name)
+    run_experiment(original_data, args, 0, 0, 0)
+    
+    disjoint_graph = create_disjoint_graph(original_data)
+    run_experiment(disjoint_graph, args, 0, 0, 0)
 
-    graph_data = create_disjoint_graph(original_data)
-    num_nodes = graph_data.num_nodes
-    plot_dir = f'plots/{args.data_name}'
-    os.makedirs(plot_dir, exist_ok=True)
-    
-    # node_groups, node_labels = run_wl_test_and_group_nodes(graph_data.edge_index, num_nodes=num_nodes, num_iterations=30)
-    # metrics_before, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
-    # metrics_before.update({'head': f'{args.data_name}_original'})
-    # df = pd.DataFrame([metrics_before])
-    # df.to_csv(csv_path, mode='a', index=False, header=not file_exists)
-    # print(df)
-    
-    # plot_group_size_distribution(group_sizes, args, f'plots/{args.data_name}/group_size_log1p{args.data_name}.png')
-    # plot_histogram_group_size_log_scale(group_sizes, metrics_before, args, f'{plot_dir}/hist_group_size_log_{args.data_name}.png')
-    # plot_graph_visualization(graph_data, node_labels, args, f'plots/{args.data_name}/wl_test_{args.data_name}_visualization.png')
-    # del metrics_before, node_groups, node_labels, group_sizes 
-    
-    inter_ratio = args.inter_ratio
-    intra_ratio = args.intra_ratio
-    total_edges = args.total_edges
-    print(f"Started with inter_ratio={inter_ratio}, intra_ratio={intra_ratio}, total_edges={total_edges}")
-    
-    graph_data = add_random_edges(graph_data, inter_ratio=inter_ratio, intra_ratio=intra_ratio, total_edges=total_edges)
-    node_groups, node_labels = run_wl_test_and_group_nodes(graph_data.edge_index, num_nodes=num_nodes, num_iterations=30)
-    metrics_after, num_nodes, group_sizes  = compute_automorphism_metrics(node_groups, num_nodes)
-    metrics_after.update({'head': f'{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}'})
-    df = pd.DataFrame([metrics_after])
-    df.to_csv(csv_path, mode='a', index=False, header=not file_exists)
+    inter_ratios = [0.1] # Try also: 0.1–0.9
+    intra_ratios = [0.5]    # Fixed intra ratio
+    total_edges_list = [0.2, 1, 2, 3, 4, 5, 7, 8, 10, 14] # [0.15, 1,  4.5, 8, 14, 40]  # Will be scaled × 10^3
 
-    plot_group_size_distribution(group_sizes, args, f'plots/{args.data_name}/group_size_log1p{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
-    plot_histogram_group_size_log_scale(group_sizes, metrics_after, args, f'{plot_dir}/hist_group_size_log_{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
-    plot_graph_visualization(graph_data, node_labels, args,  f'plots/{args.data_name}/wl_test_{args.data_name}_vis_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
-    print(f"Finished with inter_ratio={inter_ratio}, intra_ratio={intra_ratio}, total_edges={total_edges}")
-    
-    
+    for inter in inter_ratios:
+        for intra in intra_ratios:
+            for edge_factor in total_edges_list:
+                total_edges = int(edge_factor * 1000)
+                print(f"\n=== Running experiment: inter_ratio={inter}, intra_ratio={intra}, edge_factor={edge_factor} ===")
+                run_experiment(disjoint_graph, args, inter, intra, total_edges)
+
 if __name__ == "__main__":
     main()
+# Cora
+# intra ratio has no effect on Cora
+# inter ratio has a big effect on Cora
+# inter_ratios = [0.1] # Try also: 0.1–0.9
+# intra_ratios = [0.5]    # Fixed intra ratio
+# total_edges_list = [0.2, 1, 4, 7, 12, 18, 28]*250 # Will be scaled × 10^3
+
+
+
+# Citeseer
+# inter_ratios = [0.1] # Try also: 0.1–0.9
+# intra_ratios = [0.5]    # Fixed intra ratio
+# total_edges_list = [0.2, 1, 2, 3, 4, 5, 7, 8, 10, 14] * 1000
+
+
+# DDI

@@ -3,7 +3,7 @@
 #!/bin/bash
 
 # Define the hyperparameters
-INTER_RATIOS=(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)
+INTER_RATIOS=(0.7)
 INTRA_RATIOS=(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)
 TOTAL_EDGES=(1000 2000 3000 4000 5000)
 
