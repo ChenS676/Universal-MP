@@ -30,15 +30,14 @@ from syn_real.gnn_utils import (
 )
 import matplotlib.pyplot as plt
 import networkx as nx
-from torch_geometric.utils import to_networkx
+
 from gnn_ogb_heart import init_seed
-from syn_graph.syn_random import (
-    init_regular_tilling, 
-    RegularTilling, 
-    local_edge_rewiring, 
-    nx2Data_split
-)
-from  syn_graph.graph_generation import generate_graph, GraphType
+import torch
+from ogb.linkproppred import PygLinkPropPredDataset
+from torch_geometric.utils import k_hop_subgraph
+from torch_geometric.data import Data
+from torch_geometric.utils import subgraph
+
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
@@ -57,9 +56,13 @@ def load_real_world_graph(dataset_name="Cora"):
     """
     if dataset_name in ['Cora', 'Citeseer', 'PubMed']:
         dataset = Planetoid(root='/tmp/' + dataset_name, name=dataset_name)
+        data = dataset[0]  
     elif dataset_name.startswith('ogbl'):
-        dataset = PygLinkPropPredDataset(name=dataset_name, root='/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/syn_graph/dataset/')
-    data = dataset[0]  
+        data = extract_induced_subgraph()
+        print(f"before data {data}")
+        # dataset = PygLinkPropPredDataset(name=dataset_name, root='/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-MP/syn_graph/dataset/')
+        data, lcc_index, G = use_lcc(data)
+        print(f"after lcc {data}")
     return data
 
 
@@ -76,7 +79,7 @@ def create_disjoint_graph(data):
     G = to_networkx(data, to_undirected=True)
     G2 = nx.relabel_nodes(G, lambda x: x + num_nodes)
     merged_graph = nx.compose(G, G2)
-    merged_edge_index = torch.tensor(list(merged_graph.edges)).T
+    merged_edge_index = torch.tensor(list(merged_graph.edges)).mT
 
     if hasattr(data, "x") and data.x is not None:
         merged_x = torch.cat([data.x, data.x], dim=0)
@@ -203,7 +206,6 @@ def plot_histogram_group_size_log_scale(group_sizes, metrics_before, args, save_
     counts, bins, _ = plt.hist(group_sizes, bins=20, edgecolor='black', alpha=0.75, density=True)
     counts = counts * 100 * np.diff(bins)
     plt.bar(bins[:-1], counts, width=np.diff(bins), edgecolor='black', alpha=0.75)
-    plt.xscale('log') 
     plt.yscale('log') 
     plt.xlabel("Group Size (log scale)")
     plt.ylabel("Frequency (log scale)")
@@ -227,8 +229,10 @@ def run_experiment(graph_data, args, inter_ratio, intra_ratio, total_edges):
         total_edges (int): Total number of random edges to add.
     """
     # Add random edges to the graph
-    updated_graph_data = add_random_edges(graph_data, inter_ratio=inter_ratio, intra_ratio=intra_ratio, total_edges=total_edges)
-    
+    if inter_ratio != 0 and intra_ratio != 0 and total_edges != 0:
+        updated_graph_data = add_random_edges(graph_data, inter_ratio=inter_ratio, intra_ratio=intra_ratio, total_edges=total_edges)
+    else:
+        updated_graph_data = graph_data
     # Convert to NetworkX graph for visualization
     G = to_networkx(updated_graph_data, to_undirected=True)
     num_nodes = updated_graph_data.num_nodes
@@ -242,9 +246,9 @@ def run_experiment(graph_data, args, inter_ratio, intra_ratio, total_edges):
     df.to_csv(csv_path, mode='a', index=False, header=not file_exists)
     print(df)
     
-    # plot_group_size_distribution(group_sizes, args, f'plots/{args.data_name}/group_size_log1p{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
-    # plot_histogram_group_size_log_scale(group_sizes, metrics_after, args, f'plots/{args.data_name}/hist_group_size_log_{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
-    # plot_graph_visualization(graph_data, node_labels, args,  f'plots/{args.data_name}/wl_test_{args.data_name}_vis_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
+    plot_group_size_distribution(group_sizes, args, f'plots/{args.data_name}/group_size_log1p{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
+    plot_histogram_group_size_log_scale(group_sizes, metrics_after, args, f'plots/{args.data_name}/hist_group_size_log_{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
+    plot_graph_visualization(updated_graph_data, node_labels, args,  f'plots/{args.data_name}/wl_test_{args.data_name}_vis_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
     print(f"Finished with inter_ratio={inter_ratio}, intra_ratio={intra_ratio}, total_edges={total_edges}")
     
     
@@ -308,24 +312,82 @@ def main():
     csv_path = f'plots/{args.data_name}/_Node_Merging.csv'
     file_exists = os.path.isfile(csv_path)
     original_data = load_real_world_graph(args.data_name)
-    run_experiment(original_data, args, 0, 0, 0)
-    
-    disjoint_graph = create_disjoint_graph(original_data)
-    run_experiment(disjoint_graph, args, 0, 0, 0)
 
-    inter_ratios = [0.1] # Try also: 0.1–0.9
-    intra_ratios = [0.5]    # Fixed intra ratio
-    total_edges_list = [0.2, 1, 2, 3, 4, 5, 7, 8, 10, 14] # [0.15, 1,  4.5, 8, 14, 40]  # Will be scaled × 10^3
+    run_experiment(original_data, args, 0, 0, 0)
+    disjoint_graph = create_disjoint_graph(original_data)
+    
+    run_experiment(disjoint_graph, args, 0, 0, 0)
+    inter_ratios = [0.5]  # Try also: 0.1–0.9
+    intra_ratios = [0.5]    
+    total_edges_list =  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] # [0.15, 1,  4.5, 8, 14, 40]  # Will be scaled × 10^3
 
     for inter in inter_ratios:
         for intra in intra_ratios:
             for edge_factor in total_edges_list:
-                total_edges = int(edge_factor * 1000)
+                total_edges = int(edge_factor * 1)
                 print(f"\n=== Running experiment: inter_ratio={inter}, intra_ratio={intra}, edge_factor={edge_factor} ===")
                 run_experiment(disjoint_graph, args, inter, intra, total_edges)
 
+
+def extract_induced_subgraph(dataset_name='ogbl-ddi', num_sampled_nodes=200, output_path='ddi_induced_subgraph.pt'):
+    # Load the OGB dataset
+    print("Loading dataset...")
+    dataset = PygLinkPropPredDataset(name=dataset_name)
+    data = dataset[0]
+
+    # Randomly sample node indices
+    num_nodes = data.num_nodes
+    sampled_nodes = torch.randperm(num_nodes)[:num_sampled_nodes]
+
+    # Extract the induced subgraph
+    print(f"Extracting induced subgraph from {num_sampled_nodes} random nodes...")
+    edge_index, _ = subgraph(sampled_nodes, data.edge_index, relabel_nodes=True)
+
+    # Create the subgraph Data object
+    subgraph_data = Data(
+        edge_index=edge_index,
+        num_nodes=sampled_nodes.size(0)
+    )
+
+    # Save the subgraph
+    torch.save(subgraph_data, output_path)
+    print(f"Saved induced subgraph with {subgraph_data.num_nodes} nodes and {subgraph_data.num_edges} edges to {output_path}")
+    return subgraph_data
+
+    
+def extract_subgraph(dataset_name='ogbl-ddi', num_sampled_nodes=0, k_hop=2, output_path='ddi_subgraph.pt'):
+    # Load the OGB dataset
+    print("Loading dataset...")
+    dataset = PygLinkPropPredDataset(name=dataset_name)
+    data = dataset[0]
+
+    # Randomly sample seed nodes
+    num_nodes = data.num_nodes
+    seed_nodes = torch.randperm(num_nodes)[:num_sampled_nodes]
+
+    # Extract the k-hop subgraph
+    print(f"Extracting {k_hop}-hop subgraph around {num_sampled_nodes} seed nodes...")
+    subset, edge_index, _, _ = k_hop_subgraph(
+        node_idx=seed_nodes,
+        num_hops=k_hop,
+        edge_index=data.edge_index,
+        relabel_nodes=True
+    )
+    subgraph_data = Data(
+        edge_index=edge_index,
+        num_nodes=subset.size(0)
+    )
+    torch.save(subgraph_data, output_path)
+    print(f"Saved subgraph with {subgraph_data.num_nodes} nodes and {subgraph_data.num_edges} edges to {output_path}")
+
+
 if __name__ == "__main__":
     main()
+    exit(-1)
+    extract_induced_subgraph()
+
+
+
 # Cora
 # intra ratio has no effect on Cora
 # inter ratio has a big effect on Cora
@@ -342,3 +404,6 @@ if __name__ == "__main__":
 
 
 # DDI
+# inter_ratios = [0.5]  # Try also: 0.1–0.9
+# intra_ratios = [0.5]    
+# total_edges_list =  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] * 1
