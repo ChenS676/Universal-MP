@@ -68,14 +68,13 @@ def load_real_world_graph(dataset_name="Cora"):
         Data: PyTorch Geometric Data object.
     """
     if dataset_name in ['Cora', 'Citeseer', 'PubMed']:
-    if dataset_name in ['Cora', 'Citeseer', 'PubMed']:
         dataset = Planetoid(root='/tmp/' + dataset_name, name=dataset_name)
         data = dataset[0]  
     elif dataset_name.startswith('ogbl'):
         data = extract_induced_subgraph()
         print(f"before data {data}")
         # dataset = PygLinkPropPredDataset(name=dataset_name, root='/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-MP/syn_graph/dataset/')
-        data, lcc_index, G = use_lcc(data)
+        data, _, _ = use_lcc(data)
         print(f"after lcc {data}")
     return data
 
