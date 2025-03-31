@@ -329,7 +329,9 @@ def main():
                 run_experiment(disjoint_graph, args, inter, intra, total_edges)
 
 
-def extract_induced_subgraph(dataset_name='ogbl-ddi', num_sampled_nodes=200, output_path='ddi_induced_subgraph.pt'):
+def extract_induced_subgraph(dataset_name='ogbl-ddi', 
+                            num_sampled_nodes=200, 
+                            output_path='ddi_induced_subgraph.pt'):
     # Load the OGB dataset
     print("Loading dataset...")
     dataset = PygLinkPropPredDataset(name=dataset_name)
@@ -355,7 +357,10 @@ def extract_induced_subgraph(dataset_name='ogbl-ddi', num_sampled_nodes=200, out
     return subgraph_data
 
     
-def extract_subgraph(dataset_name='ogbl-ddi', num_sampled_nodes=0, k_hop=2, output_path='ddi_subgraph.pt'):
+def extract_subgraph(dataset_name='ogbl-ddi', 
+                    num_sampled_nodes=0, 
+                    k_hop=2, 
+                    output_path='ddi_subgraph.pt'):
     # Load the OGB dataset
     print("Loading dataset...")
     dataset = PygLinkPropPredDataset(name=dataset_name)
@@ -385,8 +390,6 @@ if __name__ == "__main__":
     main()
     exit(-1)
     extract_induced_subgraph()
-
-
 
 # Cora
 # intra ratio has no effect on Cora
