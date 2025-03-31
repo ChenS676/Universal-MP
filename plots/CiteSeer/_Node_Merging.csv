@@ -1,0 +1,4 @@
+Automorphism Ratio (A_r1),A_r_norm_2,A_r_norm_1,Number of Unique Groups (C_auto),Automorphism Ratio (A_r_log),num_nodes,automorphism_score,head
+0.18117407745591285,0.9029704585370183,0.8059409170740368,658,-0.19405908292596336,6654,0.9011121130147279,CiteSeer_original
+Automorphism Ratio (A_r1),A_r_norm_2,A_r_norm_1,Number of Unique Groups (C_auto),Automorphism Ratio (A_r_log),num_nodes,automorphism_score,head
+0.13156521285844366,0.88479729917278,0.7695945983455603,1793,-0.23040540165443985,6654,0.7305380222422603,CiteSeer_inter0.1_intra0.1_edges1000

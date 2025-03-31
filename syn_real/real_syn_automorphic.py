@@ -233,7 +233,7 @@ def plot_histogram_group_size_log_scale(group_sizes, metrics_before, args, save_
     
 def parse_args():
     parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default="ogbl-ddi")
+    parser.add_argument('--data_name', type=str, default="Cora")
     parser.add_argument('--data_name', type=str, default="ogbl-ddi")
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
@@ -513,7 +513,11 @@ def main():
     
     csv_path = f'{plot_dir}/_Node_Merging.csv'
     file_exists = os.path.isfile(csv_path)
-                
+
+    # inter_ratios = [0.1] # Try also: 0.1–0.9
+    # intra_ratios = [0.5]    # Fixed intra ratio
+    # total_edges_list = [0.2, 1, 4, 7, 12, 18, 28]*250 # Will be scaled × 10^3
+
     for ir in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
         print(f"\n=== Generating graph with intra_ratio = {ir} ===")
         data, metrics = generate_perturbed_graph(args, intra_ratio=ir)
