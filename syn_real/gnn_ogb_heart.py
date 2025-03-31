@@ -12,11 +12,7 @@ from syn_real.gnn_utils import get_root_dir, get_logger, get_config_dir, Logger,
 from syn_real.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
 from syn_real.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
 from data_utils.data_utils import loaddataset, randomsplit
-
 # from logger import Logger
-
-
-
 from torch.utils.data import DataLoader
 from torch_sparse import SparseTensor
 from torch_geometric.utils import to_networkx, to_undirected
@@ -313,16 +309,9 @@ def main():
     parser.add_argument('--use_valedges_as_input', action='store_true', default=False)
     parser.add_argument('--remove_edge_aggre', action='store_true', default=False)
     parser.add_argument('--name_tag', type=str, default='')
-    ####### gin
     parser.add_argument('--gin_mlp_layer', type=int, default=2)
-
-    ######gat
     parser.add_argument('--gat_head', type=int, default=1)
-
-    ######mf
     parser.add_argument('--cat_node_feat_mf', default=False, action='store_true')
-
-    ##### n2v
     parser.add_argument('--cat_n2v_feat', default=False, action='store_true')
     parser.add_argument('--test_batch_size', type=int, default=1024 * 64) 
     parser.add_argument('--use_hard_negative', default=False, action='store_true')
@@ -338,7 +327,7 @@ def main():
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
-    dataset = PygLinkPropPredDataset(name=args.data_name, root=DATASET_PATH) #args.data_name
+    dataset = PygLinkPropPredDataset(name=args.data_name, root=DATASET_PATH) 
     split_edge = randomsplit(dataset,  val_ratio=0.10, test_ratio=0.2) 
     if data.is_directed():
         data.edge_index = to_undirected(data.edge_index)
@@ -509,10 +498,7 @@ def main():
                 step += 1
                 
             if epoch % args.eval_steps == 0:
-                if args.data_name == 'ogbl-citation2':
-                    results_rank, score_emb= test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size)
-                else:
-                    results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
+                results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
                     wandb.log({f"Metrics/{key}": result[-1]}, step=step)

@@ -336,9 +336,7 @@ def main():
         else:
             seed = run
         print('seed: ', seed)
-
         init_seed(seed)
-        
         save_path = args.output_dir+'/lr'+str(args.lr) + '_drop' + \
                     str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' \
                         + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) \
