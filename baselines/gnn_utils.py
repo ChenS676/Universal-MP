@@ -817,6 +817,7 @@ def save_emb(score_emb, save_path):
    
     torch.save(state, save_path)
 
+
 class Logger(object):
     def __init__(self, runs, info=None):
         self.info = info
@@ -847,35 +848,25 @@ class Logger(object):
                 test = r[r[:, 1].argmax(), 2].item()
                 
                 best_results.append((train1, valid, train2, test))
-
             best_result = torch.tensor(best_results)
-
             print(f'All runs:')
-
             r = best_result[:, 0].float()
             print(f'Highest Train: {r.mean():.2f} ± {r.std():.2f}')
-
             r = best_result[:, 1].float()
             best_valid_mean = round(r.mean().item(), 2)
             best_valid_var = round(r.std().item(), 2)
-
             best_valid = str(best_valid_mean) +' ' + '±' +  ' ' + str(best_valid_var)
             print(f'Highest Valid: {r.mean():.2f} ± {r.std():.2f}')
-
-
             r = best_result[:, 2].float()
             best_train_mean = round(r.mean().item(), 2)
             best_train_var = round(r.std().item(), 2)
             print(f'  Final Train: {r.mean():.2f} ± {r.std():.2f}')
-
-
             r = best_result[:, 3].float()
             best_test_mean = round(r.mean().item(), 2)
             best_test_var = round(r.std().item(), 2)
             test_res = f'{r.mean():.2f} ± {r.std():.2f}'
             print(f'  Final Test: {r.mean():.2f} ± {r.std():.2f}')
             print(test_res)
-
             mean_list = [best_train_mean, best_valid_mean, best_test_mean]
             var_list = [best_train_var, best_valid_var, best_test_var]
             return best_valid, best_valid_mean, mean_list, var_list, test_res

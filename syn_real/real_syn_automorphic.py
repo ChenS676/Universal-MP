@@ -4,9 +4,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import os
 import sys
 import random
-import itertools
 import argparse
-import pandas as pd
 import numpy as np
 import torch
 import networkx as nx
@@ -18,7 +16,6 @@ from torch_geometric.datasets import Planetoid
 from torch_geometric.utils import (
     to_networkx
 )
-from ogb.linkproppred import PygLinkPropPredDataset
 from automorphism import run_wl_test_and_group_nodes, compute_automorphism_metrics
 from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
 from syn_real.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
@@ -41,14 +38,35 @@ from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, Logger
 from torch_sparse import SparseTensor
 
 from torch_geometric.datasets import Planetoid 
-from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
+from ogb.linkproppred import Evaluator, PygLinkPropPredDataset
 from graphgps.utility.utils import mvari_str2csv
 from torch.utils.data import DataLoader
-from syn_real_generator import extract_induced_subgraph, use_lcc
+from syn_real_generator import extract_induced_subgraph, use_lcc, perturb_disjoint, generate_perturbed_graph
+import wandb
+
 
 # python real_syn_automorphic.py --data_name Citeseer --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024 
 # python real_syn_automorphic.py --data_name Cora --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024 
 # python real_syn_automorphic.py --data_name ogbl-ddi --gnn_model GCN --lr 0.01 --dropout 0.3 --l2 1e-4 --num_layers 1 --num_layers_predictor 3 --hidden_channels 128 --epochs 9999 --kill_cnt 10 --eval_steps 5 --batch_size 1024 
+# Cora
+# intra ratio has no effect on Cora
+# inter ratio has a big effect on Cora
+# inter_ratios = [0.1] # Try also: 0.1–0.9
+# intra_ratios = [0.5]    # Fixed intra ratio
+# total_edges_list = [0.2, 1, 4, 7, 12, 18, 28]*250 # Will be scaled × 10^3
+
+
+
+# Citeseer
+# inter_ratios = [0.1] # Try also: 0.1–0.9
+# intra_ratios = [0.5]    # Fixed intra ratio
+# total_edges_list = [0.2, 1, 2, 3, 4, 5, 7, 8, 10, 14] * 1000
+
+
+# DDI
+# inter_ratios = [0.5]  # Try also: 0.1–0.9
+# intra_ratios = [0.5]    
+# total_edges_list =  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] * 1
 
 
 dir_path = get_root_dir()
@@ -58,6 +76,7 @@ DATASET_PATH = '/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baseli
 PT_LIST = [f"plots/Citeseer/processed_graph_inter0.5_intra0.5_edges1000_auto0.7200_norm1_0.7676.pt"]
     
     
+
 # --- 1️⃣ Load Real-World Graph (Cora) ---
 def load_real_world_graph(dataset_name="Cora"):
     """
@@ -76,6 +95,7 @@ def load_real_world_graph(dataset_name="Cora"):
         # dataset = PygLinkPropPredDataset(name=dataset_name, root='/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-MP/syn_graph/dataset/')
         data, _, _ = use_lcc(data)
         print(f"after lcc {data}")
+        print(data.x)
     return data
 
 
@@ -99,6 +119,7 @@ def create_disjoint_graph(data):
     merged_data = Data(edge_index=merged_edge_index, num_nodes=2 * num_nodes)
     if hasattr(data, "x") and data.x is not None:
         merged_data.x = merged_x  
+    print(merged_data.x)
     return merged_data
 
 
@@ -184,7 +205,7 @@ def plot_histogram_group_size(group_sizes, metrics_before, args):
     save_path = f'{plot_dir}/hist_group_size_{args.data_name}.png'
     plt.savefig(save_path)
     plt.close()
-    print(f"Saved to {save_path}")
+    # print(f"Saved to {save_path}")
     # print(f"Automorphism fraction before adding random edges: {metrics_before}")
 
 
@@ -232,7 +253,6 @@ def plot_histogram_group_size_log_scale(group_sizes, metrics_before, args, save_
     
 def parse_args():
     parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default="Cora")
     parser.add_argument('--data_name', type=str, default="ogbl-ddi")
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
@@ -252,7 +272,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--eval_steps', type=int, default=1)
-    parser.add_argument('--runs', type=int, default=2)
+    parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=20,    type=int,       help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
     parser.add_argument('--l2',		type=float,             default=0.0,			help='L2 Regularization for Optimizer')
@@ -271,15 +291,16 @@ def parse_args():
     parser.add_argument('--cat_n2v_feat', default=False, action='store_true')
     parser.add_argument('--test_batch_size', type=int, default=1024 * 64) 
     parser.add_argument('--use_hard_negative', default=False, action='store_true')
+    parser.add_argument('--wandb_log', default=False, action='store_true')
     parser.add_argument('--metric', type=str, default='AUC')
     parser.add_argument('--inter_ratio', type=float, required=False, help='Inter ratio', default=0.5)
     parser.add_argument('--intra_ratio', type=float, required=False, help='Intra ratio', default=0.5)
     parser.add_argument('--total_edges', type=int, required=False, help='Total edges', default=1000)
     args = parser.parse_args()
-    print('cat_node_feat_mf: ', args.cat_node_feat_mf)
-    print('use_val_edge:', args.use_valedges_as_input)
-    print('use_hard_negative: ',args.use_hard_negative)
-    print(args)
+    # print('cat_node_feat_mf: ', args.cat_node_feat_mf)
+    # print('use_val_edge:', args.use_valedges_as_input)
+    # print('use_hard_negative: ',args.use_hard_negative)
+    # print(args)
     return args
     
     
@@ -395,7 +416,7 @@ def test(model, score_func, data, x, evaluator_hit, evaluator_mrr, batch_size):
     pos_train_pred = torch.flatten(pos_train_pred)
     neg_valid_pred, pos_valid_pred = torch.flatten(neg_valid_pred),  torch.flatten(pos_valid_pred)
     pos_test_pred, neg_test_pred = torch.flatten(pos_test_pred), torch.flatten(neg_test_pred)
-    print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
+    # print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
     result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
     score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x.cpu()]
     return result, score_emb
@@ -434,7 +455,7 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
 
     result['AUC'] = (result_auc_train['AUC'], result_auc_val['AUC'], result_auc_test['AUC'])
     result['AP'] = (result_auc_train['AP'], result_auc_val['AP'], result_auc_test['AP'])
-    print(result.keys())
+    # print(result.keys())
     return result
 
 
@@ -454,219 +475,169 @@ def test(model, score_func, data, x, evaluator_hit, evaluator_mrr, batch_size):
     pos_train_pred = torch.flatten(pos_train_pred)
     neg_valid_pred, pos_valid_pred = torch.flatten(neg_valid_pred),  torch.flatten(pos_valid_pred)
     pos_test_pred, neg_test_pred = torch.flatten(pos_test_pred), torch.flatten(neg_test_pred)
-    print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
+    # print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
     result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
     score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x.cpu()]
-    print(result.keys())
+    # print(result.keys())
     return result, score_emb
 
 
-def generate_perturbed_graph(args, intra_ratio):
-    args.intra_ratio = intra_ratio  
-    plot_dir = f'plots/{args.data_name}'
-    os.makedirs(plot_dir, exist_ok=True)
 
-    csv_path = f'{plot_dir}/_Node_Merging.csv'
-    file_exists = os.path.isfile(csv_path)
 
-    # Load original graph
-    original_data = load_real_world_graph(args.data_name)
-    original_data.adj_t = SparseTensor.from_edge_index(
-        original_data.edge_index, 
-        sparse_sizes=(original_data.num_nodes, original_data.num_nodes)
-    ).to_symmetric().coalesce()
-    disjoint_graph = create_disjoint_graph(original_data)
-    num_nodes = disjoint_graph.x.shape[0]
-    node_groups, _ = run_wl_test_and_group_nodes(original_data.edge_index, num_nodes=num_nodes, num_iterations=30)
-    metrics_before, _, _ = compute_automorphism_metrics(node_groups, num_nodes)
-    if intra_ratio == 0.0 and args.inter_ratio == 0.0:
-        print("No perturbation (intra=0, inter=0), returning disjoint graph.")
-        return disjoint_graph, metrics_before
-
-    data = copy.deepcopy(disjoint_graph)
+def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
+    data = copy.deepcopy(data)
     data.adj_t = SparseTensor.from_edge_index(
-        data.edge_index, 
-        sparse_sizes=(data.num_nodes, data.num_nodes)
+        data.edge_index, sparse_sizes=(data.num_nodes, data.num_nodes)
     ).to_symmetric().coalesce()
-    data = add_random_edges(data, inter_ratio=args.inter_ratio, intra_ratio=args.intra_ratio, total_edges=args.total_edges)
-    num_nodes = data.x.shape[0]
-    node_groups, _ = run_wl_test_and_group_nodes(data.edge_index, num_nodes=num_nodes, num_iterations=30)
-    metrics_after, _, _ = compute_automorphism_metrics(node_groups, num_nodes)
-    metrics_after.update({
-        'head': f'{args.data_name}_inter{args.inter_ratio}_intra{args.intra_ratio}_edges{args.total_edges}',
-        'intra_ratio': args.intra_ratio
-    })
-    
-    df = pd.DataFrame([metrics_after])
-    df.to_csv(csv_path, mode='a', index=False, header=not file_exists)
-    pt_path = f"{plot_dir}/processed_graph_inter{args.inter_ratio}_intra{args.intra_ratio}_edges{args.total_edges}" + \
-              f"_auto{metrics_after['automorphism_score']:.4f}_norm1_{metrics_after['A_r_norm_1']:.4f}.pt"
-    torch.save(data, pt_path)
-    return data, metrics_after
+    split_edge = randomsplit(data)
+    print("Dataset split:")
+    for key1 in split_edge:
+        for key2 in split_edge[key1]:
+            print(key1, key2, split_edge[key1][key2].shape[0])
+    data.edge_index = to_undirected(split_edge["train"]["edge"].t())
+    data = data2dict(data, split_edge, args.data_name)
+    device = torch.device(f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu')
+    x = data['x'].to(device)
+    if args.cat_n2v_feat:
+        print('cat n2v embedding!!')
+        n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name + '-n2v-embedding.pt'))
+        x = torch.cat((x, n2v_emb), dim=-1)
+    train_pos = data['train_pos'].to(x.device)
+    node_num = x.size(0)
+    input_channel = x.size(1)
+    model = eval(args.gnn_model)(
+        input_channel, args.hidden_channels, args.hidden_channels,
+        args.num_layers, args.dropout, args.gin_mlp_layer, args.gat_head,
+        node_num, args.cat_node_feat_mf
+    ).to(device)
+    score_func = eval(args.score_model)(
+        args.hidden_channels, args.hidden_channels,
+        1, args.num_layers_predictor, args.dropout
+    ).to(device)
+    eval_metric = args.metric
+    evaluator_hit = Evaluator(name='ogbl-collab')
+    evaluator_mrr = Evaluator(name='ogbl-citation2')
+    loggers = {
+        key: Logger(args.runs) for key in [
+            'Hits@1', 'Hits@10', 'Hits@20', 'Hits@50', 'Hits@100', 
+            'MRR', 'AUC', 'AP', 'mrr_hit1', 'mrr_hit3', 'mrr_hit10', 
+            'mrr_hit20', 'mrr_hit50', 'mrr_hit100'
+        ]
+    }
+    args.name_tag = (
+        f'{args.data_name}_'
+        f'inter{inter:.2f}_'
+        f'intra{intra:.2f}_'
+        f'total{total_edges:.0f}_'
+        f'Orbits_{metrics["Number of Unique Groups (C_auto)"]:.2f}_'
+        f'Norm_{metrics["A_r_norm_1"]:.2f}_'
+        f'ArScore_{metrics["automorphism_score"]:.2f}'
+    )
+
+    for run in range(args.runs):
+        if args.wandb_log:
+            wandb.init(
+                project="GRAND4LP",
+                name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}"
+            )
+        print(f'#################################          Run {run}          #################################')
+        seed = args.seed if args.runs == 1 else run
+        print('seed:', seed)
+        init_seed(seed)
+        save_path = os.path.join(
+            args.output_dir,
+            f'lr{args.lr}_drop{args.dropout}_l2{args.l2}_numlayer{args.num_layers}_'
+            f'numPredlay{args.num_layers_predictor}_numGinMlplayer{args.gin_mlp_layer}_'
+            f'dim{args.hidden_channels}_best_run_{seed}'
+        )
+        model.reset_parameters()
+        score_func.reset_parameters()
+        optimizer = torch.optim.Adam(
+            list(model.parameters()) + list(score_func.parameters()),
+            lr=args.lr,
+            weight_decay=args.l2
+        )
+        best_valid, best_test, kill_cnt, step = 0, 0, 0, 0
+        for epoch in range(1, args.epochs + 1):
+            loss = train(model, score_func, train_pos, x, optimizer, args.batch_size)
+            if epoch % args.eval_steps == 0:
+                results_rank, score_emb = test(
+                    model, score_func, data, x,
+                    evaluator_hit, evaluator_mrr, args.batch_size
+                )
+
+                for key, result in results_rank.items():
+                    loggers[key].add_result(run, result)
+                    wandb.log({'train_loss': loss}, step=epoch) if args.wandb_log else None
+                    wandb.log({f"Metrics/{key}": result[-1]}, step=epoch) if args.wandb_log else None
+                    step += 1
+                best_valid_current = torch.tensor(loggers[eval_metric].results[run])[:, 1].max()
+                if best_valid_current > best_valid:
+                    best_valid = best_valid_current
+                    kill_cnt = 0
+                    if args.save:
+                        save_emb(score_emb, save_path)
+                else:
+                    kill_cnt += 1
+                    if kill_cnt > args.kill_cnt:
+                        print("Early Stopping!!")
+                        break
+    result_all_run = {}
+    save_dict = {}
+    for key in loggers.keys():
+        if key in ['Hits@1', 'AUC', 'AP', 'MRR']:
+            best_metric, best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
+            if key == eval_metric:
+                best_metric_valid_str = best_metric
+            if key == 'AUC':
+                best_auc_valid_str = best_metric
+            result_all_run[key] = [mean_list, var_list]
+            save_dict[key] = test_res
+            print(save_dict)
+    print(best_metric_valid_str + ' ' + best_auc_valid_str)
+    print(args.name_tag)
+    mvari_str2csv(args.name_tag, save_dict, f'results/{args.data_name}_lm_mrr.csv')
 
 
 def main():
     args = parse_args()
-    plot_dir = f'plots/{args.data_name}'
-    os.makedirs(plot_dir, exist_ok=True)
-    
-    csv_path = f'{plot_dir}/_Node_Merging.csv'
+    init_seed(args.seed)
+
+    if os.path.exists(f'plots/{args.data_name}') == False:
+        os.makedirs(f'plots/{args.data_name}')
+
+    csv_path = f'plots/{args.data_name}/_Node_Merging.csv'
     file_exists = os.path.isfile(csv_path)
-
-    # inter_ratios = [0.1] # Try also: 0.1–0.9
-    # intra_ratios = [0.5]    # Fixed intra ratio
-    # total_edges_list = [0.2, 1, 4, 7, 12, 18, 28]*250 # Will be scaled × 10^3
-
-    for ir in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
-        print(f"\n=== Generating graph with intra_ratio = {ir} ===")
-        data, metrics = generate_perturbed_graph(args, intra_ratio=ir)
-
-        args.intra_ratio = ir
-        args.name_tag = f"{args.data_name}_inter{args.inter_ratio}_intra{args.intra_ratio}_edges{args.total_edges}_{metrics['A_r_norm_2']}"
-
-        print(args.name_tag)
-        data.adj_t = SparseTensor.from_edge_index(
-            data.edge_index,
-            sparse_sizes=(data.num_nodes, data.num_nodes)
-        ).to_symmetric().coalesce()
-
-        split_edge = randomsplit(data)
-        print("Dataset split:")
-        for key1 in split_edge:
-            for key2 in split_edge[key1]:
-                print(key1, key2, split_edge[key1][key2].shape[0])
-
-        data.edge_index = to_undirected(split_edge["train"]["edge"].t())
-        data = data2dict(data, split_edge, args.data_name)
-        device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
-        device = torch.device(device)
-        x = data['x'].to(device)
-
-        if args.cat_n2v_feat:
-            print('cat n2v embedding!!')
-            n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
-            x = torch.cat((x, n2v_emb), dim=-1)
-            
-        train_pos = data['train_pos'].to(x.device)
-        node_num = x.size(0)
-        input_channel = x.size(1)
-        model = eval(args.gnn_model)(input_channel, args.hidden_channels,
-                        args.hidden_channels, args.num_layers, args.dropout, 
-                        args.gin_mlp_layer, args.gat_head, node_num, args.cat_node_feat_mf).to(device)
-        
-        score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
-                        1, args.num_layers_predictor, args.dropout).to(device)
-
-        eval_metric = args.metric
-        evaluator_hit = Evaluator(name='ogbl-collab')
-        evaluator_mrr = Evaluator(name='ogbl-citation2')
-
-        loggers = {
-            'Hits@1': Logger(args.runs),
-            'Hits@10': Logger(args.runs),
-            'Hits@20': Logger(args.runs),
-            'Hits@50': Logger(args.runs),
-            'Hits@100': Logger(args.runs),
-            'MRR': Logger(args.runs),
-            'AUC': Logger(args.runs),
-            'AP': Logger(args.runs),
-            'MRR': Logger(args.runs),
-            'mrr_hit1': Logger(args.runs),
-            'mrr_hit3': Logger(args.runs),
-            'mrr_hit10': Logger(args.runs),
-            'mrr_hit20': Logger(args.runs),
-            'mrr_hit50': Logger(args.runs),
-            'mrr_hit100': Logger(args.runs),    
-        }
-
-        for run in range(args.runs):
-            import wandb
-            wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
-            # wandb.config.update(args)
-            print('#################################          ', run, '          #################################')
-            if args.runs == 1:
-                seed = args.seed
-            else:
-                seed = run
-            print('seed: ', seed)
-            init_seed(seed)
-            save_path = args.output_dir+'/lr'+str(args.lr) + '_drop' + \
-                        str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' \
-                            + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) \
-                            + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+ \
-                            str(args.hidden_channels) + '_'+ 'best_run_'+str(seed)
-            model.reset_parameters()
-            score_func.reset_parameters()
-            optimizer = torch.optim.Adam(
-                    list(model.parameters()) + list(score_func.parameters()),
-                    lr=args.lr, 
-                    weight_decay=args.l2)
-            best_valid = 0
-            kill_cnt = 0
-            best_test = 0
-            step = 0
-            for epoch in range(1, 1 + args.epochs):
-                loss = train(model, score_func, train_pos, x, optimizer, args.batch_size)
-                if epoch % args.eval_steps == 0:
-                    results_rank, score_emb = test(model, 
-                                                score_func, 
-                                                data,
-                                                x, 
-                                                evaluator_hit, 
-                                                evaluator_mrr, 
-                                                args.batch_size)
-                    for key, result in results_rank.items():
-                        wandb.log({'train_loss': loss}, step=epoch)
-                        loggers[key].add_result(run, result)
-                        wandb.log({f"Metrics/{key}": result[-1]}, step=epoch)
-                        step += 1
-                    if epoch % args.log_steps == 0:
-                        for key, result in results_rank.items():
-                            print(key)
-                            train_hits, valid_hits, test_hits = result
-                            log_print.info(
-                                f'Run: {run + 1:02d}, '
-                                f'Epoch: {epoch:02d}, '
-                                f'Loss: {loss:.4f}, '
-                                f'Train: {100 * train_hits:.2f}%, '
-                                f'Valid: {100 * valid_hits:.2f}%, '
-                                f'Test: {100 * test_hits:.2f}%')
-                        print('---')
-                    best_valid_current = torch.tensor(loggers[eval_metric].results[run])[:, 1].max()
-                    if best_valid_current > best_valid:
-                        best_valid = best_valid_current
-                        kill_cnt = 0
-                        if args.save:
-                            save_emb(score_emb, save_path)
-                    else:
-                        kill_cnt += 1
-                        if kill_cnt > args.kill_cnt: 
-                            print("Early Stopping!!")
-                            break
-            
-            for key in loggers.keys():
-                print(key)
-                loggers[key].print_statistics(run)
-
-        result_all_run = {}
-        save_dict = {}
-        for key in loggers.keys():
-            print(key)
-            best_metric, best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics() 
-            loggers[key].print_statistics()
-            if key == eval_metric:
-                best_metric_valid_str = best_metric
-                best_valid_mean_metric = best_valid_mean
-            if key == 'AUC':
-                best_auc_valid_str = best_metric
-                best_auc_metric = best_valid_mean
-            result_all_run[key] = [mean_list, var_list]
-            save_dict[key] = test_res
-            print(save_dict)
-        print(best_metric_valid_str + ' ' + best_auc_valid_str)
-        
-        print(args.name_tag)
-        mvari_str2csv(args.name_tag, save_dict, f'results/{args.data_name}_lm_mrr.csv')
+    original_data = load_real_world_graph(args.data_name)
+    perturb_disjoint(original_data, args, 0, 0, 0)
+    
+    disjoint_graph = create_disjoint_graph(original_data)
+    disjoint_graph, metrics = perturb_disjoint(disjoint_graph, args, 0, 0, 0)
+    run_training_pipeline(disjoint_graph, metrics, 0, 0, 0, args)
+    
+    if args.data_name == 'Cora':
+        inter_ratios = [0.5]   
+        intra_ratios = np.round(np.arange(0, 1.01, 0.1), 2).tolist()
+        total_edges_list = np.linspace(0, 40, 4).round(2).tolist()
+        multi_factor = 250 
+    elif args.data_name == 'Citeseer':
+        # Citeseer
+        inter_ratios = [0.1] # Try also: 0.1–0.9
+        intra_ratios = [0.5]    # Fixed intra ratio
+        total_edges_list = [0.2, 1, 2, 3, 4, 5, 7, 8, 10, 14]
+        multi_factor = 1000 
+    elif args.data_name == 'ogbl-ddi':
+        # DDI
+        inter_ratios = [0.5]  # Try also: 0.1–0.9
+        intra_ratios = [0.5]    
+        total_edges_list =  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] 
+        multi_factor = 1
+    for inter in inter_ratios:
+        for intra in intra_ratios:
+            for edge_factor in total_edges_list:
+                total_edges = int(edge_factor * multi_factor)
+                data, metrics = perturb_disjoint(disjoint_graph, args, inter, intra, total_edges)
+                run_training_pipeline(data, metrics, inter, intra, total_edges, args)
 
 if __name__ == "__main__":
     main()

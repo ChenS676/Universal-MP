@@ -1238,10 +1238,8 @@ def mvari_str2csv(name_tag, metrics, root):
     v_lst = [f'{name_tag}'] + new_lst
     new_df = pd.DataFrame([v_lst], columns=csv_columns)
     new_Data = pd.concat([Data, new_df])
-    new_Data.to_csv(root, mode='a', index=False, header=not os.path.exists(root))
-    import pdb; pdb.set_trace()
-    return new_Data
-
+    new_df.to_csv(root, mode='a', index=False, header=not os.path.exists(root))
+    del new_Data, new_df, new_lst
 
 
 

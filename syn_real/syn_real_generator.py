@@ -28,9 +28,10 @@ from syn_real.gnn_utils import (
     Logger, 
     init_seed
 )
+import copy
 import matplotlib.pyplot as plt
 import networkx as nx
-
+from torch_sparse import SparseTensor
 from gnn_ogb_heart import init_seed
 import torch
 from ogb.linkproppred import PygLinkPropPredDataset
@@ -118,7 +119,7 @@ def add_random_edges(graph_data, inter_ratio=0.5, intra_ratio=0.5, total_edges=1
         intra_edges_list.append((u, v))
     new_edges = torch.tensor(inter_edges_list + intra_edges_list, dtype=torch.long).T
     updated_edge_index = torch.cat([graph_data.edge_index, new_edges], dim=1)
-    return Data(edge_index=updated_edge_index, num_nodes=graph_data.num_nodes)
+    return Data(edge_index=updated_edge_index, num_nodes=graph_data.num_nodes, x=graph_data.x)
 
 
 def plot_group_size_distribution(group_sizes, args, file_name):
@@ -217,7 +218,7 @@ def plot_histogram_group_size_log_scale(group_sizes, metrics_before, args, save_
 
 
 
-def run_experiment(graph_data, args, inter_ratio, intra_ratio, total_edges):
+def perturb_disjoint(graph_data, args, inter_ratio, intra_ratio, total_edges):
     """
     Run the experiment with the given parameters.
     
@@ -246,11 +247,12 @@ def run_experiment(graph_data, args, inter_ratio, intra_ratio, total_edges):
     df.to_csv(csv_path, mode='a', index=False, header=not file_exists)
     print(df)
     
-    plot_group_size_distribution(group_sizes, args, f'plots/{args.data_name}/group_size_log1p{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
-    plot_histogram_group_size_log_scale(group_sizes, metrics_after, args, f'plots/{args.data_name}/hist_group_size_log_{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
-    plot_graph_visualization(updated_graph_data, node_labels, args,  f'plots/{args.data_name}/wl_test_{args.data_name}_vis_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
-    print(f"Finished with inter_ratio={inter_ratio}, intra_ratio={intra_ratio}, total_edges={total_edges}")
-    
+    # plot_group_size_distribution(group_sizes, args, f'plots/{args.data_name}/group_size_log1p{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
+    # plot_histogram_group_size_log_scale(group_sizes, metrics_after, args, f'plots/{args.data_name}/hist_group_size_log_{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
+    # plot_graph_visualization(updated_graph_data, node_labels, args,  f'plots/{args.data_name}/wl_test_{args.data_name}_vis_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
+    # print(f"Finished with inter_ratio={inter_ratio}, intra_ratio={intra_ratio}, total_edges={total_edges}")
+    return updated_graph_data, metrics_after
+
     
 def parse_args():
     parser = argparse.ArgumentParser(description='homo')
@@ -301,32 +303,50 @@ def parse_args():
     print(args)
     return args
     
-    
-def main():
-    args = parse_args()
-    init_seed(args.seed)
 
-    if os.path.exists(f'plots/{args.data_name}') == False:
-        os.makedirs(f'plots/{args.data_name}')
-        
-    csv_path = f'plots/{args.data_name}/_Node_Merging.csv'
+def generate_perturbed_graph(args, intra_ratio):
+    args.intra_ratio = intra_ratio  
+    plot_dir = f'plots/{args.data_name}'
+    os.makedirs(plot_dir, exist_ok=True)
+
+    csv_path = f'{plot_dir}/_Node_Merging.csv'
     file_exists = os.path.isfile(csv_path)
+
+    # Load original graph
     original_data = load_real_world_graph(args.data_name)
-
-    run_experiment(original_data, args, 0, 0, 0)
+    original_data.adj_t = SparseTensor.from_edge_index(
+        original_data.edge_index, 
+        sparse_sizes=(original_data.num_nodes, original_data.num_nodes)
+    ).to_symmetric().coalesce()
     disjoint_graph = create_disjoint_graph(original_data)
-    
-    run_experiment(disjoint_graph, args, 0, 0, 0)
-    inter_ratios = [0.5]  # Try also: 0.1–0.9
-    intra_ratios = [0.5]    
-    total_edges_list =  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] # [0.15, 1,  4.5, 8, 14, 40]  # Will be scaled × 10^3
+    num_nodes = disjoint_graph.x.shape[0]
+    node_groups, _ = run_wl_test_and_group_nodes(original_data.edge_index, num_nodes=num_nodes, num_iterations=30)
+    metrics_before, _, _ = compute_automorphism_metrics(node_groups, num_nodes)
+    if intra_ratio == 0.0 and args.inter_ratio == 0.0:
+        print("No perturbation (intra=0, inter=0), returning disjoint graph.")
+        return disjoint_graph, metrics_before
 
-    for inter in inter_ratios:
-        for intra in intra_ratios:
-            for edge_factor in total_edges_list:
-                total_edges = int(edge_factor * 1)
-                print(f"\n=== Running experiment: inter_ratio={inter}, intra_ratio={intra}, edge_factor={edge_factor} ===")
-                run_experiment(disjoint_graph, args, inter, intra, total_edges)
+    data = copy.deepcopy(disjoint_graph)
+    data.adj_t = SparseTensor.from_edge_index(
+        data.edge_index, 
+        sparse_sizes=(data.num_nodes, data.num_nodes)
+    ).to_symmetric().coalesce()
+    data = add_random_edges(data, inter_ratio=args.inter_ratio, intra_ratio=args.intra_ratio, total_edges=args.total_edges)
+    num_nodes = data.x.shape[0]
+    node_groups, _ = run_wl_test_and_group_nodes(data.edge_index, num_nodes=num_nodes, num_iterations=30)
+    metrics_after, _, _ = compute_automorphism_metrics(node_groups, num_nodes)
+    metrics_after.update({
+        'head': f'{args.data_name}_inter{args.inter_ratio}_intra{args.intra_ratio}_edges{args.total_edges}',
+        'intra_ratio': args.intra_ratio
+    })
+    
+    df = pd.DataFrame([metrics_after])
+    df.to_csv(csv_path, mode='a', index=False, header=not file_exists)
+    pt_path = f"{plot_dir}/processed_graph_inter{args.inter_ratio}_intra{args.intra_ratio}_edges{args.total_edges}" + \
+              f"_auto{metrics_after['automorphism_score']:.4f}_norm1_{metrics_after['A_r_norm_1']:.4f}.pt"
+    torch.save(data, pt_path)
+    return data, metrics_after
+
 
 
 def extract_induced_subgraph(dataset_name='ogbl-ddi', num_sampled_nodes=200, output_path='ddi_induced_subgraph.pt'):
@@ -379,6 +399,32 @@ def extract_subgraph(dataset_name='ogbl-ddi', num_sampled_nodes=0, k_hop=2, outp
     )
     torch.save(subgraph_data, output_path)
     print(f"Saved subgraph with {subgraph_data.num_nodes} nodes and {subgraph_data.num_edges} edges to {output_path}")
+
+def main():
+    args = parse_args()
+    init_seed(args.seed)
+
+    if os.path.exists(f'plots/{args.data_name}') == False:
+        os.makedirs(f'plots/{args.data_name}')
+        
+    csv_path = f'plots/{args.data_name}/_Node_Merging.csv'
+    file_exists = os.path.isfile(csv_path)
+    original_data = load_real_world_graph(args.data_name)
+
+    perturb_disjoint(original_data, args, 0, 0, 0)
+    disjoint_graph = create_disjoint_graph(original_data)
+    
+    perturb_disjoint(disjoint_graph, args, 0, 0, 0)
+    inter_ratios = [0.5]  # Try also: 0.1–0.9
+    intra_ratios = [0.5]    
+    total_edges_list =  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] # [0.15, 1,  4.5, 8, 14, 40]  # Will be scaled × 10^3
+
+    for inter in inter_ratios:
+        for intra in intra_ratios:
+            for edge_factor in total_edges_list:
+                total_edges = int(edge_factor * 1)
+                print(f"\n=== Running experiment: inter_ratio={inter}, intra_ratio={intra}, edge_factor={edge_factor} ===")
+                updated_graph_data, metrics_after = perturb_disjoint(disjoint_graph, args, inter, intra, total_edges)
 
 
 if __name__ == "__main__":
