@@ -89,11 +89,14 @@ def load_real_world_graph(dataset_name="Cora"):
     if dataset_name in ['Cora', 'Citeseer', 'PubMed']:
         dataset = Planetoid(root='/tmp/' + dataset_name, name=dataset_name)
         data = dataset[0]  
+        # data.x = torch.eye(data.num_nodes, dtype=torch.float)
+        # data.x = torch.rand(data.num_nodes, data.num_nodes)
     elif dataset_name.startswith('ogbl'):
-        data = extract_induced_subgraph()
+        # data = extract_induced_subgraph()
+        dataset = PygLinkPropPredDataset(name=dataset_name, root='/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-MP/syn_graph/dataset/')
         print(f"before data {data}")
-        # dataset = PygLinkPropPredDataset(name=dataset_name, root='/pfs/work7/workspace/scratch/cc7738-kdd25/Universal-MP/syn_graph/dataset/')
-        data, _, _ = use_lcc(data)
+        data = dataset[0]
+        # data, _, _ = use_lcc(data)
         print(f"after lcc {data}")
         print(data.x)
     return data
@@ -328,7 +331,7 @@ def randomsplit(data, val_ratio: float = 0.05, test_ratio: float = 0.15):
     
 def data2dict(data, splits, data_name) -> dict:
     #TODO test with all ogbl-datasets, start with collab
-    if data_name in ['Cora', 'Citeseer', 'Pubmed', 'Computers', 'Photo']:
+    if data_name in ['Cora', 'Citeseer', 'Pubmed', 'Computers', 'Photo', 'ogbl-ddi']:
         datadict = {}
         datadict.update({'adj': data.adj_t})
         datadict.update({'train_pos': splits['train']['edge']})
@@ -596,7 +599,7 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
             print(save_dict)
     print(best_metric_valid_str + ' ' + best_auc_valid_str)
     print(args.name_tag)
-    mvari_str2csv(args.name_tag, save_dict, f'results/{args.data_name}_lm_mrr.csv')
+    mvari_str2csv(args.name_tag, save_dict, f'results/{args.data_name}_random_lm_mrr.csv')
 
 
 def main():
@@ -616,10 +619,11 @@ def main():
     run_training_pipeline(disjoint_graph, metrics, 0, 0, 0, args)
     
     if args.data_name == 'Cora':
-        inter_ratios = [0.5]   
-        intra_ratios = np.round(np.arange(0, 1.01, 0.1), 2).tolist()
-        total_edges_list = np.linspace(0, 40, 4).round(2).tolist()
+        inter_ratios = [0.1]   
+        intra_ratios =  [0.5]
+        total_edges_list =  np.round(np.arange(0, 30, 2), 2).tolist()# [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] 
         multi_factor = 250 
+
     elif args.data_name == 'Citeseer':
         # Citeseer
         inter_ratios = [0.1] # Try also: 0.1–0.9
@@ -630,7 +634,7 @@ def main():
         # DDI
         inter_ratios = [0.5]  # Try also: 0.1–0.9
         intra_ratios = [0.5]    
-        total_edges_list =  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] 
+        total_edges_list =  np.round(np.arange(0, 40, 2), 2).tolist()# [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] 
         multi_factor = 1
     for inter in inter_ratios:
         for intra in intra_ratios:

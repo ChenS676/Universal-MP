@@ -354,9 +354,12 @@ def extract_induced_subgraph(dataset_name='ogbl-ddi', num_sampled_nodes=200, out
     print("Loading dataset...")
     dataset = PygLinkPropPredDataset(name=dataset_name)
     data = dataset[0]
-
     # Randomly sample node indices
     num_nodes = data.num_nodes
+    data.x = torch.diag(torch.arange(data.num_nodes).float())
+    # data.x = torch.eye(data.num_nodes, dtype=torch.float)
+    data.max_x = data.num_nodes
+            
     sampled_nodes = torch.randperm(num_nodes)[:num_sampled_nodes]
 
     # Extract the induced subgraph
@@ -365,6 +368,7 @@ def extract_induced_subgraph(dataset_name='ogbl-ddi', num_sampled_nodes=200, out
 
     # Create the subgraph Data object
     subgraph_data = Data(
+        x=data.x[sampled_nodes],
         edge_index=edge_index,
         num_nodes=sampled_nodes.size(0)
     )
@@ -394,6 +398,7 @@ def extract_subgraph(dataset_name='ogbl-ddi', num_sampled_nodes=0, k_hop=2, outp
         relabel_nodes=True
     )
     subgraph_data = Data(
+        x=data.x[subset],
         edge_index=edge_index,
         num_nodes=subset.size(0)
     )
