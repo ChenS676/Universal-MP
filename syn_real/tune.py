@@ -84,9 +84,8 @@ import wandb
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 DATASET_PATH = '/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines/dataset'
-
+PROJECT_ID = "Universal-MP-SynReal"
 PT_LIST = [f"plots/Citeseer/processed_graph_inter0.5_intra0.5_edges1000_auto0.7200_norm1_0.7676.pt"]
-    
     
 
 # --- 1️⃣ Load Real-World Graph (Cora) ---
@@ -104,10 +103,11 @@ def load_real_world_graph(dataset_name="Cora"):
         # data.x = torch.eye(data.num_nodes, dtype=torch.float)
         # data.x = torch.rand(data.num_nodes, data.num_nodes)
     elif dataset_name.startswith('ogbl'):
-        # data = extract_induced_subgraph()
-        dataset = PygLinkPropPredDataset(name=dataset_name, root='/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/syn_graph/dataset/')
+        data = extract_induced_subgraph()
+        # dataset = PygLinkPropPredDataset(name=dataset_name, root='/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/syn_graph/dataset/')
+        # data = dataset[0]
+        data.x = torch.diag(torch.arange(data.num_nodes).float())
         print(f"before data {data}")
-        data = dataset[0]
         # data, _, _ = use_lcc(data)
         print(f"after lcc {data}")
         print(data.x)
@@ -268,7 +268,7 @@ def plot_histogram_group_size_log_scale(group_sizes, metrics_before, args, save_
     
 def parse_args():
     parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default="Cora")
+    parser.add_argument('--data_name', type=str, default="ogbl-ddi")
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='MixHopGCN')
     parser.add_argument('--score_model', type=str, default='mlp_score')
@@ -285,7 +285,7 @@ def parse_args():
     ### train setting
     parser.add_argument('--batch_size', type=int, default=16384)
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=25)
     parser.add_argument('--eval_steps', type=int, default=1)
     parser.add_argument('--runs', type=int, default=1)
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=20,    type=int,       help='early stopping')
@@ -556,87 +556,81 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
         f'ArScore_{metrics["automorphism_score"]:.2f}'
     )
 
-    # import itertools
-    # hyperparams = {
-    #     'batch_size': [2**6, 2**7, 2**8, 2**9, 2**10, 2**11, 2**12],
-    #     'lr': [0.01, 0.001, 0.0001],
-    # }
-    if args.data_name == 'Cora': 
-        args.batch_size = 16384 
-        args.lr = 0.001
-    elif args.data_name == 'Citeseer':
-        args.batch_size = 1024
-        args.lr = 0.01
-    args.name_tag = args.name_tag + f'_lr{args.lr}_batch{args.batch_size}_seed{args.seed}'
-    # for batch_size, lr in itertools.product(hyperparams['batch_size'], hyperparams['lr']):
-    #     args.batch_size = batch_size
-    #     args.lr = lr
-    
-    for run in range(args.runs):
-        if args.wandb_log:
-            wandb.init(
-                project="GRAND4LP",
-                name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}"
-            )
-        print(f'#################################          Run {run}          #################################')
-        seed = args.seed if args.runs == 1 else run
-        print('seed:', seed)
-        init_seed(seed)
-        save_path = os.path.join(
-            args.output_dir,
-            f'lr{args.lr}_drop{args.dropout}_l2{args.l2}_numlayer{args.num_layers}_'
-            f'numPredlay{args.num_layers_predictor}_numGinMlplayer{args.gin_mlp_layer}_'
-            f'dim{args.hidden_channels}_best_run_{seed}'
-        )
-        model.reset_parameters()
-        score_func.reset_parameters()
-        optimizer = torch.optim.Adam(
-            list(model.parameters()) + list(score_func.parameters()),
-            lr=args.lr,
-            weight_decay=args.l2
-        )
-        best_valid, best_test, kill_cnt, step = 0, 0, 0, 0
-        for epoch in range(1, args.epochs + 1):
-            loss = train(model, score_func, train_pos, x, optimizer, args.batch_size)
-            if epoch % args.eval_steps == 0:
-                results_rank, score_emb = test(
-                    model, score_func, data, x,
-                    evaluator_hit, evaluator_mrr, args.batch_size
-                )
+    import itertools
+    hyperparams = {
+        'batch_size': [2**5, 2**6, 2**7, 2**8, 2**9, 2**10],
+        'lr': [0.01, 0.001, 0.0001],
+    }
 
-                for key, result in results_rank.items():
-                    loggers[key].add_result(run, result)
-                    wandb.log({'train_loss': loss}, step=epoch) if args.wandb_log else None
-                    wandb.log({f"Metrics/{key}": result[-1]}, step=epoch) if args.wandb_log else None
-                    step += 1
-                best_valid_current = torch.tensor(loggers[eval_metric].results[run])[:, 1].max()
-                if best_valid_current > best_valid:
-                    best_valid = best_valid_current
-                    kill_cnt = 0
-                    if args.save:
-                        save_emb(score_emb, save_path)
-                else:
-                    kill_cnt += 1
-                    if kill_cnt > args.kill_cnt:
-                        print("Early Stopping!!")
-                        break
-        wandb.finish() if args.wandb_log else None
-                
-    result_all_run = {} 
-    save_dict = {}
-    for key in loggers.keys():
-        if key in ['Hits@1', 'AUC', 'AP', 'MRR']:
-            best_metric, best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
-            if key == eval_metric:
-                best_metric_valid_str = best_metric
-            if key == 'AUC':
-                best_auc_valid_str = best_metric
-            result_all_run[key] = [mean_list, var_list]
-            save_dict[key] = test_res
-            print(save_dict)
-    print(best_metric_valid_str + ' ' + best_auc_valid_str)
-    print(args.name_tag)
-    mvari_str2csv(args.name_tag, save_dict, f'results/{args.data_name}_syn_real.csv')
+    for batch_size, lr in itertools.product(hyperparams['batch_size'], hyperparams['lr']):
+        args.batch_size = batch_size
+        args.lr = lr
+        args.name_tag = args.name_tag + f'_lr{args.lr}_batch{args.batch_size}_seed{args.seed}'
+    
+        for run in range(args.runs):
+            if args.wandb_log:
+                wandb.init(
+                    project=PROJECT_ID, 
+                    name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}"
+                )
+            print(f'#################################          Run {run}          #################################')
+            seed = args.seed if args.runs == 1 else run
+            print('seed:', seed)
+            init_seed(seed)
+            save_path = os.path.join(
+                args.output_dir,
+                f'lr{args.lr}_drop{args.dropout}_l2{args.l2}_numlayer{args.num_layers}_'
+                f'numPredlay{args.num_layers_predictor}_numGinMlplayer{args.gin_mlp_layer}_'
+                f'dim{args.hidden_channels}_best_run_{seed}'
+            )
+            model.reset_parameters()
+            score_func.reset_parameters()
+            optimizer = torch.optim.Adam(
+                list(model.parameters()) + list(score_func.parameters()),
+                lr=args.lr,
+                weight_decay=args.l2
+            )
+            best_valid, best_test, kill_cnt, step = 0, 0, 0, 0
+            for epoch in range(1, args.epochs + 1):
+                loss = train(model, score_func, train_pos, x, optimizer, args.batch_size)
+                if epoch % args.eval_steps == 0:
+                    results_rank, score_emb = test(
+                        model, score_func, data, x,
+                        evaluator_hit, evaluator_mrr, args.batch_size
+                    )
+                    for key, result in results_rank.items():
+                        loggers[key].add_result(run, result)
+                        wandb.log({'train_loss': loss}, step=epoch) if args.wandb_log else None
+                        wandb.log({f"Metrics/{key}": result[-1]}, step=epoch) if args.wandb_log else None
+                        step += 1
+                    best_valid_current = torch.tensor(loggers[eval_metric].results[run])[:, 1].max()
+                    if best_valid_current > best_valid:
+                        best_valid = best_valid_current
+                        kill_cnt = 0
+                        if args.save:
+                            save_emb(score_emb, save_path)
+                    else:
+                        kill_cnt += 1
+                        if kill_cnt > args.kill_cnt:
+                            print("Early Stopping!!")
+                            break
+            wandb.finish() if args.wandb_log else None
+                    
+        result_all_run = {} 
+        save_dict = {}
+        for key in loggers.keys():
+            if key in ['Hits@1', 'AUC', 'AP', 'MRR']:
+                best_metric, best_valid_mean, mean_list, var_list, test_res = loggers[key].print_statistics()
+                if key == eval_metric:
+                    best_metric_valid_str = best_metric
+                if key == 'AUC':
+                    best_auc_valid_str = best_metric
+                result_all_run[key] = [mean_list, var_list]
+                save_dict[key] = test_res
+                print(save_dict)
+        print(best_metric_valid_str + ' ' + best_auc_valid_str)
+        print(args.name_tag)
+        # mvari_str2csv(args.name_tag, save_dict, f'results/{args.data_name}_syn_real.csv')
 
 
 def main():
@@ -658,9 +652,8 @@ def main():
     if args.data_name == 'Cora':
         inter_ratios = [0.1]   
         intra_ratios =  [0.5]
-        total_edges_list = np.round(np.arange(0, 30, 2), 2).tolist()# [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] 
+        total_edges_list = [20] # np.round(np.arange(0, 30, 2), 2).tolist()# [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] 
         multi_factor = 250 
-
     elif args.data_name == 'Citeseer':
         # Citeseer
         inter_ratios = [0.1] # Try also: 0.1–0.9
@@ -671,7 +664,7 @@ def main():
         # DDI
         inter_ratios = [0.5]  # Try also: 0.1–0.9
         intra_ratios = [0.5]    
-        total_edges_list =  [20] # np.round(np.arange(0, 40, 2), 2).tolist()# [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] 
+        total_edges_list =  20 # np.round(np.arange(0, 40, 2), 2).tolist()# [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] 
         multi_factor = 1
     for inter in inter_ratios:
         for intra in intra_ratios:
