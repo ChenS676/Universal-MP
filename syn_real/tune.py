@@ -545,7 +545,17 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
             'mrr_hit20', 'mrr_hit50', 'mrr_hit100'
         ]
     }
-    args.name_tag = (
+
+    import itertools
+    hyperparams = {
+        'batch_size': [2**5, 2**6, 2**7, 2**8, 2**9, 2**10],
+        'lr': [0.00001], #0.01, 0.001, 0.0001
+    }
+
+    for batch_size, lr in itertools.product(hyperparams['batch_size'], hyperparams['lr']):
+        args.batch_size = batch_size
+        args.lr = lr
+        args.name_tag = (
         f'{args.data_name}_'
         f'{args.gnn_model}_'
         f'inter{inter:.2f}_'
@@ -555,16 +565,6 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
         f'Norm_{metrics["A_r_norm_1"]:.2f}_'
         f'ArScore_{metrics["automorphism_score"]:.2f}'
     )
-
-    import itertools
-    hyperparams = {
-        'batch_size': [2**5, 2**6, 2**7, 2**8, 2**9, 2**10],
-        'lr': [0.01, 0.001, 0.0001],
-    }
-
-    for batch_size, lr in itertools.product(hyperparams['batch_size'], hyperparams['lr']):
-        args.batch_size = batch_size
-        args.lr = lr
         args.name_tag = args.name_tag + f'_lr{args.lr}_batch{args.batch_size}_seed{args.seed}'
     
         for run in range(args.runs):
@@ -664,7 +664,7 @@ def main():
         # DDI
         inter_ratios = [0.5]  # Try also: 0.1–0.9
         intra_ratios = [0.5]    
-        total_edges_list =  20 # np.round(np.arange(0, 40, 2), 2).tolist()# [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] 
+        total_edges_list =  [20] # np.round(np.arange(0, 40, 2), 2).tolist()# [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] 
         multi_factor = 1
     for inter in inter_ratios:
         for intra in intra_ratios:
