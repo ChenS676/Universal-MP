@@ -1,0 +1,5 @@
+Metric,Hits@1,MRR,AUC,AP
+Citeseer_GCN_inter0.00_intra0.00_total0_Orbits_658.00_Norm_0.81_ArScore_0.90_lr0.001_batch16384_seed999,36.70 ± nan,45.66 ± nan,99.09 ± nan,99.00 ± nan
+Citeseer_GCN_inter0.10_intra0.50_total5000_Orbits_4358.00_Norm_0.61_ArScore_0.35_lr0.001_batch16384_seed999,6.87 ± nan,9.58 ± nan,69.59 ± nan,73.85 ± nan
+Citeseer_GCN_inter0.00_intra0.00_total0_Orbits_658.00_Norm_0.81_ArScore_0.90_lr0.001_batch16384_seed999,36.70 ± nan,45.66 ± nan,99.09 ± nan,99.00 ± nan
+Citeseer_GCN_inter0.10_intra0.50_total5000_Orbits_4358.00_Norm_0.61_ArScore_0.35_lr0.001_batch16384_seed999,6.87 ± nan,9.58 ± nan,69.59 ± nan,73.85 ± nan

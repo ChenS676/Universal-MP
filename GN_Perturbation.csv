@@ -1,6 +1,3 @@
 Automorphism Ratio (A_r1),A_r_norm_2,A_r_norm_1,Number of Unique Groups (C_auto),Automorphism Ratio (A_r_log),num_nodes,automorphism_score,data_name
-<<<<<<< HEAD:syn_graph/summary.csv
 0.0005,0.5,0.0,2000,-1.0000000000000002,2000,0.0,0.1_GraphType.ERDOS_RENYI
-=======
 0.0022505667326309267,0.6143345318289859,0.22866906365797168,2365,-0.7713309363420283,2708,0.12666174298375188,Cora_0
->>>>>>> 6ec87867cf5c8e9bb38ca10d6c50d38c7a8e96ef:GN_Perturbation.csv

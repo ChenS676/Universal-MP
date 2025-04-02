@@ -258,10 +258,10 @@ def load_real_world_graph(dataset_name="Cora"):
         # dataset = PygLinkPropPredDataset(name=dataset_name, root='/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/syn_graph/dataset/')
         # data = dataset[0]
         data.x = torch.diag(torch.arange(data.num_nodes).float())
-        print(f"before data {data}")
-        # data, _, _ = use_lcc(data)
-        print(f"after lcc {data}")
-        print(data.x)
+        # print(f"before data {data}")
+        # # data, _, _ = use_lcc(data)
+        # print(f"after lcc {data}")
+        # print(data.x)
     return data
 
 
@@ -285,7 +285,7 @@ def create_disjoint_graph(data):
     merged_data = Data(edge_index=merged_edge_index, num_nodes=2 * num_nodes)
     if hasattr(data, "x") and data.x is not None:
         merged_data.x = merged_x  
-    print(merged_data.x)
+    # print(merged_data.x)
     return merged_data
 
 
@@ -419,7 +419,7 @@ def plot_histogram_group_size_log_scale(group_sizes, metrics_before, args, save_
     
 def parse_args():
     parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default="Cora")
+    parser.add_argument('--data_name', type=str, default="Citeseer")
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='LINKX')
     parser.add_argument('--score_model', type=str, default='mlp_score')
@@ -436,9 +436,9 @@ def parse_args():
     ### train setting
     parser.add_argument('--batch_size', type=int, default=16384)
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--eval_steps', type=int, default=1)
-    parser.add_argument('--runs', type=int, default=1)
+    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--eval_steps', type=int, default=5)
+    parser.add_argument('--runs', type=int, default=3)
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=20,    type=int,       help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
     parser.add_argument('--l2',		type=float,             default=0.0,			help='L2 Regularization for Optimizer')
@@ -659,7 +659,7 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
     else:
         train_edge_weight = None
 
-    print(data, args.data_name)
+    # print(data, args.data_name)
     if data.edge_weight is None:
         edge_weight = torch.ones((data.edge_index.size(1), 1))
         print(f"custom edge_weight {edge_weight.size()} added for {args.data_name}")
@@ -673,8 +673,8 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
         A = SparseTensor.from_edge_index(full_edge_index, edge_weight.view(-1), [data.num_nodes, data.num_nodes])
         data.full_adj_t = A
         data.full_edge_index = full_edge_index
-        print(data.full_adj_t)
-        print(data.adj_t)
+        # print(data.full_adj_t)
+        # print(data.adj_t)
     data = data.to(device)
     data.edge_index = edge_index.to(device)
     data.edge_weight = edge_weight.to(device)
@@ -694,8 +694,8 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
 
     # Initialize the model
     in_channels = data.x.size(1)
-    print(data)
-    print(split_edge)
+    # print(data)
+    # print(split_edge)
 
     pos_train_edge = split_edge['valid']['edge']
     pos_valid_edge = split_edge['valid']['edge']
@@ -718,7 +718,7 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
     score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
                     1, args.num_layers_predictor, args.dropout).to(device)
 
-    print(data)
+    # print(data)
     evaluation_edges = [train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge]
 
     eval_metric = args.metric

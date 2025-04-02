@@ -14,6 +14,57 @@ from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.models import MLP
 from torch_geometric.typing import Adj, OptTensor
 from torch_geometric.utils import spmm
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import torch
+
+# from logger import Logger
+from torch.utils.data import DataLoader
+from torch_sparse import SparseTensor
+from torch_geometric.utils import to_networkx, to_undirected
+import torch_geometric.transforms as T
+from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
+from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
+from torch_geometric.utils import negative_sampling
+from tqdm import tqdm 
+from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
+import torch
+from torch_geometric.data import Data
+import numpy as np
+import argparse
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import itertools
+import networkx as nx
+import random
+from syn_random import (init_regular_tilling, 
+                        init_pyg_regtil, 
+                        RegularTilling, 
+                        local_edge_rewiring,
+                        nx2Data_split)
+from baselines.gnn_utils import (get_root_dir, 
+                                 get_logger, 
+                                 get_config_dir, 
+                                 Logger, 
+                                 init_seed, 
+                                 save_emb)
+from baselines.gnn_utils import (GCN, 
+                                 GAT, 
+                                 SAGE, 
+                                 GIN, 
+                                 MF, 
+                                 DGCNN, 
+                                 GCN_seal, 
+                                 SAGE_seal, 
+                                 DecoupleSEAL, 
+                                 mlp_score, 
+                                 dot_product, 
+                                 ChebGCN, 
+                                 MixHopGCN)
+from graph_generation import generate_graph, GraphType
+
 
 
 class SparseLinear(MessagePassing):
@@ -176,57 +227,6 @@ class LINKX(torch.nn.Module):
 # OBGL-PPA,DDI, CITATION2, VESSEL, COLLAB
 # basic idea is to replace diffusion operator in mpnn and say whether it works better in ogbl-collab and citation2
 # and then expand to synthetic graph
-import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import torch
-
-# from logger import Logger
-from torch.utils.data import DataLoader
-from torch_sparse import SparseTensor
-from torch_geometric.utils import to_networkx, to_undirected
-import torch_geometric.transforms as T
-from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
-from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
-from torch_geometric.utils import negative_sampling
-from tqdm import tqdm 
-from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
-import torch
-from torch_geometric.data import Data
-import numpy as np
-import argparse
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-import itertools
-import networkx as nx
-import random
-from syn_random import (init_regular_tilling, 
-                        init_pyg_regtil, 
-                        RegularTilling, 
-                        local_edge_rewiring,
-                        nx2Data_split)
-from baselines.gnn_utils import (get_root_dir, 
-                                 get_logger, 
-                                 get_config_dir, 
-                                 Logger, 
-                                 init_seed, 
-                                 save_emb)
-from baselines.gnn_utils import (GCN, 
-                                 GAT, 
-                                 SAGE, 
-                                 GIN, 
-                                 MF, 
-                                 DGCNN, 
-                                 GCN_seal, 
-                                 SAGE_seal, 
-                                 DecoupleSEAL, 
-                                 mlp_score, 
-                                 dot_product, 
-                                 ChebGCN, 
-                                 MixHopGCN)
-from graph_generation import generate_graph, GraphType
-
 
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
@@ -683,38 +683,17 @@ def main():
     G_rewired, rewired_list = local_edge_rewiring(G, num_rewirings=int(args.pr * G.number_of_edges()), seed=None)
     rewired_stats = get_graph_statistics(G_rewired, graph_name=args.data_name, perturbation=args.pr)
     save_graph_statistics(rewired_stats)
-    
+
     node_colors = ["gray"] * len(G_rewired.nodes())
     highlight_nodes = rewired_list
-
     # Set selected nodes to green
     for i, node in enumerate(G_rewired.nodes()):
         if node in highlight_nodes:
             node_colors[i] = "green"
-    
     data, split_edge, G, pos = nx2Data_split(G_rewired, pos, True, 0.25, 0.5)
-
     for k, val in split_edge.items():
         print(k, 'pos_edge_index', val['pos_edge_label_index'].size())
     emb = None
-
-    if hasattr(data, 'x'):
-        if data.x != None:
-            x = data.x
-            data.x = data.x.to(torch.float)
-            if args.cat_n2v_feat:
-                print('cat n2v embedding!!')
-                n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
-                data.x = torch.cat((data.x, n2v_emb), dim=-1)
-            data.x = data.x.to(device)
-            input_channel = data.x.size(1)
-        else:
-            emb = torch.nn.Embedding(data.num_nodes, args.hidden_channels).to(device)
-            input_channel = args.hidden_channels
-    else:
-        emb = torch.nn.Embedding(data.num_nodes, args.hidden_channels).to(device)
-        input_channel = args.hidden_channels
-        
     if hasattr(data, 'edge_weight'):
         if data.edge_weight != None:
             edge_weight = data.edge_weight.to(torch.float)
@@ -725,12 +704,10 @@ def main():
             train_edge_weight = None
     else:
         train_edge_weight = None
-    
     print(data, args.data_name)
     if data.edge_weight is None:
         edge_weight = torch.ones((data.edge_index.size(1), 1))
         print(f"custom edge_weight {edge_weight.size()} added for {args.data_name}")
-
     data = T.ToSparseTensor()(data)
     if args.use_valedges_as_input:
         val_edge_index = split_edge['valid']['edge'].t()

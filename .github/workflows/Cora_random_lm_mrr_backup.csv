@@ -1,0 +1,17 @@
+Metric,Hits@1,MRR,AUC,AP
+Cora_inter0.00_intra0.00_total0_Orbits_1007.00_Norm_0.72_ArScore_0.81,0.69 ± 0.29,3.04 ± 0.09,77.83 ± 0.16,76.85 ± 0.15
+Cora_inter0.10_intra0.50_total0_Orbits_1007.00_Norm_0.72_ArScore_0.81,4.02 ± 1.02,6.02 ± 1.05,78.74 ± 0.20,79.21 ± 0.17
+Cora_inter0.10_intra0.50_total500_Orbits_2343.00_Norm_0.69_ArScore_0.57,3.36 ± 0.26,6.06 ± 0.52,78.81 ± 0.10,78.73 ± 0.08
+Cora_inter0.10_intra0.50_total1000_Orbits_2754.00_Norm_0.66_ArScore_0.49,1.74 ± 0.19,4.78 ± 0.15,77.00 ± 0.17,77.39 ± 0.24
+Cora_inter0.10_intra0.50_total1500_Orbits_3100.00_Norm_0.64_ArScore_0.43,3.23 ± 0.19,6.76 ± 0.11,77.09 ± 0.14,77.59 ± 0.26
+Cora_inter0.10_intra0.50_total2000_Orbits_3358.00_Norm_0.61_ArScore_0.38,2.39 ± 0.23,5.15 ± 0.17,76.94 ± 0.11,77.22 ± 0.14
+Cora_inter0.10_intra0.50_total2500_Orbits_3630.00_Norm_0.58_ArScore_0.33,1.61 ± 0.28,4.09 ± 0.17,77.67 ± 0.27,77.66 ± 0.26
+Cora_inter0.10_intra0.50_total3000_Orbits_3834.00_Norm_0.56_ArScore_0.29,1.01 ± 0.11,4.21 ± 0.14,75.62 ± 0.10,76.33 ± 0.14
+Cora_inter0.10_intra0.50_total3500_Orbits_4010.00_Norm_0.54_ArScore_0.26,0.76 ± 0.39,4.01 ± 0.23,75.80 ± 0.08,75.85 ± 0.05
+Cora_inter0.10_intra0.50_total4000_Orbits_4196.00_Norm_0.51_ArScore_0.23,0.22 ± 0.15,3.47 ± 0.48,76.11 ± 0.13,76.21 ± 0.14
+Cora_inter0.10_intra0.50_total4500_Orbits_4380.00_Norm_0.49_ArScore_0.19,0.97 ± 0.38,3.76 ± 0.32,76.02 ± 0.12,75.98 ± 0.08
+Cora_inter0.10_intra0.50_total5000_Orbits_4520.00_Norm_0.46_ArScore_0.17,2.46 ± 0.32,5.12 ± 0.14,74.61 ± 0.06,74.54 ± 0.10
+Cora_inter0.10_intra0.50_total5500_Orbits_4629.00_Norm_0.43_ArScore_0.15,1.06 ± 0.47,2.84 ± 0.07,74.01 ± 0.16,74.01 ± 0.07
+Cora_inter0.10_intra0.50_total6000_Orbits_4719.00_Norm_0.41_ArScore_0.13,0.42 ± 0.42,3.05 ± 0.10,74.24 ± 0.07,74.65 ± 0.24
+Cora_inter0.10_intra0.50_total6500_Orbits_4801.00_Norm_0.39_ArScore_0.11,2.61 ± 0.98,4.49 ± 0.92,73.65 ± 0.06,74.32 ± 0.11
+Cora_inter0.10_intra0.50_total7000_Orbits_4862.00_Norm_0.38_ArScore_0.10,1.39 ± 0.23,3.83 ± 0.09,73.54 ± 0.09,74.33 ± 0.07

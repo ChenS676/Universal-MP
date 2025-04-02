@@ -1,0 +1,23 @@
+Metric,Hits@1,MRR,AUC,AP
+ogbl-ddi_inter0.00_intra0.00_total0_Orbits_150.00_Norm_0.32_ArScore_0.57,0.16 ± 0.35,2.83 ± 1.05,72.00 ± 12.55,70.70 ± 10.61
+ogbl-ddi_inter0.50_intra0.50_total0_Orbits_150.00_Norm_0.32_ArScore_0.57,0.36 ± 0.43,3.12 ± 1.05,74.39 ± 10.75,72.07 ± 9.68
+ogbl-ddi_inter0.50_intra0.50_total2_Orbits_250.00_Norm_0.31_ArScore_0.29,0.14 ± 0.12,2.93 ± 0.77,74.57 ± 6.45,71.68 ± 5.87
+ogbl-ddi_inter0.50_intra0.50_total4_Orbits_238.00_Norm_0.30_ArScore_0.32,0.35 ± 0.35,3.32 ± 1.08,73.95 ± 12.58,72.51 ± 11.08
+ogbl-ddi_inter0.50_intra0.50_total6_Orbits_286.00_Norm_0.30_ArScore_0.19,0.75 ± 0.35,3.38 ± 1.08,74.10 ± 12.57,72.44 ± 10.98
+ogbl-ddi_inter0.50_intra0.50_total8_Orbits_295.00_Norm_0.29_ArScore_0.16,0.01 ± 0.04,3.32 ± 1.07,73.83 ± 12.96,72.39 ± 11.32
+ogbl-ddi_inter0.50_intra0.50_total10_Orbits_295.00_Norm_0.29_ArScore_0.16,2.64 ± 1.33,5.80 ± 2.02,74.51 ± 12.87,73.62 ± 11.5
+0
+ogbl-ddi_inter0.50_intra0.50_total12_Orbits_295.00_Norm_0.29_ArScore_0.16,0.00 ± 0.00,2.55 ± 0.79,71.93 ± 13.07,69.89 ± 10.49
+ogbl-ddi_inter0.50_intra0.50_total14_Orbits_298.00_Norm_0.27_ArScore_0.15,0.36 ± 0.46,3.03 ± 1.09,72.44 ± 13.31,70.97 ± 10.93
+ogbl-ddi_inter0.50_intra0.50_total16_Orbits_298.00_Norm_0.27_ArScore_0.15,0.46 ± 0.35,3.18 ± 1.03,72.65 ± 12.16,71.52 ± 10.71
+ogbl-ddi_inter0.50_intra0.50_total18_Orbits_300.00_Norm_0.27_ArScore_0.15,0.35 ± 0.51,4.40 ± 1.78,74.13 ± 12.47,73.16 ± 11.19
+ogbl-ddi_inter0.50_intra0.50_total20_Orbits_301.00_Norm_0.27_ArScore_0.14,0.23 ± 0.35,3.72 ± 1.21,74.42 ± 12.45,73.35 ± 11.14
+ogbl-ddi_inter0.50_intra0.50_total22_Orbits_300.00_Norm_0.27_ArScore_0.15,0.06 ± 0.07,2.50 ± 0.77,73.82 ± 12.83,71.45 ± 10.55
+ogbl-ddi_inter0.50_intra0.50_total24_Orbits_300.00_Norm_0.27_ArScore_0.15,0.66 ± 0.43,3.50 ± 1.15,74.76 ± 13.15,73.27 ± 11.46
+ogbl-ddi_inter0.50_intra0.50_total26_Orbits_301.00_Norm_0.27_ArScore_0.14,0.31 ± 0.40,3.53 ± 1.25,74.27 ± 12.29,72.67 ± 10.92
+ogbl-ddi_inter0.50_intra0.50_total28_Orbits_301.00_Norm_0.27_ArScore_0.14,0.32 ± 0.38,3.60 ± 1.24,74.96 ± 12.33,73.43 ± 11.06
+ogbl-ddi_inter0.50_intra0.50_total30_Orbits_302.00_Norm_0.26_ArScore_0.14,1.23 ± 0.81,4.45 ± 1.61,74.14 ± 12.50,72.63 ± 10.96
+ogbl-ddi_inter0.50_intra0.50_total32_Orbits_301.00_Norm_0.27_ArScore_0.14,0.96 ± 0.89,4.15 ± 1.55,73.94 ± 13.46,72.43 ± 11.35
+ogbl-ddi_inter0.50_intra0.50_total34_Orbits_301.00_Norm_0.27_ArScore_0.14,1.18 ± 0.64,4.02 ± 1.44,74.22 ± 14.07,72.99 ± 11.84
+ogbl-ddi_inter0.50_intra0.50_total36_Orbits_302.00_Norm_0.26_ArScore_0.14,0.59 ± 0.30,3.64 ± 1.22,73.81 ± 14.15,72.57 ± 11.62
+ogbl-ddi_inter0.50_intra0.50_total38_Orbits_301.00_Norm_0.27_ArScore_0.14,0.59 ± 0.76,4.40 ± 1.48,73.57 ± 13.11,72.69 ± 11.30

@@ -1,0 +1,17 @@
+Metric,Hits@1,MRR,AUC,AP
+Cora_GCN_inter0.00_intra0.00_total0_Orbits_1007.00_Norm_0.72_ArScore_0.81_lr0.01_batch1024_seed999,12.38 ± nan,27.74 ± nan,99.36 ± nan,99.05 ± nan
+Cora_GCN_inter0.10_intra0.50_total0_Orbits_1007.00_Norm_0.72_ArScore_0.81_lr0.01_batch1024_seed999,0.82 ± nan,29.05 ± nan,99.47 ± nan,99.29 ± nan
+Cora_GCN_inter0.10_intra0.50_total500_Orbits_2393.00_Norm_0.69_ArScore_0.56_lr0.01_batch1024_seed999,0.92 ± nan,16.37 ± nan,99.35 ± nan,98.95 ± nan
+Cora_GCN_inter0.10_intra0.50_total1000_Orbits_2756.00_Norm_0.66_ArScore_0.49_lr0.01_batch1024_seed999,36.03 ± nan,50.13 ± nan,99.23 ± nan,99.12 ± nan
+Cora_GCN_inter0.10_intra0.50_total1500_Orbits_3077.00_Norm_0.64_ArScore_0.43_lr0.01_batch1024_seed999,24.31 ± nan,37.80 ± nan,98.68 ± nan,98.66 ± nan
+Cora_GCN_inter0.10_intra0.50_total2000_Orbits_3356.00_Norm_0.62_ArScore_0.38_lr0.01_batch1024_seed999,41.40 ± nan,33.07 ± nan,98.38 ± nan,98.23 ± nan
+Cora_GCN_inter0.10_intra0.50_total2500_Orbits_3598.00_Norm_0.60_ArScore_0.34_lr0.01_batch1024_seed999,19.80 ± nan,28.47 ± nan,98.45 ± nan,98.49 ± nan
+Cora_GCN_inter0.10_intra0.50_total3000_Orbits_3769.00_Norm_0.58_ArScore_0.30_lr0.01_batch1024_seed999,10.45 ± nan,21.11 ± nan,97.71 ± nan,97.50 ± nan
+Cora_GCN_inter0.10_intra0.50_total3500_Orbits_3981.00_Norm_0.55_ArScore_0.26_lr0.01_batch1024_seed999,16.22 ± nan,28.27 ± nan,97.78 ± nan,97.63 ± nan
+Cora_GCN_inter0.10_intra0.50_total4000_Orbits_4172.00_Norm_0.53_ArScore_0.23_lr0.01_batch1024_seed999,17.79 ± nan,26.46 ± nan,96.81 ± nan,96.51 ± nan
+Cora_GCN_inter0.10_intra0.50_total4500_Orbits_4317.00_Norm_0.50_ArScore_0.20_lr0.01_batch1024_seed999,2.34 ± nan,28.47 ± nan,96.99 ± nan,96.69 ± nan
+Cora_GCN_inter0.10_intra0.50_total5000_Orbits_4454.00_Norm_0.48_ArScore_0.18_lr0.01_batch1024_seed999,11.02 ± nan,25.17 ± nan,96.12 ± nan,96.13 ± nan
+Cora_GCN_inter0.10_intra0.50_total5500_Orbits_4583.00_Norm_0.45_ArScore_0.15_lr0.01_batch1024_seed999,5.71 ± nan,13.34 ± nan,95.56 ± nan,95.22 ± nan
+Cora_GCN_inter0.10_intra0.50_total6000_Orbits_4667.00_Norm_0.44_ArScore_0.14_lr0.01_batch1024_seed999,4.26 ± nan,12.49 ± nan,96.26 ± nan,95.93 ± nan
+Cora_GCN_inter0.10_intra0.50_total6500_Orbits_4744.00_Norm_0.41_ArScore_0.12_lr0.01_batch1024_seed999,3.62 ± nan,9.87 ± nan,94.87 ± nan,94.19 ± nan
+Cora_GCN_inter0.10_intra0.50_total7000_Orbits_4807.00_Norm_0.39_ArScore_0.11_lr0.01_batch1024_seed999,12.72 ± nan,13.84 ± nan,95.22 ± nan,94.84 ± nan

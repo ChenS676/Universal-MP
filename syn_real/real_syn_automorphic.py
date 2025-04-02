@@ -271,7 +271,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='homo')
     parser.add_argument('--data_name', type=str, default="Cora")
     parser.add_argument('--neg_mode', type=str, default='equal')
-    parser.add_argument('--gnn_model', type=str, default='MF')
+    parser.add_argument('--gnn_model', type=str, default='MixHopGCN')
     parser.add_argument('--score_model', type=str, default='mlp_score')
     parser.add_argument('--pt_path', default=f"plots/Citeseer/processed_graph_inter0.5_intra0.5_edges1000_auto0.7200_norm1_0.7676.pt",
                         type=str)
@@ -557,7 +557,7 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
         args.lr = 0.01
     elif args.data_name == 'Citeseer':
         args.batch_size = 1024
-        args.lr = 0.01
+        args.lr = 0.001
     elif args.data_name == 'ogbl-ddi':
         args.batch_size = 2**5
         args.lr = 0.00001
@@ -612,6 +612,8 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
 
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
+                    if loss > 20: 
+                        continue
                     wandb.log({'train_loss': loss}, step=epoch) if args.wandb_log else None
                     wandb.log({f"Metrics/{key}": result[-1]}, step=epoch) if args.wandb_log else None
                     step += 1
@@ -672,7 +674,7 @@ def main():
         # Citeseer
         inter_ratios = [0.1] 
         intra_ratios = [0.5] 
-        total_edges_list = [0.2, 1, 2, 3, 4, 5, 7, 8, 10, 14]
+        total_edges_list = [5, 7, 14] #[0.2, 1, 2, 3, 4, 5, 7, 8, 10, 14]
         multi_factor = 1000 
         
     elif args.data_name == 'ogbl-ddi':

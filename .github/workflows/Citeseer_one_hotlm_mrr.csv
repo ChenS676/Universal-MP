@@ -1,0 +1,12 @@
+Metric,Hits@1,MRR,AUC,AP
+Citeseer_inter0.00_intra0.00_total0_Orbits_658.00_Norm_0.81_ArScore_0.90,1.52 ± 1.32,3.71 ± 2.65,63.47 ± 14.46,65.82 ± 14.56
+Citeseer_inter0.10_intra0.50_total200_Orbits_1192.00_Norm_0.80_ArScore_0.82,0.82 ± 1.13,3.99 ± 3.10,62.89 ± 13.51,64.91 ± 14.06
+Citeseer_inter0.10_intra0.50_total1000_Orbits_1849.00_Norm_0.77_ArScore_0.72,0.32 ± 0.46,2.73 ± 1.98,59.95 ± 14.28,62.43 ± 14.11
+Citeseer_inter0.10_intra0.50_total2000_Orbits_2558.00_Norm_0.73_ArScore_0.62,0.20 ± 0.42,2.47 ± 1.75,60.05 ± 14.76,62.26 ± 14.17
+Citeseer_inter0.10_intra0.50_total3000_Orbits_3221.00_Norm_0.69_ArScore_0.52,1.01 ± 0.83,2.64 ± 1.92,59.19 ± 15.52,61.87 ± 14.92
+Citeseer_inter0.10_intra0.50_total4000_Orbits_3776.00_Norm_0.65_ArScore_0.43,0.53 ± 0.53,2.75 ± 2.19,58.83 ± 17.08,61.62 ± 16.16
+Citeseer_inter0.10_intra0.50_total5000_Orbits_4338.00_Norm_0.61_ArScore_0.35,0.48 ± 0.80,2.79 ± 2.19,58.00 ± 16.89,60.48 ± 15.68
+Citeseer_inter0.10_intra0.50_total7000_Orbits_5131.00_Norm_0.53_ArScore_0.23,0.19 ± 0.17,1.92 ± 1.53,56.87 ± 18.30,59.87 ± 16.33
+Citeseer_inter0.10_intra0.50_total8000_Orbits_5398.00_Norm_0.50_ArScore_0.19,1.02 ± 0.91,2.83 ± 2.28,56.79 ± 17.84,59.54 ± 15.88
+Citeseer_inter0.10_intra0.50_total10000_Orbits_5847.00_Norm_0.42_ArScore_0.12,0.33 ± 0.30,1.47 ± 1.17,54.75 ± 16.24,56.82 ± 13.86
+Citeseer_inter0.10_intra0.50_total14000_Orbits_6265.00_Norm_0.28_ArScore_0.06,1.24 ± 1.07,2.26 ± 1.86,54.14 ± 17.93,57.14 ± 15.04

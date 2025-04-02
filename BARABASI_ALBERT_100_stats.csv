@@ -1,2 +1,0 @@
-Graph Name,Number of Nodes,Number of Edges,Density,Average Degree,Min Degree,Max Degree
-GraphType.BARABASI_ALBERT_Perturbation_None,100,1344,0.27151515151515154,26.88,11,99
