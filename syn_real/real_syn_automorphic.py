@@ -499,9 +499,35 @@ def test(model, score_func, data, x, evaluator_hit, evaluator_mrr, batch_size):
 
 
 
+def get_graph_statistics(G, graph_name="Graph"):
+    """Calculate and return statistics of a NetworkX graph."""
+    num_nodes = G.number_of_nodes()
+    num_edges = G.number_of_edges()
+    density = nx.density(G)
+    
+    # Compute degree statistics
+    degrees = [deg for node, deg in G.degree()]
+    avg_degree = sum(degrees) / num_nodes if num_nodes > 0 else 0
+    min_degree = min(degrees) if degrees else None
+    max_degree = max(degrees) if degrees else None
+    
+    stats = {
+        "Graph Name": graph_name,
+        "Number of Nodes": num_nodes,
+        "Number of Edges": num_edges,
+        "Density": density,
+        "Average Degree": avg_degree,
+        "Min Degree": min_degree,
+        "Max Degree": max_degree,
+    }
+    return stats
+
 
 def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
     data = copy.deepcopy(data)
+    G = to_networkx(data)
+    stats = get_graph_statistics(G, graph_name=args.data_name)
+    print(stats)
     data.adj_t = SparseTensor.from_edge_index(
         data.edge_index, sparse_sizes=(data.num_nodes, data.num_nodes)
     ).to_symmetric().coalesce()
@@ -667,14 +693,14 @@ def main():
         # Cora
         inter_ratios = [0.1]   
         intra_ratios =  [0.5]
-        total_edges_list =  [0.2, 1, 4, 7, 12, 18, 20, 28] # 
+        total_edges_list =  [0.2, 1, 4, 7, 12, 18, 20, 28] #  
         multi_factor = 250 
 
     elif args.data_name == 'Citeseer':
         # Citeseer
         inter_ratios = [0.1] 
         intra_ratios = [0.5] 
-        total_edges_list = [5, 7, 14] #[0.2, 1, 2, 3, 4, 5, 7, 8, 10, 14]
+        total_edges_list = [0.2, 1, 2, 3, 4, 5, 7, 8, 10, 14] #[0.2, 1, 2, 3, 4, 5, 7, 8, 10, 14]
         multi_factor = 1000 
         
     elif args.data_name == 'ogbl-ddi':

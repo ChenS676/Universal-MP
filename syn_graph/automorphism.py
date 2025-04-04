@@ -33,6 +33,7 @@ from syn_random import (
     local_edge_rewiring, 
     nx2Data_split
 )
+from scipy.stats import norm
 from graph_generation import generate_graph, GraphType
 import numpy as np
 import matplotlib.pyplot as plt
@@ -381,13 +382,11 @@ def run_wl_test_and_group_nodes(edge_index, num_nodes, num_iterations=1000):
     node_labels = np.ones(num_nodes)
     for _ in range(num_iterations):
         node_labels = wl(node_labels, edge_index)  
-    # Group nodes based on final hashed values
     node_groups = {}
     for node, label in enumerate(node_labels.tolist()):
         if label not in node_groups:
             node_groups[label] = []
         node_groups[label].append(node)
-
     return node_groups, node_labels
 
 
@@ -683,7 +682,7 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     
     metrics.update({'data_name': str(graph_type)})
     print(metrics)
-    csv_path = 'summary.csv'
+    csv_path = '/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/syn_graph/summary.csv'
     file_exists = os.path.isfile(csv_path)
     pd.DataFrame([metrics]).to_csv(csv_path, mode='a', index=False, header=not file_exists)
     print(f"save to summary.csv.")
@@ -695,13 +694,13 @@ def process_graph(N, graph_type, pos=None, is_grid=False, label="graph"):
     
     # Visualiz  e with WL-based coloring
     plt.figure(figsize=(6, 6))
-    nx.draw(G, pos if is_grid else None, node_size=20, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
+    nx.draw(G, pos if is_grid else None, node_size=60, font_size=8, cmap='Set1', node_color=node_labels, edge_color="gray")
     plt.title("Graph Visualization with WL-based Node Coloring")
-    plt.savefig(f'wl_test_{graph_type}_{N}.png')
+    plt.savefig(f'wl_test_{graph_type}_{N}.pdf')
     plt.figure()
     plt.plot(group_sizes)
-    plt.savefig(f'group_size_{graph_type}_{N}.png')
-    print(f"save to group_size_{graph_type}_{N}.png")
+    plt.savefig(f'group_size_{graph_type}_{N}.pdf')
+    print(f"save to group_size_{graph_type}_{N}.pdf")
 
 
 def process_perturbation(N, data_name):
@@ -737,16 +736,30 @@ def process_perturbation(N, data_name):
     df.to_csv(f'{data_name}_perturbation.csv', index=False)
     return 
 
-
+    
 def test_automorphism():
     parser = argparse.ArgumentParser(description='homo')
     # TRIANGULAR = 1
     # HEXAGONAL = 2
     # SQUARE_GRID  = 3
     # KAGOME_LATTICE = 4
-    parser.add_argument('--data_name', type=str, default='ogbl-ppa')
+    parser.add_argument('--data_name', type=str, default='Cora')
     args = parser.parse_args()  
 
+    G, num_nodes, edge_index = dataloader(args)
+    node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)
+    torch.save(node_labels, f"{args.data_name}_wl_labels.pt")
+
+    metrics, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
+    plt.figure()
+    plt.plot(group_sizes)
+    plt.savefig(f'group_size_{args.data_name}.png')
+    
+    metrics.update({'data_name': args.data_name})
+    print(metrics)
+    pd.DataFrame([metrics]).to_csv(f'{args.data_name}_alpha.csv', index=False)
+    exit(-1)
+    
     process_graph(1000, GraphType.BARABASI_ALBERT)
     process_graph(500, GraphType.BARABASI_ALBERT)
     process_graph(10, GraphType.BARABASI_ALBERT)
@@ -755,12 +768,12 @@ def test_automorphism():
 
     # Two Extreme Cases:
     process_graph(40, 'GraphType.COMPLETE', is_grid=True, label="GraphType.COMPLETE")  # Regular tiling case
-    process_graph(300, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
-    process_graph(40, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
+    process_graph(20, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
+    process_graph(4, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
     process_graph(100, 'GraphType.COMPLETE', is_grid=True, label="GraphType.COMPLETE")  # Regular tiling case
-    process_graph(1000, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
-    process_graph(100, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
-
+    process_graph(30, RegularTilling.TRIANGULAR, is_grid=True, label="RegularTilling.TRIANGULAR")  # Regular tiling case
+    process_graph(5, RegularTilling.SQUARE_GRID, is_grid=True, label="RegularTilling.SQUARE_GRID")  # Regular tiling case
+    exit(-1)
     G, num_nodes, edge_index = dataloader(args)
     
     node_groups, node_labels = run_wl_test_and_group_nodes(edge_index, num_nodes=num_nodes, num_iterations=100)

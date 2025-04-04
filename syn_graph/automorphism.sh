@@ -32,7 +32,18 @@ echo ">>> .bashrc executed: Environment and modules are set up. <<<"
 
 echo "Start time: $(date)"
 
-# for data in $data_name; do
-echo "Start training grand on $data"
+datasets=("Cora" "Citeseer" "Pubmed" "Computers" "Photo" "ogbl-ddi" "ogbl-collab" "ogbl-ppa" "ogbl-citation2")
 
-python automorphism.py --data_name ogbl-citation2
+# Loop through datasets in pairs
+for ((i=0; i<${#datasets[@]}; i+=2)); do
+    echo "Start training grand on ${datasets[i]}"
+    python automorphism.py --data_name "${datasets[i]}" &
+
+    if ((i+1 < ${#datasets[@]})); then
+        echo "Start training grand on ${datasets[i+1]}"
+        python automorphism.py --data_name "${datasets[i+1]}" &
+    fi
+
+    # Wait for the two jobs to finish before starting the next pair
+    wait
+done
