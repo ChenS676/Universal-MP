@@ -1,16 +1,11 @@
-# adopted from benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
-# python gnn_ogb_heart.py  --use_valedges_as_input  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
-# OBGL-PPA,DDI, CITATION2, VESSEL, COLLAB
-# basic idea is to replace diffusion operator in mpnn and say whether it works better in ogbl-collab and citation2
-# and then expand to synthetic graph
+
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
-
+import math
 from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, Logger, init_seed, save_emb
 from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
-
 # from logger import Logger
 from torch.utils.data import DataLoader
 from torch_sparse import SparseTensor
@@ -18,6 +13,7 @@ from torch_geometric.utils import to_networkx, to_undirected
 import torch_geometric.transforms as T
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
+from data_load import loaddataset
 from torch_geometric.utils import negative_sampling
 import os
 from tqdm import tqdm 
@@ -25,13 +21,188 @@ from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
 import torch
 from torch_geometric.data import Data
 import numpy as np
+import torch
+import torch.nn as nn
 import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
+from torch import Tensor
+from torch.nn import BatchNorm1d, Parameter
+from torch.utils.data import DataLoader
+from torch_geometric.data import Data
+from torch_geometric.datasets import Planetoid
+from torch_geometric.nn import inits
+from torch_geometric.nn.conv import MessagePassing
+from torch_geometric.nn.models import MLP
+from torch_geometric.typing import Adj, OptTensor
+from torch_geometric.utils import (
+    to_networkx,
+    train_test_split_edges,
+    to_undirected,
+    spmm
+)
 
+from sklearn.preprocessing import OneHotEncoder
 dir_path = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 DATASET_PATH = '/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines/dataset'
+
+
+class SparseLinear(MessagePassing):
+    def __init__(self, in_channels: int, out_channels: int, bias: bool = True):
+        super().__init__(aggr='add')
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+
+        self.weight = Parameter(torch.empty(in_channels, out_channels))
+        if bias:
+            self.bias = Parameter(torch.empty(out_channels))
+        else:
+            self.register_parameter('bias', None)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        inits.kaiming_uniform(self.weight, fan=self.in_channels,
+                              a=math.sqrt(5))
+        inits.uniform(self.in_channels, self.bias)
+
+    def forward(
+        self,
+        edge_index: Adj,
+        edge_weight: OptTensor = None,
+    ) -> Tensor:
+        # propagate_type: (weight: Tensor, edge_weight: OptTensor)
+        out = self.propagate(edge_index, weight=self.weight,
+                             edge_weight=edge_weight)
+
+        if self.bias is not None:
+            out = out + self.bias
+
+        return out
+
+    def message(self, weight_j: Tensor, edge_weight: OptTensor) -> Tensor:
+        if edge_weight is None:
+            return weight_j
+        else:
+            return edge_weight.view(-1, 1) * weight_j
+
+    def message_and_aggregate(self, adj_t: Adj, weight: Tensor) -> Tensor:
+        return spmm(adj_t, weight, reduce=self.aggr)
+
+
+class LINKX(torch.nn.Module):
+    r"""The LINKX model from the `"Large Scale Learning on Non-Homophilous
+    Graphs: New Benchmarks and Strong Simple Methods"
+    <https://arxiv.org/abs/2110.14446>`_ paper.
+
+    .. math::
+        \mathbf{H}_{\mathbf{A}} &= \textrm{MLP}_{\mathbf{A}}(\mathbf{A})
+
+        \mathbf{H}_{\mathbf{X}} &= \textrm{MLP}_{\mathbf{X}}(\mathbf{X})
+
+        \mathbf{Y} &= \textrm{MLP}_{f} \left( \sigma \left( \mathbf{W}
+        [\mathbf{H}_{\mathbf{A}}, \mathbf{H}_{\mathbf{X}}] +
+        \mathbf{H}_{\mathbf{A}} + \mathbf{H}_{\mathbf{X}} \right) \right)
+
+    .. note::
+
+        For an example of using LINKX, see `examples/linkx.py <https://
+        github.com/pyg-team/pytorch_geometric/blob/master/examples/linkx.py>`_.
+
+    Args:
+        num_nodes (int): The number of nodes in the graph.
+        in_channels (int): Size of each input sample, or :obj:`-1` to derive
+            the size from the first input(s) to the forward method.
+        hidden_channels (int): Size of each hidden sample.
+        out_channels (int): Size of each output sample.
+        num_layers (int): Number of layers of :math:`\textrm{MLP}_{f}`.
+        num_edge_layers (int, optional): Number of layers of
+            :math:`\textrm{MLP}_{\mathbf{A}}`. (default: :obj:`1`)
+        num_node_layers (int, optional): Number of layers of
+            :math:`\textrm{MLP}_{\mathbf{X}}`. (default: :obj:`1`)
+        dropout (float, optional): Dropout probability of each hidden
+            embedding. (default: :obj:`0.0`)
+    """
+    def __init__(
+        self,
+        num_nodes: int,
+        in_channels: int,
+        hidden_channels: int,
+        out_channels: int,
+        num_layers: int,
+        num_edge_layers: int = 1,
+        num_node_layers: int = 1,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+
+        self.num_nodes = num_nodes
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.num_edge_layers = num_edge_layers
+
+        self.edge_lin = SparseLinear(num_nodes, hidden_channels)
+
+        if self.num_edge_layers > 1:
+            self.edge_norm = BatchNorm1d(hidden_channels)
+            channels = [hidden_channels] * num_edge_layers
+            self.edge_mlp = MLP(channels, dropout=0., act_first=True)
+        else:
+            self.edge_norm = None
+            self.edge_mlp = None
+
+        channels = [in_channels] + [hidden_channels] * num_node_layers
+        self.node_mlp = MLP(channels, dropout=0., act_first=True)
+
+        self.cat_lin1 = torch.nn.Linear(hidden_channels, hidden_channels)
+        self.cat_lin2 = torch.nn.Linear(hidden_channels, hidden_channels)
+
+        channels = [hidden_channels] * num_layers + [out_channels]
+        self.final_mlp = MLP(channels, dropout=dropout, act_first=True)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
+        self.edge_lin.reset_parameters()
+        if self.edge_norm is not None:
+            self.edge_norm.reset_parameters()
+        if self.edge_mlp is not None:
+            self.edge_mlp.reset_parameters()
+        self.node_mlp.reset_parameters()
+        self.cat_lin1.reset_parameters()
+        self.cat_lin2.reset_parameters()
+        self.final_mlp.reset_parameters()
+
+    def forward(
+        self,
+        x: OptTensor,
+        edge_index: Adj,
+        edge_weight: OptTensor = None,
+    ) -> Tensor:
+        """"""  # noqa: D419
+        out = self.edge_lin(edge_index, edge_weight)
+
+        if self.edge_norm is not None and self.edge_mlp is not None:
+            out = out.relu_()
+            out = self.edge_norm(out)
+            out = self.edge_mlp(out)
+
+        out = out + self.cat_lin1(out)
+
+        if x is not None:
+            x = self.node_mlp(x)
+            out = out + x
+            out = out + self.cat_lin2(x)
+
+        return self.final_mlp(out.relu_())
+
+    def __repr__(self) -> str:
+        return (f'{self.__class__.__name__}(num_nodes={self.num_nodes}, '
+                f'in_channels={self.in_channels}, '
+                f'out_channels={self.out_channels})')
+
 
 def get_metric_score_citation2(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
     k_list = [1, 10, 20, 50, 100]
@@ -115,7 +286,7 @@ def train_use_hard_negative(model, score_func, train_pos, data, emb, optimizer, 
                            shuffle=True),  DataLoader(range(train_pos.size(0)), gnn_batch_size,
                            shuffle=True)):
         optimizer.zero_grad()
-        num_nodes = x.size(0)
+        num_nodes = data.x.size(0)
         ######################### remove loss edges from the aggregation
         if remove_edge_aggre:
             mask = torch.ones(train_pos.size(0), dtype=torch.bool).to(train_pos.device)
@@ -173,7 +344,7 @@ def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_
     for perm in DataLoader(range(train_pos.size(0)), batch_size,
                            shuffle=True):
         optimizer.zero_grad()
-        num_nodes = x.size(0)
+        num_nodes = data.x.size(0)
         ######################### remove loss edges from the aggregation
         if remove_edge_aggre:
             mask = torch.ones(train_pos.size(0), dtype=torch.bool).to(train_pos.device)
@@ -190,7 +361,7 @@ def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_
         else:
             adj = data.adj_t 
         ###################
-        h = model(x, adj)
+        h = model(data.x, data.adj_t, data.edge_weight)
         edge = train_pos[perm].t()
         pos_out = score_func(h[edge[0]], h[edge[1]])
         pos_loss = -torch.log(pos_out + 1e-15).mean()
@@ -296,7 +467,7 @@ def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluato
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
     if emb == None: x = data.x
     else: x = emb.weight
-    h = model(x, data.adj_t.to(x.device))
+    h = model(data.x, data.adj_t, data.edge_weight)
     x1 = h
     x2 = torch.tensor(1)
     # print(h[0][:10])
@@ -329,12 +500,40 @@ def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluato
 
 
 
+def structural_one_hot(n2v_emb):
+    hash_ids = n2v_emb.numpy().reshape(-1, 1)
+    encoder = OneHotEncoder(sparse=False)
+    one_hot = encoder.fit_transform(hash_ids)
+    return torch.tensor(one_hot, dtype=torch.float32)
+
+
+def plot_hist_hash(n2v_emb):
+    # Convert to numpy
+    hash_ids = n2v_emb.numpy()
+    # Optional: remap hash IDs to 0...N-1 for better axis readability
+    _, hash_labels = np.unique(hash_ids, return_inverse=True)
+    # Plot histogram
+    plt.figure(figsize=(12, 6))
+    plt.hist(hash_labels, bins=len(np.unique(hash_labels)), color='skyblue', edgecolor='gray')
+    plt.xlabel("Structural Role (unique hash ID)")
+    plt.ylabel("Number of Nodes")
+    plt.title("Histogram of Structural Roles in Graph")
+    plt.tight_layout()
+    plt.savefig('structural_role_distribution.png')
+
+
+def structural_learnable_embedding(n2v_emb, embedding_dim=16):
+    unique_hashes, inverse_indices = torch.unique(n2v_emb, return_inverse=True)
+    emb_layer = nn.Embedding(len(unique_hashes), embedding_dim)
+    return emb_layer(inverse_indices)  # shape: (N_nodes, embedding_dim)
+
+
 # def main(count, lr, l2, dropout):
 def main():
     parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default='ogbl-citation2')
+    parser.add_argument('--data_name', type=str, default='collab')
     parser.add_argument('--neg_mode', type=str, default='equal')
-    parser.add_argument('--gnn_model', type=str, default='GCN')
+    parser.add_argument('--gnn_model', type=str, default='LINKX')
     parser.add_argument('--score_model', type=str, default='mlp_score')
 
     ##gnn setting
@@ -389,14 +588,13 @@ def main():
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
-    # dataset = PygLinkPropPredDataset(name=args.data_name, root=DATASET_PATH) #args.data_name
-    dataset = loaddataset(name=args.data_name, root=DATASET_PATH) #args.data_name
-    data = dataset[0]
+    # dataset = PygLinkPropPredDataset(name=args.data_name, root=DATASET_PATH) 
+
+    data, split_edge = loaddataset(name=args.data_name, use_valedges_as_input=False) #args.data_name
     edge_index = data.edge_index
     emb = None
     node_num = data.num_nodes
-    split_edge = dataset.get_edge_split()
-    
+
     args.name_tag = f"{args.data_name}_{args.gnn_model}_{args.score_model}_epochs{args.epochs}_runs{args.runs}"
     if hasattr(data, 'x'):
         if data.x != None:
@@ -404,10 +602,16 @@ def main():
             data.x = data.x.to(torch.float)
             if args.cat_n2v_feat:
                 print('cat n2v embedding!!')
-                n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
+                import IPython; IPython.embed()
+                n2v_emb = torch.load(os.path.join(DATASET_PATH, 'wl_label', 'ogbl-'+ args.data_name+'_wl_labels.pt'))
                 data.x = torch.cat((data.x, n2v_emb), dim=-1)
+                plot_hist_hash(n2v_emb)
+
             data.x = data.x.to(device)
-            input_channel = data.x.size(1)
+            if args.data_name in ['ddi', 'ppa']:
+                input_channel = data.in_channel
+            else:
+                input_channel = data.x.size(1) #data.x.shape[-1]
         else:
             emb = torch.nn.Embedding(node_num, args.hidden_channels).to(device)
             input_channel = args.hidden_channels
@@ -453,12 +657,23 @@ def main():
             adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
             data.adj_t = adj_t
             
+    n_nodes = data.x.size(0)
     data = data.to(device)
-    model = eval(args.gnn_model)(input_channel, args.hidden_channels,
-                    args.hidden_channels, args.num_layers, args.dropout, 
-                    mlp_layer=args.gin_mlp_layer, head=args.gat_head, 
-                    node_num=node_num, cat_node_feat_mf=args.cat_node_feat_mf,  
-                    data_name=args.data_name).to(device)
+    if args.gnn_model == 'LINKX':
+        model = LINKX(
+        num_nodes=n_nodes,
+        in_channels=input_channel,
+        hidden_channels=args.hidden_channels,
+        out_channels=args.hidden_channels,
+        num_layers=args.num_layers,
+        dropout=args.dropout
+    ).to(device)
+    else:
+        model = eval(args.gnn_model)(input_channel, args.hidden_channels,
+                        args.hidden_channels, args.num_layers, args.dropout, 
+                        mlp_layer=args.gin_mlp_layer, head=args.gat_head, 
+                        node_num=node_num, cat_node_feat_mf=args.cat_node_feat_mf,  
+                        data_name=args.data_name).to(device)
 
     score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
                     1, args.num_layers_predictor, args.dropout).to(device)
@@ -476,6 +691,7 @@ def main():
         'MRR': Logger(args.runs),
         'AUC': Logger(args.runs),
         'AP': Logger(args.runs),
+        'mrr_hit3': Logger(args.runs),
         'mrr_hit1':  Logger(args.runs),
         'mrr_hit10':  Logger(args.runs),
         'mrr_hit20':  Logger(args.runs),
@@ -483,13 +699,13 @@ def main():
         'mrr_hit100':  Logger(args.runs),
     } 
 
-    if args.data_name =='ogbl-collab':
+    if args.data_name =='collab':
         eval_metric = 'Hits@50'
-    elif args.data_name =='ogbl-ddi':
+    elif args.data_name =='ddi':
         eval_metric = 'Hits@20'
-    elif args.data_name =='ogbl-ppa':
+    elif args.data_name =='ppa':
         eval_metric = 'Hits@100'
-    elif args.data_name =='ogbl-citation2':
+    elif args.data_name =='citation2':
         eval_metric = 'MRR'
 
     if args.data_name != 'ogbl-citation2':
@@ -559,10 +775,8 @@ def main():
                     loggers[key].add_result(run, result)
                     wandb.log({f"Metrics/{key}": result[-1]}, step=step)
                     
-                    
                 if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
-                        print(key)
                         
                         train_hits, valid_hits, test_hits = result
                         log_print.info(
@@ -633,3 +847,48 @@ def main():
 if __name__ == "__main__":
     main()
 
+"""from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, Logger, init_seed, save_emb
+from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
+# from logger import Logger
+from torch.utils.data import DataLoader
+from torch_sparse import SparseTensor
+from torch_geometric.utils import to_networkx, to_undirected
+import torch_geometric.transforms as T
+from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
+from baselines.gnn_utils  import evaluate_hits, evaluate_auc, evaluate_mrr
+from data_load import loaddataset
+from torch_geometric.utils import negative_sampling
+import os
+from tqdm import tqdm 
+from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
+import torch
+from torch_geometric.data import Data
+import numpy as np
+import torch
+import torch.nn as nn
+import argparse
+import matplotlib.pyplot as plt
+import seaborn as sns
+from torch import Tensor
+from torch.nn import BatchNorm1d, Parameter
+from torch.utils.data import DataLoader
+from torch_geometric.data import Data
+from torch_geometric.datasets import Planetoid
+from torch_geometric.nn import inits
+from torch_geometric.nn.conv import MessagePassing
+from torch_geometric.nn.models import MLP
+from torch_geometric.typing import Adj, OptTensor
+from torch_geometric.utils import (
+    to_networkx,
+    train_test_split_edges,
+    to_undirected,
+    spmm
+)
+
+from sklearn.preprocessing import OneHotEncoder
+"""
+# adopted from benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
+# python gnn_ogb_heart.py  --use_valedges_as_input  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
+# OBGL-PPA,DDI, CITATION2, VESSEL, COLLAB
+# basic idea is to replace diffusion operator in mpnn and say whether it works better in ogbl-collab and citation2
+# and then expand to synthetic graph

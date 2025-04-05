@@ -1,0 +1,2 @@
+Metric,Hits@1,Hits@10,Hits@20,Hits@50,Hits@100,MRR,AUC,AP,mrr_hit3,mrr_hit1,mrr_hit10,mrr_hit20,mrr_hit50,mrr_hit100
+collab_LINKX_mlp_score_epochs10_runs2,8.98 ± 0.40,29.24 ± 1.41,37.87 ± 0.93,46.35 ± 0.19,51.97 ± 0.29,13.21 ± 0.81,94.60 ± 0.11,92.28 ± 0.10,15.10 ± 0.79,8.98 ± 0.40,29.24 ± 1.41,37.87 ± 0.93,46.35 ± 0.19,51.97 ± 0.29

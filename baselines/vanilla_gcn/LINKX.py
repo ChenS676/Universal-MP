@@ -128,7 +128,7 @@ class LINKX(torch.nn.Module):
             self.edge_mlp = None
 
         channels = [in_channels] + [hidden_channels] * num_node_layers
-        Node_mlp = MLP(channels, dropout=0., act_first=True)
+        self.Node_mlp = MLP(channels, dropout=0., act_first=True)
 
         self.cat_lin1 = torch.nn.Linear(hidden_channels, hidden_channels)
         self.cat_lin2 = torch.nn.Linear(hidden_channels, hidden_channels)
@@ -145,7 +145,7 @@ class LINKX(torch.nn.Module):
             self.edge_norm.reset_parameters()
         if self.edge_mlp is not None:
             self.edge_mlp.reset_parameters()
-        Node_mlp.reset_parameters()
+        self.Node_mlp.reset_parameters()
         self.cat_lin1.reset_parameters()
         self.cat_lin2.reset_parameters()
         self.final_mlp.reset_parameters()
@@ -167,7 +167,7 @@ class LINKX(torch.nn.Module):
         out = out + self.cat_lin1(out)
 
         if x is not None:
-            x = Node_mlp(x)
+            x = self.Node_mlp(x)
             out = out + x
             out = out + self.cat_lin2(x)
 

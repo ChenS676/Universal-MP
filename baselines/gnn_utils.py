@@ -1034,8 +1034,7 @@ def evaluate_mrr(evaluator, pos_val_pred, neg_val_pred):
     results['mrr_hit20'] = valid_mrr_hit20
     results['mrr_hit50'] = valid_mrr_hit50
     results['mrr_hit100'] = valid_mrr_hit100
-
-    
+    print(f"provide {results.keys()} from the evaluate_mrr.")
     return results
 
 

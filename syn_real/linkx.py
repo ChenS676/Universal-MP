@@ -691,12 +691,7 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
     train_pos = split_edge['train']['edge'].to(x.device)
     in_channels = x.size(1)
     n_nodes = x.size(0)
-
-    # Initialize the model
-    in_channels = data.x.size(1)
-    # print(data)
-    # print(split_edge)
-
+    
     pos_train_edge = split_edge['valid']['edge']
     pos_valid_edge = split_edge['valid']['edge']
     neg_valid_edge = split_edge['valid']['edge_neg']

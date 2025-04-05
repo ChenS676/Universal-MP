@@ -51,11 +51,13 @@ def loaddataset(name: str, use_valedges_as_input: bool, load=None):
     if name == "ppa":
         data.x = torch.argmax(data.x, dim=-1)
         data.max_x = torch.max(data.x).item()
+        
     elif name == "ddi":
         data.x = torch.arange(data.num_nodes)
         data.max_x = data.num_nodes
+        data.in_channel = 1
     if load is not None:
-        data.x = torch.load(load, map_location="cpu")
+        data.load = torch.load(load, map_location="cpu")
         data.max_x = -1
 
     print("dataset split ")
