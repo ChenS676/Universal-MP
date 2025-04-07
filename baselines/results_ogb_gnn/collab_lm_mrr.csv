@@ -1,2 +1,23 @@
 Metric,Hits@1,Hits@10,Hits@20,Hits@50,Hits@100,MRR,AUC,AP,mrr_hit3,mrr_hit1,mrr_hit10,mrr_hit20,mrr_hit50,mrr_hit100
 collab_LINKX_mlp_score_epochs10_runs2,8.98 ± 0.40,29.24 ± 1.41,37.87 ± 0.93,46.35 ± 0.19,51.97 ± 0.29,13.21 ± 0.81,94.60 ± 0.11,92.28 ± 0.10,15.10 ± 0.79,8.98 ± 0.40,29.24 ± 1.41,37.87 ± 0.93,46.35 ± 0.19,51.97 ± 0.29
+ogbl-collab_GCN_mlp_score_epochs800_runs2,43.20 ± 0.61,51.95 ± 0.81,57.74 ± 0.17,97.04 ± 0.04,95.44 ± 0.13
+collab_LINKX_mlp_score_epochs9999_runs1,13.97 ± nan,36.78 ± nan,46.27 ± nan,52.05 ± nan,56.32 ± nan,88.47 ± nan,87.60 ± nan
+collab_batch_size512_lr0.01_,0.00 ± nan,0.00 ± nan,0.00 ± nan,0.00 ± nan,0.00 ± nan,91.50 ± nan,86.78 ± nan
+collab_batch_size512_lr0.001_,0.00 ± nan,26.29 ± nan,37.89 ± nan,47.30 ± nan,52.14 ± nan,93.24 ± nan,91.11 ± nan
+collab_batch_size512_lr0.001_,0.00 ± nan,26.29 ± nan,37.89 ± nan,47.30 ± nan,52.14 ± nan,93.24 ± nan,91.11 ± nan
+collab_batch_size512_lr0.0001_,5.50 ± nan,30.85 ± nan,37.89 ± nan,47.30 ± nan,51.87 ± nan,95.12 ± nan,93.04 ± nan
+collab_batch_size1024_lr0.001_,5.50 ± nan,30.85 ± nan,37.89 ± nan,47.30 ± nan,51.87 ± nan,95.12 ± nan,93.04 ± nan
+collab_batch_size1024_lr0.0001_,9.02 ± nan,30.85 ± nan,37.89 ± nan,47.30 ± nan,51.87 ± nan,95.20 ± nan,93.07 ± nan
+collab_batch_size2048_lr0.001_,9.02 ± nan,32.24 ± nan,37.51 ± nan,47.30 ± nan,51.87 ± nan,95.20 ± nan,93.07 ± nan
+collab_batch_size2048_lr0.0001_,9.02 ± nan,32.24 ± nan,37.51 ± nan,47.30 ± nan,51.87 ± nan,95.38 ± nan,93.13 ± nan
+collab_batch_size4096_lr0.001_,0.00 ± nan,26.86 ± nan,34.64 ± nan,44.21 ± nan,48.89 ± nan,93.30 ± nan,91.42 ± nan
+collab_batch_size4096_lr0.0001_,3.73 ± nan,26.86 ± nan,34.64 ± nan,44.21 ± nan,48.89 ± nan,95.09 ± nan,93.11 ± nan
+collab_batch_size1024_lr0.001_,3.73 ± nan,27.54 ± nan,36.97 ± nan,43.97 ± nan,48.89 ± nan,95.09 ± nan,93.11 ± nan
+collab_batch_size4096_lr0.001_,0.00 ± nan,26.86 ± nan,34.64 ± nan,44.21 ± nan,48.89 ± nan,93.30 ± nan,91.42 ± nan
+collab_batch_size1024_lr0.0001_,9.02 ± nan,28.43 ± nan,38.29 ± nan,45.18 ± nan,50.88 ± nan,95.09 ± nan,93.11 ± nan
+collab_batch_size4096_lr0.0001_,3.73 ± nan,26.86 ± nan,34.64 ± nan,44.21 ± nan,48.89 ± nan,95.09 ± nan,93.11 ± nan
+collab_batch_size1024_lr0.001_,3.73 ± nan,27.54 ± nan,36.97 ± nan,43.97 ± nan,48.89 ± nan,95.09 ± nan,93.11 ± nan
+collab_batch_size512_lr0.001_,9.02 ± nan,28.43 ± nan,37.89 ± nan,47.30 ± nan,52.14 ± nan,95.09 ± nan,93.11 ± nan
+collab_batch_size1024_lr0.0001_,9.02 ± nan,28.43 ± nan,38.29 ± nan,45.18 ± nan,50.88 ± nan,95.09 ± nan,93.11 ± nan
+collab_batch_size512_lr0.0001_,9.02 ± nan,30.85 ± nan,37.89 ± nan,47.30 ± nan,51.87 ± nan,95.09 ± nan,93.11 ± nan
+collab_batch_size512_lr0.001_,9.02 ± nan,28.43 ± nan,37.89 ± nan,47.30 ± nan,52.14 ± nan,95.09 ± nan,93.11 ± nan

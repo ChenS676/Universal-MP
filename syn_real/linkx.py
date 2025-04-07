@@ -761,7 +761,7 @@ def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
     for run in range(args.runs):
         if args.wandb_log:
             wandb.init(
-                project="GRAND4LP",
+                project=f"{args.data_name}_",
                 name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}"
             )
             wandb.config.update(args)

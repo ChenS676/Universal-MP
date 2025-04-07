@@ -996,6 +996,27 @@ def evaluate_hits(evaluator, pos_pred, neg_pred, k_list):
     return results
         
 
+def evaluate_auc(val_pred, val_true):
+    valid_auc = roc_auc_score(val_true, val_pred)
+    # test_auc = roc_auc_score(test_true, test_pred)
+    results = {}
+    
+    valid_auc = round(valid_auc, 4)
+    # test_auc = round(test_auc, 4)
+
+    results['AUC'] = valid_auc
+
+    valid_ap = average_precision_score(val_true, val_pred)
+    # test_ap = average_precision_score(test_true, test_pred)
+    
+    valid_ap = round(valid_ap, 4)
+    # test_ap = round(test_ap, 4)
+    
+    results['AP'] = valid_ap
+
+
+    return results
+
 
 def evaluate_mrr(evaluator, pos_val_pred, neg_val_pred):
     
@@ -1038,38 +1059,12 @@ def evaluate_mrr(evaluator, pos_val_pred, neg_val_pred):
     return results
 
 
-
-
-def evaluate_auc(val_pred, val_true):
-    valid_auc = roc_auc_score(val_true, val_pred)
-    # test_auc = roc_auc_score(test_true, test_pred)
-    results = {}
-    
-    valid_auc = round(valid_auc, 4)
-    # test_auc = round(test_auc, 4)
-
-    results['AUC'] = valid_auc
-
-    valid_ap = average_precision_score(val_true, val_pred)
-    # test_ap = average_precision_score(test_true, test_pred)
-    
-    valid_ap = round(valid_ap, 4)
-    # test_ap = round(test_ap, 4)
-    
-    results['AP'] = valid_ap
-
-
-    return results
-
-
 def eval_mrr(y_pred_pos, y_pred_neg):
     '''
         compute mrr
         y_pred_neg is an array with shape (batch size, num_entities_neg).
         y_pred_pos is an array with shape (batch size, )
     '''
-
-
     # calculate ranks
     y_pred_pos = y_pred_pos.view(-1, 1)
     # optimistic rank: "how many negatives have at least the positive score?"
@@ -1096,8 +1091,6 @@ def eval_mrr(y_pred_pos, y_pred_neg):
                 'hits@10_list': hits10_list,
                 'hits@100_list': hits100_list,
                 'mrr_list': mrr_list}
-
-
 
 
 def eval_hard_negs(pos_pred, neg_pred, k_list):

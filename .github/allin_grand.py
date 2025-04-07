@@ -594,7 +594,7 @@ if __name__=='__main__':
         name_tag = f"{args.data_name}_gcn_{args.runs}"
       else:
         name_tag = f"{args.data_name}_grand_{args.runs}"
-      wandb.init(project="GRAND4LP", name=name_tag, config=opt)
+      wandb.init(project=f"{args.data_name}_", name=name_tag, config=opt)
       wandb.config.update(args)
       if args.runs == 1:
           seed = 0

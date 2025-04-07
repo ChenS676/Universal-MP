@@ -11,7 +11,7 @@ from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_s
 
 from torch.utils.data import DataLoader
 from torch_sparse import SparseTensor
-
+from ogb_linkx import LINKX
 from torch_geometric.datasets import Planetoid 
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ncnc.ogbdataset import loaddataset
@@ -228,16 +228,16 @@ def main():
     parser = argparse.ArgumentParser(description='homo')
     parser.add_argument('--data_name', type=str, default='Cora')
     parser.add_argument('--neg_mode', type=str, default='equal')
-    parser.add_argument('--gnn_model', type=str, default='GCN')
+    parser.add_argument('--gnn_model', type=str, default='LINKX')
     parser.add_argument('--score_model', type=str, default='mlp_score')
     parser.add_argument('--name_tag', type=str, default='None', required=False)
     ##gnn setting
-    parser.add_argument('--num_layers', type=int, default=1)
+    parser.add_argument('--num_layers', type=int, default=3)
     parser.add_argument('--num_layers_predictor', type=int, default=2)
-    parser.add_argument('--hidden_channels', type=int, default=64)
+    parser.add_argument('--hidden_channels', type=int, default=2**9)
     parser.add_argument('--dropout', type=float, default=0.0)
     ### train setting
-    parser.add_argument('--batch_size', type=int, default=1024)
+    parser.add_argument('--batch_size', type=int, default=512)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--eval_steps', type=int, default=5)
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=10,    type=int,       help='early stopping')
@@ -250,18 +250,12 @@ def main():
     parser.add_argument('--metric', type=str, default='MRR')
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--log_steps', type=int, default=1)
-    ####### gin
     parser.add_argument('--gin_mlp_layer', type=int, default=2)
-    ######gat
     parser.add_argument('--gat_head', type=int, default=1)
-    ######mf
     parser.add_argument('--cat_node_feat_mf', default=False, action='store_true')
-    ###### n2v
     parser.add_argument('--cat_n2v_feat', default=False, action='store_true')
-    
-   
     parser.add_argument('--debug', action='store_true', default=False)
-    parser.add_argument('--runs', type=int, default=10)
+    parser.add_argument('--runs', type=int, default=2)
     parser.add_argument('--epochs', type=int, default=9999)
     
     args = parser.parse_args()
@@ -290,19 +284,17 @@ def main():
     load_data, splits = loaddataset(args.data_name, False, None) 
     data = data2dict(load_data, splits, args.data_name)
     del load_data, splits
-
+    emb = None
     node_num = data['x'].size(0) 
-
     x = data['x']
     if args.cat_n2v_feat:
         print('cat n2v embedding!!')
         n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
         x = torch.cat((x, n2v_emb), dim=-1)
-
     x = x.to(device)
     train_pos = data['train_pos'].to(x.device)
-
     input_channel = x.size(1)
+    n_nodes = x.size(0)
     if args.gnn_model == 'LINKX':
         model = LINKX(
         num_nodes=n_nodes,
@@ -312,7 +304,13 @@ def main():
         num_layers=args.num_layers,
         dropout=args.dropout
     ).to(device)
-
+    else:
+        model = eval(args.gnn_model)(input_channel, args.hidden_channels,
+                        args.hidden_channels, args.num_layers, args.dropout, 
+                        mlp_layer=args.gin_mlp_layer, head=args.gat_head, 
+                        node_num=node_num, cat_node_feat_mf=args.cat_node_feat_mf,  
+                        data_name=args.data_name).to(device)
+    
     score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
                     1, args.num_layers_predictor, args.dropout).to(device)
    
@@ -322,41 +320,65 @@ def main():
 
     loggers = {
         'Hits@1': Logger(args.runs),
+        'Hits@3': Logger(args.runs),
         'Hits@10': Logger(args.runs),
         'Hits@20': Logger(args.runs),
         'Hits@50': Logger(args.runs),
         'Hits@100': Logger(args.runs),
         'MRR': Logger(args.runs),
         'AUC': Logger(args.runs),
-        'AP': Logger(args.runs),
-        'mrr_hit3': Logger(args.runs),
-        'mrr_hit1':  Logger(args.runs),
-        'mrr_hit10':  Logger(args.runs),
-        'mrr_hit20':  Logger(args.runs),
-        'mrr_hit50':  Logger(args.runs),
-        'mrr_hit100':  Logger(args.runs),
-    } 
+        'AP': Logger(args.runs)
+    }
+
+    # import itertools
+    # hyperparams = {
+    #     'batch_size': [2**9],
+    #     'lr': [0.001], #0.01, 0.001, 0.0001
+    # }
+
+    # for batch_size, lr in itertools.product(hyperparams['batch_size'], hyperparams['lr']):
+    # args.batch_size = 2**9
+    # args.lr = 0.001
+    args.name_tag = (
+    f'model_{args.gnn_model}'
+    f'score_{args.score_model}'
+    f'{args.data_name}_'
+    f'batch_size{args.batch_size}_'
+    f'lr{args.lr}_'
+)
 
     for run in range(args.runs):
         import wandb
-        wandb.init(project=f"{args.data_name}_", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.init(project=f"{args.data_name}_", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}")
         wandb.config.update(args)
         print('#################################          ', run, '          #################################')
+        
         if args.runs == 1:
             seed = args.seed
         else:
             seed = run
         print('seed: ', seed)
+
         init_seed(seed)
+        
         save_path = args.output_dir+'/lr'+str(args.lr) + '_drop' + \
                     str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' \
                         + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) \
                         + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+ \
                         str(args.hidden_channels) + '_'+ 'best_run_'+str(seed)
+
         model.reset_parameters()
         score_func.reset_parameters()
+        if emb != None:
+            optimizer = torch.optim.Adam(
+                list(model.parameters()) + list(score_func.parameters()) + list(emb.parameters() ),lr=args.lr, weight_decay=args.l2)
+        else:
+            optimizer = torch.optim.Adam(
+                    list(model.parameters()) + list(score_func.parameters()),lr=args.lr, weight_decay=args.l2)
+
         optimizer = torch.optim.Adam(
                 list(model.parameters()) + list(score_func.parameters()),lr=args.lr, weight_decay=args.l2)
+
         best_valid = 0
         kill_cnt = 0
         best_test = 0
@@ -380,11 +402,11 @@ def main():
                         train_hits, valid_hits, test_hits = result
                         log_print.info(
                             f'Run: {run + 1:02d}, '
-                              f'Epoch: {epoch:02d}, '
-                              f'Loss: {loss:.4f}, '
-                              f'Train: {100 * train_hits:.2f}%, '
-                              f'Valid: {100 * valid_hits:.2f}%, '
-                              f'Test: {100 * test_hits:.2f}%')
+                            f'Epoch: {epoch:02d}, '
+                            f'Loss: {loss:.4f}, '
+                            f'Train: {100 * train_hits:.2f}%, '
+                            f'Valid: {100 * valid_hits:.2f}%, '
+                            f'Test: {100 * test_hits:.2f}%')
                     print('---')
 
                 best_valid_current = torch.tensor(loggers[eval_metric].results[run])[:, 1].max()
@@ -398,7 +420,7 @@ def main():
                     if kill_cnt > args.kill_cnt: 
                         print("Early Stopping!!")
                         break
-        
+        wandb.finish()
         for key in loggers.keys():
             print(key)
             loggers[key].print_statistics(run)

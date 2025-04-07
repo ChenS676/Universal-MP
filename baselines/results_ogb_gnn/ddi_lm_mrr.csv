@@ -1,0 +1,6 @@
+Metric,Hits@1,Hits@10,Hits@20,Hits@50,Hits@100,AUC,AP
+ddi_LINKX_mlp_score_epochs10_runs2,0.50 ± 0.49,3.85 ± 0.54,5.73 ± 1.45,9.34 ± 0.25,11.99 ± 1.23,90.04 ± 1.82,92.09 ± 1.52
+ddi_LINKX_mlp_score_epochs10_runs2,0.50 ± 0.49,3.85 ± 0.54,5.73 ± 1.45,9.34 ± 0.25,11.99 ± 1.23,90.04 ± 1.82,92.09 ± 1.52
+ddi_LINKX_mlp_score_epochs800_runs1,0.22 ± nan,6.10 ± nan,6.73 ± nan,25.96 ± nan,54.49 ± nan,99.81 ± nan,99.80 ± nan
+ddi_LINKX_mlp_score_epochs9999_runs1,0.00 ± nan,4.92 ± nan,9.08 ± nan,71.66 ± nan,95.15 ± nan,99.93 ± nan,99.89 ± nan
+ddi_LINKX_mlp_score_epochs9999_runs1,0.00 ± nan,0.44 ± nan,1.71 ± nan,7.25 ± nan,14.99 ± nan,99.79 ± nan,99.76 ± nan
