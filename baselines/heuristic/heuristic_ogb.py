@@ -129,7 +129,7 @@ def get_adj_matrix(edge_index, num_nodes):
 def get_metric_score(evaluator_hit, pos_test_pred, neg_test_pred):
 
     result = {}
-    k_list = [20, 50, 100]
+    k_list = [1, 10, 20, 50, 100]
     result_hit_test = evaluate_hits(evaluator_hit, pos_test_pred, neg_test_pred, k_list)
     # result_hit = {}
     for K in k_list:
