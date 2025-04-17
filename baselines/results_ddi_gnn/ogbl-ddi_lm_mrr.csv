@@ -8,3 +8,6 @@ ogbl-ddi_gnn_GCN_mlp_score_run10,65.04 ± 0.76,98.12 ± 0.13,99.93 ± 0.01,14.21
 ogbl-ddi_gnn_GAT_mlp_score_run10,34.51 ± 22.49,59.76 ± 32.71,76.63 ± 25.19,6.62 ± 4.26
 ogbl-ddi_gnn_SAGE_mlp_score_run10,63.69 ± 1.45,97.93 ± 0.47,99.92 ± 0.03,11.40 ± 0.62
 ogbl-ddi_gnn_GIN_mlp_score_run10,67.05 ± 0.61,98.39 ± 0.23,99.96 ± 0.01,14.35 ± 0.40
+ddi_gnn_LINKX_mlp_score_run2,68.32 ± 1.63,98.49 ± 0.18,99.98 ± 0.01,13.60 ± 0.01
+ddi_gnn_LINKX_mlp_score_run1,66.02 ± nan,98.12 ± nan,99.97 ± nan,12.41 ± nan
+ddi_gnn_LINKX_mlp_score_catTrue_wlnorm,65.22 ± nan,98.24 ± nan,99.97 ± nan,11.76 ± nan

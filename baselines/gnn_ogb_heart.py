@@ -1,8 +1,3 @@
-# adopted from benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
-# python gnn_ogb_heart.py  --use_valedges_as_input  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
-# OBGL-PPA,DDI, CITATION2, VESSEL, COLLAB
-# basic idea is to replace diffusion operator in mpnn and say whether it works better in ogbl-collab and citation2
-# and then expand to synthetic graph
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -61,7 +56,7 @@ def plot_test_sequences(test_pred, test_true):
     plt.legend()
     plt.savefig('plot_prediction.png')
     
-def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
+def get_metric_score(evaluator_hit, pos_train_pred, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred):
 
     # result_hit = evaluate_hits(evaluator_hit, pos_val_pred, neg_val_pred, pos_test_pred, neg_test_pred)
     result = {}
@@ -85,11 +80,12 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     result_auc_val = evaluate_auc(val_pred, val_true)
     result_auc_test = evaluate_auc(test_pred, test_true)
     
+    
     # result_mrr_train = evaluate_mrr( evaluator_mrr,  pos_train_pred, neg_val_pred.repeat(pos_train_pred.size(0), 1))
-    result_mrr_val = evaluate_mrr( evaluator_mrr, pos_val_pred, neg_val_pred.repeat(pos_val_pred.size(0), 1))
-    result_mrr_test = evaluate_mrr( evaluator_mrr, pos_test_pred, neg_test_pred.repeat(pos_test_pred.size(0), 1))
-    for k in result_mrr_val.keys():
-        result[k] = (0, result_mrr_val[k], result_mrr_test[k])
+    # result_mrr_val = evaluate_mrr( evaluator_mrr, pos_val_pred, neg_val_pred.repeat(pos_val_pred.size(0), 1))
+    # result_mrr_test = evaluate_mrr( evaluator_mrr, pos_test_pred, neg_test_pred.repeat(pos_test_pred.size(0), 1))
+    #for k in result_mrr_test.keys():
+    #    result[k] = (0, 0, result_mrr_test[k])
 
     # result_auc = {}
     result['AUC'] = (result_auc_train['AUC'], result_auc_val['AUC'], result_auc_test['AUC'])
@@ -288,7 +284,7 @@ def visualize_predictions(pos_train_pred, neg_train_pred,
     
     
 @torch.no_grad()
-def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size, use_valedges_as_input):
+def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, batch_size, use_valedges_as_input):
     model.eval()
     score_func.eval()
     # adj_t = adj_t.transpose(1,0)
@@ -318,7 +314,7 @@ def test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluato
     pos_test_pred, neg_test_pred = torch.flatten(pos_test_pred), torch.flatten(neg_test_pred)
     
     print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
-    result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
+    result = get_metric_score(evaluator_hit, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
     score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x1.cpu(), x2.cpu()]
 
     # visualize_predictions(pos_train_pred, neg_valid_pred,
@@ -348,7 +344,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=16384)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--eval_steps', type=int, default=1)
+    parser.add_argument('--eval_steps', type=int)
     parser.add_argument('--runs', type=int, default=2)
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=20,    type=int,       help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
@@ -389,12 +385,12 @@ def main():
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     # dataset = PygLinkPropPredDataset(name=args.data_name, root=DATASET_PATH) #args.data_name
-    dataset = loaddataset(name=args.data_name, root=DATASET_PATH) #args.data_name
-    data = dataset[0]
+    data, split_edge = loaddataset(name=args.data_name, use_valedges_as_input=False) #args.data_name , root=DATASET_PATH
+    # data = dataset[0]
     edge_index = data.edge_index
     emb = None
     node_num = data.num_nodes
-    split_edge = dataset.get_edge_split()
+    # split_edge = dataset.get_edge_split()
     
     args.name_tag = f"{args.data_name}_{args.gnn_model}_{args.score_model}_epochs{args.epochs}_runs{args.runs}"
     if hasattr(data, 'x'):
@@ -406,6 +402,7 @@ def main():
                 n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
                 data.x = torch.cat((data.x, n2v_emb), dim=-1)
             data.x = data.x.to(device)
+            
             input_channel = data.x.size(1)
         else:
             emb = torch.nn.Embedding(node_num, args.hidden_channels).to(device)
@@ -468,6 +465,7 @@ def main():
 
     loggers = {
         'Hits@1': Logger(args.runs),
+        'Hits@3': Logger(args.runs),
         'Hits@10': Logger(args.runs),
         'Hits@20': Logger(args.runs),
         'Hits@50': Logger(args.runs),
@@ -476,17 +474,18 @@ def main():
         'AUC': Logger(args.runs),
         'AP': Logger(args.runs),
         'mrr_hit1':  Logger(args.runs),
+        'mrr_hit3':  Logger(args.runs),
         'mrr_hit10':  Logger(args.runs),
         'mrr_hit20':  Logger(args.runs),
         'mrr_hit50':  Logger(args.runs),
         'mrr_hit100':  Logger(args.runs),
     } 
 
-    if args.data_name =='ogbl-collab':
+    if args.data_name =='collab':
         eval_metric = 'Hits@50'
-    elif args.data_name =='ogbl-ddi':
+    elif args.data_name =='ddi':
         eval_metric = 'Hits@20'
-    elif args.data_name =='ogbl-ppa':
+    elif args.data_name =='ppa':
         eval_metric = 'Hits@100'
     elif args.data_name =='citation2':
         eval_metric = 'MRR'
@@ -553,7 +552,7 @@ def main():
                 if args.data_name == 'citation2':
                     results_rank, score_emb= test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size)
                 else:
-                    results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
+                    results_rank, score_emb= test(model, score_func, data, evaluation_edges, emb, evaluator_hit, args.batch_size, args.use_valedges_as_input)
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
                     wandb.log({f"Metrics/{key}": result[-1]}, step=step)
@@ -604,7 +603,7 @@ def main():
             if len(loggers[key].results[0]) > 0:
                 print(key)
                 loggers[key].print_statistics(run)
-    
+        wandb.finish()
     result_all_run = {}
     save_dict = {}
     for key in loggers.keys():
@@ -632,3 +631,8 @@ def main():
 if __name__ == "__main__":
     main()
 
+# adopted from benchmarking/exist_setting_ogb: Run models on ogbl-collab, ogbl-ppa, and ogbl-citation2 under the existing setting.
+# python gnn_ogb_heart.py  --use_valedges_as_input  --data_name ogbl-collab  --gnn_model GCN --hidden_channels 256 --lr 0.001 --dropout 0.  --num_layers 3 --num_layers_predictor 3 --epochs 9999 --kill_cnt 100  --batch_size 65536 
+# OBGL-PPA,DDI, CITATION2, VESSEL, COLLAB
+# basic idea is to replace diffusion operator in mpnn and say whether it works better in ogbl-collab and citation2
+# and then expand to synthetic graph

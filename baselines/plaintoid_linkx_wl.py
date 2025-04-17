@@ -11,15 +11,18 @@ from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_s
 
 from torch.utils.data import DataLoader
 from torch_sparse import SparseTensor
-
+from ogb_linkx import LINKX, LINKX_WL
 from torch_geometric.datasets import Planetoid 
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ncnc.ogbdataset import loaddataset
 from graphgps.utility.utils import mvari_str2csv
 from typing import Dict 
+import torch.nn.functional as F
+import torch.nn as nn
 
 dir_path  = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
+DATASET_PATH = '/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines/dataset'
 
     
 def read_data(data_name, neg_mode):
@@ -123,17 +126,15 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     result['AUC'] = (result_auc_train['AUC'], result_auc_val['AUC'], result_auc_test['AUC'])
     result['AP'] = (result_auc_train['AP'], result_auc_val['AP'], result_auc_test['AP'])
     return result
-
-        
-
-def train(model, score_func, train_pos, x, optimizer, batch_size):
+       
+    
+def train(model, score_func, train_pos, x, indices, optimizer, batch_size):
     model.train()
     score_func.train()
-
     # train_pos = train_pos.transpose(1, 0)
     total_loss = total_examples = 0
-
-    for perm in DataLoader(range(train_pos.size(0)), batch_size,
+    for perm in DataLoader(range(train_pos.size(0)), 
+                           batch_size,
                            shuffle=True):
         optimizer.zero_grad()
         num_nodes = x.size(0)
@@ -141,18 +142,19 @@ def train(model, score_func, train_pos, x, optimizer, batch_size):
         mask = torch.ones(train_pos.size(0), dtype=torch.bool).to(train_pos.device)
         mask[perm] = 0
         train_edge_mask = train_pos[mask].transpose(1,0)
-
         train_edge_mask = torch.cat((train_edge_mask, train_edge_mask[[1,0]]),dim=1)
-
         edge_weight_mask = torch.ones(train_edge_mask.size(1)).to(torch.float).to(train_pos.device)
         adj = SparseTensor.from_edge_index(train_edge_mask, edge_weight_mask, [num_nodes, num_nodes]).to(train_pos.device)
         ###################
         # print(adj)
-        h = model(x, adj)
+        # h = model( x, adj)
+        if indices is not None:
+            h = model(indices, x, adj)
+        else:
+            h = model(x, adj)
         edge = train_pos[perm].t()
         pos_out = score_func(h[edge[0]], h[edge[1]])
         pos_loss = -torch.log(pos_out + 1e-15).mean()
-        # Just do some trivial random sampling.
         edge = torch.randint(0, num_nodes, edge.size(), dtype=torch.long,
                              device=h.device)
         neg_out = score_func(h[edge[0]], h[edge[1]])
@@ -182,11 +184,18 @@ def test_edge(score_func, input_data, h, batch_size):
 
 
 @torch.no_grad()
-def test(model, score_func, data, x, evaluator_hit, evaluator_mrr, batch_size):
+def test(model, score_func, data, x, indices, evaluator_hit, evaluator_mrr, batch_size):
     model.eval()
     score_func.eval()
     # adj_t = adj_t.transpose(1,0)
-    h = model(x, data['adj'].to(x.device))
+    adj = data['adj'].to(x.device)
+    if indices is not None:
+        h = model(indices, x, adj)
+    else:
+        h = model(x, adj)
+            
+    # h = model(indices, x, data['adj'].to(x.device))
+    # h = model(x, data['adj'].to(x.device))
     # print(h[0][:10])
     x = h
     pos_train_pred = test_edge(score_func, data['train_val'], h, batch_size)
@@ -223,21 +232,65 @@ def data2dict(data, splits, data_name) -> dict:
     return datadict
 
 
+def wl_one_hot(wl_emb):
+    unique_ids, mapped_ids = wl_emb.unique(return_inverse=True)
+    one_hot_features = F.one_hot(mapped_ids, num_classes=len(unique_ids)).float()
+    return one_hot_features
+
+
+def wl_Embedding(wl_emb):
+
+    num_roles = wl_emb.max().item() + 1  # or count unique values
+    embedding_dim = 64
+    wl_embedding = nn.Embedding(num_roles, embedding_dim)
+    node_features = wl_embedding(wl_emb)
+    return node_features
+
+
+def wl_unique_Embedding(wl_emb, emb_dim=16):
+    unique_hashes, indices = torch.unique(wl_emb, return_inverse=True)
+    embedding_layer = nn.Embedding(num_embeddings=len(unique_hashes), embedding_dim=emb_dim)
+    node_embeddings = embedding_layer(indices)
+    return node_embeddings, embedding_layer
+
+
+def wl_normalize(wl_emb):
+    return (wl_emb.float() - wl_emb.float().min()) / (wl_emb.float().max() - wl_emb.float().min())
+
+
+import math
+def random_fourier_features(x, D=16, sigma=1.0):
+    """
+    x: A torch tensor of normalized WL hash IDs.
+    D: The output dimension.
+    sigma: Bandwidth parameter for the Gaussian kernel.
+    """
+    # Random weights and biases
+    W = torch.randn(D) / sigma
+    b = 2 * math.pi * torch.rand(D)
+    
+    # Compute the random Fourier features
+    z = torch.cos(x.unsqueeze(1) * W + b)
+    z = (2.0 / D) ** 0.5 * z
+    return z
+
+
+
 
 def main():
     parser = argparse.ArgumentParser(description='homo')
     parser.add_argument('--data_name', type=str, default='Cora')
     parser.add_argument('--neg_mode', type=str, default='equal')
-    parser.add_argument('--gnn_model', type=str, default='GCN')
+    parser.add_argument('--gnn_model', type=str, default='LINKX')
     parser.add_argument('--score_model', type=str, default='mlp_score')
     parser.add_argument('--name_tag', type=str, default='None', required=False)
     ##gnn setting
-    parser.add_argument('--num_layers', type=int, default=1)
+    parser.add_argument('--num_layers', type=int, default=3)
     parser.add_argument('--num_layers_predictor', type=int, default=2)
-    parser.add_argument('--hidden_channels', type=int, default=64)
+    parser.add_argument('--hidden_channels', type=int, default=2**9)
     parser.add_argument('--dropout', type=float, default=0.0)
     ### train setting
-    parser.add_argument('--batch_size', type=int, default=1024)
+    parser.add_argument('--batch_size', type=int, default=512)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--eval_steps', type=int, default=5)
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=10,    type=int,       help='early stopping')
@@ -250,20 +303,15 @@ def main():
     parser.add_argument('--metric', type=str, default='MRR')
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--log_steps', type=int, default=1)
-    ####### gin
     parser.add_argument('--gin_mlp_layer', type=int, default=2)
-    ######gat
     parser.add_argument('--gat_head', type=int, default=1)
-    ######mf
     parser.add_argument('--cat_node_feat_mf', default=False, action='store_true')
-    ###### n2v
     parser.add_argument('--cat_n2v_feat', default=False, action='store_true')
-    
-   
+    parser.add_argument('--cat_wl_feat', default=False, action='store_true')
     parser.add_argument('--debug', action='store_true', default=False)
-    parser.add_argument('--runs', type=int, default=10)
+    parser.add_argument('--runs', type=int, default=2)
     parser.add_argument('--epochs', type=int, default=9999)
-    
+    parser.add_argument('--wl_process', type=str)
     args = parser.parse_args()
     if args.debug == True:
         print('debug mode with runs 2 and epochs 3')
@@ -274,6 +322,7 @@ def main():
         
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('cat_n2v_feat: ', args.cat_n2v_feat)
+    print('cat_wl_feat: ', args.cat_wl_feat)    
     print(args)
 
     init_seed(args.seed)
@@ -286,25 +335,83 @@ def main():
     # data = dataset[0]# 
     # readdata = read_data(args.data_name, args.neg_mode)
     args.name_tag = f"{args.data_name}_gnn_{args.gnn_model}_{args.score_model}_run{args.runs}"
+
     load_data, splits = loaddataset(args.data_name, False, None) 
     data = data2dict(load_data, splits, args.data_name)
     del load_data, splits
+    emb = None
     node_num = data['x'].size(0) 
     x = data['x']
     if args.cat_n2v_feat:
         print('cat n2v embedding!!')
-        n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
+        n2v_emb = torch.load(
+                    DATASET_PATH, 
+                    'dataset', 
+                    args.data_name+'-n2v-embedding.pt')
         x = torch.cat((x, n2v_emb), dim=-1)
+    if args.cat_wl_feat:
+        print('cat wl embedding!!')
+        wl_emb = torch.load(
+                os.path.join(
+                    DATASET_PATH, 
+                    'wl_label/'+ 
+                    args.data_name+
+                    '_wl_labels.pt'))
+        if args.wl_process == 'norm':
+            normalized_wl = (wl_emb.float() - wl_emb.float().min()) / (wl_emb.float().max() - wl_emb.float().min())
+            normalized_wl = normalized_wl.unsqueeze(-1)
+            x = torch.cat([x, normalized_wl], dim=1)
+            indices = None
+        elif args.wl_process == 'unique': 
+            args.gnn_model = 'LINKX_WL'
+            # wl_emb = wl_emb.unsqueeze(-1)
+            unique_hashes, indices = torch.unique(wl_emb, return_inverse=True)
+            wl_emb = nn.Embedding(num_embeddings=len(unique_hashes), embedding_dim=16)
+            # rff_features = random_fourier_features(normalized_wl, D=16)
+            indices = indices.to(device)
+    else:
+        wl_emb = None
+        indices = None
+        unique_hashes = None
+        
     x = x.to(device)
     train_pos = data['train_pos'].to(x.device)
     input_channel = x.size(1)
-    model = eval(args.gnn_model)(input_channel, args.hidden_channels,
-                    args.hidden_channels, args.num_layers, args.dropout, args.gin_mlp_layer, args.gat_head, node_num, args.cat_node_feat_mf).to(device)
+    n_nodes = x.size(0)
+    if args.gnn_model == 'LINKX_WL':
+        model = LINKX_WL(
+        num_nodes=n_nodes,
+        in_channels=input_channel,
+        hidden_channels=args.hidden_channels,
+        out_channels=args.hidden_channels,
+        num_layers=args.num_layers,
+        dropout=args.dropout,
+        wl_emb_dim = 16,
+        num_wl = len(unique_hashes),
+    ).to(device)
+    elif args.gnn_model == 'LINKX':
+        model = LINKX(
+        num_nodes=n_nodes,
+        in_channels=input_channel,
+        hidden_channels=args.hidden_channels,
+        out_channels=args.hidden_channels,
+        num_layers=args.num_layers,
+        dropout=args.dropout
+    ).to(device)
+    else:
+        model = eval(args.gnn_model)(input_channel, args.hidden_channels,
+                        args.hidden_channels, args.num_layers, args.dropout, 
+                        mlp_layer=args.gin_mlp_layer, head=args.gat_head, 
+                        node_num=node_num, cat_node_feat_mf=args.cat_node_feat_mf,  
+                        data_name=args.data_name).to(device)
+    
     score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
                     1, args.num_layers_predictor, args.dropout).to(device)
+   
     eval_metric = args.metric
     evaluator_hit = Evaluator(name='ogbl-collab')
     evaluator_mrr = Evaluator(name='ogbl-citation2')
+
     loggers = {
         'Hits@1': Logger(args.runs),
         'Hits@3': Logger(args.runs),
@@ -316,9 +423,29 @@ def main():
         'AUC': Logger(args.runs),
         'AP': Logger(args.runs)
     }
+
+    # import itertools
+    # hyperparams = {
+    #     'batch_size': [2**9],
+    #     'lr': [0.001], #0.01, 0.001, 0.0001
+    # }
+
+    # for batch_size, lr in itertools.product(hyperparams['batch_size'], hyperparams['lr']):
+    # args.batch_size = 2**9
+    # args.lr = 0.001
+    args.name_tag = (
+    f'model_{args.gnn_model}'
+    f'score_{args.score_model}'
+    f'{args.data_name}_'
+    # f'batch_size{args.batch_size}_'
+    # f'lr{args.lr}_'
+    f'cat_wl_{args.cat_wl_feat}_'
+    f'wl_{args.wl_process}_'
+    )
+
     for run in range(args.runs):
         import wandb
-        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.init(project=f"{args.data_name}_", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}")
         wandb.config.update(args)
         print('#################################          ', run, '          #################################')
         if args.runs == 1:
@@ -332,20 +459,34 @@ def main():
                         + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) \
                         + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+ \
                         str(args.hidden_channels) + '_'+ 'best_run_'+str(seed)
+
         model.reset_parameters()
         score_func.reset_parameters()
-        optimizer = torch.optim.Adam(
-                list(model.parameters()) + list(score_func.parameters()),lr=args.lr, weight_decay=args.l2)
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                print(f"Name: {name}, Shape: {param.shape}")
+        for name, param in score_func.named_parameters():
+            if param.requires_grad:
+                print(f"Name: {name}, Shape: {param.shape}")
+        
+        try:
+            optimizer = torch.optim.Adam(
+                list(model.parameters()) + list(score_func.parameters()) + list(wl_emb.parameters()),lr=args.lr, weight_decay=args.l2) # 
+        except:
+            optimizer = torch.optim.Adam(
+                    list(model.parameters()) + list(score_func.parameters()),lr=args.lr, weight_decay=args.l2)
+
         best_valid = 0
         kill_cnt = 0
         best_test = 0
         step = 0
+        
         for epoch in range(1, 1 + args.epochs):
-            loss = train(model, score_func, train_pos, x, optimizer, args.batch_size)
+            loss = train(model, score_func, train_pos, x, indices, optimizer, args.batch_size)
             # print(model.convs[0].att_src[0][0][:10])
             if epoch % args.eval_steps == 0:
-                results_rank, score_emb = test(model, score_func, data, x, evaluator_hit, evaluator_mrr, args.batch_size)
-                
+                results_rank, score_emb = test(model, score_func, data, x, indices, evaluator_hit, evaluator_mrr, args.batch_size)
+                                            
                 for key, result in results_rank.items():
                     wandb.log({'train_loss': loss}, step = step)
                     loggers[key].add_result(run, result)
@@ -358,11 +499,11 @@ def main():
                         train_hits, valid_hits, test_hits = result
                         log_print.info(
                             f'Run: {run + 1:02d}, '
-                              f'Epoch: {epoch:02d}, '
-                              f'Loss: {loss:.4f}, '
-                              f'Train: {100 * train_hits:.2f}%, '
-                              f'Valid: {100 * valid_hits:.2f}%, '
-                              f'Test: {100 * test_hits:.2f}%')
+                            f'Epoch: {epoch:02d}, '
+                            f'Loss: {loss:.4f}, '
+                            f'Train: {100 * train_hits:.2f}%, '
+                            f'Valid: {100 * valid_hits:.2f}%, '
+                            f'Test: {100 * test_hits:.2f}%')
                     print('---')
 
                 best_valid_current = torch.tensor(loggers[eval_metric].results[run])[:, 1].max()
@@ -375,11 +516,12 @@ def main():
                     kill_cnt += 1
                     if kill_cnt > args.kill_cnt: 
                         print("Early Stopping!!")
-                        break        
+                        break
+        wandb.finish()
         for key in loggers.keys():
             print(key)
             loggers[key].print_statistics(run)
-        wandb.finish()
+
     result_all_run = {}
     save_dict = {}
     for key in loggers.keys():

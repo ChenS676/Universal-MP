@@ -75,10 +75,8 @@ class SparseLinear(MessagePassing):
         # propagate_type: (weight: Tensor, edge_weight: OptTensor)
         out = self.propagate(edge_index, weight=self.weight,
                              edge_weight=edge_weight)
-
         if self.bias is not None:
             out = out + self.bias
-
         return out
 
     def message(self, weight_j: Tensor, edge_weight: OptTensor) -> Tensor:
@@ -195,6 +193,122 @@ class LINKX(torch.nn.Module):
             out = out + x
             out = out + self.cat_lin2(x)
 
+        return self.final_mlp(out.relu_())
+
+    def __repr__(self) -> str:
+        return (f'{self.__class__.__name__}(num_nodes={self.num_nodes}, '
+                f'in_channels={self.in_channels}, '
+                f'out_channels={self.out_channels})')
+
+class LINKX_WL(torch.nn.Module):
+    r"""The LINKX model from the `"Large Scale Learning on Non-Homophilous
+    Graphs: New Benchmarks and Strong Simple Methods"
+    <https://arxiv.org/abs/2110.14446>`_ paper.
+
+    .. math::
+        \mathbf{H}_{\mathbf{A}} &= \textrm{MLP}_{\mathbf{A}}(\mathbf{A})
+
+        \mathbf{H}_{\mathbf{X}} &= \textrm{MLP}_{\mathbf{X}}(\mathbf{X})
+
+        \mathbf{Y} &= \textrm{MLP}_{f} \left( \sigma \left( \mathbf{W}
+        [\mathbf{H}_{\mathbf{A}}, \mathbf{H}_{\mathbf{X}}] +
+        \mathbf{H}_{\mathbf{A}} + \mathbf{H}_{\mathbf{X}} \right) \right)
+
+    .. note::
+
+        For an example of using LINKX, see `examples/linkx.py <https://
+        github.com/pyg-team/pytorch_geometric/blob/master/examples/linkx.py>`_.
+
+    Args:
+        num_nodes (int): The number of nodes in the graph.
+        in_channels (int): Size of each input sample, or :obj:`-1` to derive
+            the size from the first input(s) to the forward method.
+        hidden_channels (int): Size of each hidden sample.
+        out_channels (int): Size of each output sample.
+        num_layers (int): Number of layers of :math:`\textrm{MLP}_{f}`.
+        num_edge_layers (int, optional): Number of layers of
+            :math:`\textrm{MLP}_{\mathbf{A}}`. (default: :obj:`1`)
+        num_node_layers (int, optional): Number of layers of
+            :math:`\textrm{MLP}_{\mathbf{X}}`. (default: :obj:`1`)
+        dropout (float, optional): Dropout probability of each hidden
+            embedding. (default: :obj:`0.0`)
+    """
+    def __init__(
+        self,
+        num_nodes: int,
+        in_channels: int,
+        hidden_channels: int,
+        out_channels: int,
+        num_layers: int,
+        num_edge_layers: int = 1,
+        num_node_layers: int = 1,
+        dropout: float = 0.0,
+        wl_emb_dim: int = 0,
+        num_wl: int = 0,
+    ):
+        super().__init__()
+
+        self.num_nodes = num_nodes
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.num_edge_layers = num_edge_layers
+        self.edge_lin = SparseLinear(num_nodes, hidden_channels)
+
+        if self.num_edge_layers > 1:
+            self.edge_norm = BatchNorm1d(hidden_channels)
+            channels = [hidden_channels] * num_edge_layers
+            self.edge_mlp = MLP(channels, dropout=0., act_first=True)
+        else:
+            self.edge_norm = None
+            self.edge_mlp = None
+        # import pdb; pdb.set_trace()
+        # (Pdb) self.node_mlp
+        # MLP(1433, 512, 16)
+        # (Pdb) x.shape
+        # torch.Size([2708, 1449])
+        channels = [in_channels+wl_emb_dim] + [hidden_channels] * num_node_layers 
+        self.node_mlp = MLP(channels, dropout=0., act_first=True)
+        self.wl_emb = nn.Embedding(num_wl, wl_emb_dim)
+        self.cat_lin1 = torch.nn.Linear(hidden_channels, hidden_channels)
+        self.cat_lin2 = torch.nn.Linear(hidden_channels, hidden_channels)
+        channels = [hidden_channels] * num_layers + [out_channels]
+        self.final_mlp = MLP(channels, dropout=dropout, act_first=True)
+        
+
+    def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
+        self.edge_lin.reset_parameters()
+        if self.edge_norm is not None:
+            self.edge_norm.reset_parameters()
+        if self.edge_mlp is not None:
+            self.edge_mlp.reset_parameters()
+        self.node_mlp.reset_parameters()
+        self.cat_lin1.reset_parameters()
+        self.cat_lin2.reset_parameters()
+        self.final_mlp.reset_parameters()
+
+    def forward(
+        self,
+        wl_indices: Tensor,
+        x: OptTensor,
+        edge_index: Adj,
+        edge_weight: OptTensor = None,
+    ) -> Tensor:
+        """"""  # noqa: D419
+        out = self.edge_lin(edge_index, edge_weight)
+        if self.edge_norm is not None and self.edge_mlp is not None:
+            out = out.relu_()
+            out = self.edge_norm(out)
+            out = self.edge_mlp(out)
+
+        out = out + self.cat_lin1(out)
+        if x is not None and wl_indices is not None:
+            wl_embedding = self.wl_emb(wl_indices)
+            x = torch.cat((x, wl_embedding), dim=1)
+            x = self.node_mlp(x)
+            out = out + x
+            out = out + self.cat_lin2(x) 
+        
         return self.final_mlp(out.relu_())
 
     def __repr__(self) -> str:
@@ -409,7 +523,7 @@ def train_use_hard_negative(model,
         total_examples += num_examples
     return total_loss / total_examples
 
-def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name, remove_edge_aggre):
+def train(model, score_func, split_edge, train_pos, data, indices, emb, optimizer, batch_size, pos_train_weight, data_name, remove_edge_aggre):
     model.train()
     score_func.train()
     # train_pos = train_pos.transpose(1, 0)
@@ -436,12 +550,16 @@ def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_
                 edge_weight_mask = torch.cat((edge_weight_mask, edge_weight_mask), dim=0).to(torch.float)
             else:
                 edge_weight_mask = torch.ones(train_edge_mask.size(1)).to(torch.float).to(train_pos.device)
-        
             adj = SparseTensor.from_edge_index(train_edge_mask, edge_weight_mask, [num_nodes, num_nodes]).to(train_pos.device)
         else:
             adj = data.adj_t 
         ###################
-        h = model(data.x, data.adj_t, data.edge_weight)
+
+        if indices is not None:
+            h = model(indices, x, adj, data.edge_weight)
+        else:
+            h = model(data.x, adj, data.edge_weight)
+        
         edge = train_pos[perm].t()
         pos_out = score_func(h[edge[0]], h[edge[1]])
         pos_loss = -torch.log(pos_out + 1e-15).mean()
@@ -535,14 +653,20 @@ def visualize_predictions(pos_train_pred, neg_train_pred,
     
     
 @torch.no_grad()
-def test(args, model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size, use_valedges_as_input):
+def test(args, model, score_func, data, indices, evaluation_edges, emb, evaluator_hit, evaluator_mrr, batch_size, use_valedges_as_input):
     model.eval()
     score_func.eval()
     # adj_t = adj_t.transpose(1,0)
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
     if emb == None: x = data.x
     else: x = emb.weight
-    h = model(data.x, data.adj_t, data.edge_weight)
+
+    # h = model(data.x, data.adj_t, data.edge_weight)
+    if indices is not None:
+        h = model(indices, x, data.adj_t, data.edge_weight)
+    else:
+        h = model(data.x, data.adj_t, data.edge_weight)
+                
     x1 = h
     x2 = torch.tensor(1)
     # print(h[0][:10])
@@ -607,11 +731,10 @@ def structural_learnable_embedding(n2v_emb, embedding_dim=16):
 # def main(count, lr, l2, dropout):
 def main():
     parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default='ddi')
+    parser.add_argument('--data_name', type=str, default='collab')
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='LINKX')
     parser.add_argument('--score_model', type=str, default='mlp_score')
-
     ##gnn setting
     parser.add_argument('--num_layers', type=int, default=3)
     parser.add_argument('--num_layers_predictor', type=int, default=3)
@@ -619,17 +742,15 @@ def main():
     parser.add_argument('--gnnout_hidden_channels', type=int, default=512)
     parser.add_argument('--dropout', type=float, default=0.1)
     parser.add_argument('--emb_dim', type=int, default=16)
-
-
     ### train setting
     parser.add_argument('--batch_size', type=int, default=512)
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--epochs', type=int, default=9999)
-    parser.add_argument('--eval_steps', type=int, default=50)
+    parser.add_argument('--epochs', type=int, default=2)
+    parser.add_argument('--eval_steps', type=int, default=1)
     parser.add_argument('--runs', type=int, default=1)
-    parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=20,    type=int,       help='early stopping')
+    parser.add_argument('--kill_cnt', dest='kill_cnt', default=50, type=int, help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
-    parser.add_argument('--l2',		type=float,             default=0.0,			help='L2 Regularization for Optimizer')
+    parser.add_argument('--l2',		type=float, default=0.0, help='L2 Regularization for Optimizer')
     parser.add_argument('--seed', type=int, default=999)
     
     parser.add_argument('--save', action='store_true', default=False)
@@ -642,18 +763,18 @@ def main():
     parser.add_argument('--name_tag', type=str, default='')
     ####### gin
     parser.add_argument('--gin_mlp_layer', type=int, default=2)
-
     ######gat
     parser.add_argument('--gat_head', type=int, default=1)
-
     ######mf
     parser.add_argument('--cat_node_feat_mf', default=False, action='store_true')
-
     ##### n2v
     parser.add_argument('--cat_n2v_feat', default=False, action='store_true')
     parser.add_argument('--test_batch_size', type=int, default=1024 * 64) 
     parser.add_argument('--use_hard_negative', default=False, action='store_true')
-
+    
+    parser.add_argument('--cat_wl_feat', default=False, action='store_true')
+    parser.add_argument('--wl_process', type=str)
+    
     args = parser.parse_args()
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('use_val_edge:', args.use_valedges_as_input)
@@ -672,22 +793,41 @@ def main():
     emb = None
     node_num = data.num_nodes
 
-    args.name_tag = f"{args.data_name}_{args.gnn_model}_{args.score_model}_epochs{args.epochs}_runs{args.runs}"
+    args.name_tag = f"{args.data_name}_{args.gnn_model}_{args.score_model}_ep{args.epochs}_wl{args.cat_wl_feat}_pro{args.wl_process}"
+    
     if hasattr(data, 'x'):
         if data.x != None:
             if len(data.x.shape) == 1:
                 data.x = data.x.unsqueeze(1)
             x = data.x
             data.x = data.x.to(torch.float)
-            if args.cat_n2v_feat:
-                print('cat n2v embedding!!')
-                n2v_emb = torch.load(os.path.join(DATASET_PATH, 
-                    'wl_label', 
-                    'ogbl-'+ args.data_name+'_wl_labels.pt'))
+            
+            if args.cat_wl_feat:
+                print('cat wl embedding!!')
+                wl_emb = torch.load(
+                        os.path.join(
+                            DATASET_PATH, 
+                            'wl_label/'+ 
+                            'ogbl-' + args.data_name+
+                            '_wl_labels.pt'))
 
-                n2v_emb = structural_learnable_embedding(n2v_emb, embedding_dim=args.emb_dim)
-                # plot_hist_hash(n2v_emb)
-                data.x = torch.cat((data.x, n2v_emb), dim=-1)
+                if args.wl_process == 'norm':
+                    normalized_wl = (wl_emb.float() - wl_emb.float().min()) / (wl_emb.float().max() - wl_emb.float().min())
+                    normalized_wl = normalized_wl.unsqueeze(-1)
+                    x = torch.cat([x, normalized_wl], dim=1)
+                    indices = None
+                    args.gnn_model = 'LINKX'
+                elif args.wl_process == 'unique': 
+                    args.gnn_model = 'LINKX_WL'
+                    # wl_emb = wl_emb.unsqueeze(-1)
+                    unique_hashes, indices = torch.unique(wl_emb, return_inverse=True)
+                    wl_emb = nn.Embedding(num_embeddings=len(unique_hashes), embedding_dim=16)
+                    # rff_features = random_fourier_features(normalized_wl, D=16)
+                    indices = indices.to(device)
+            else:
+                wl_emb = None
+                indices = None
+                unique_hashes = None
                                     
             data.x = data.x.to(device)
             if args.data_name in ['ddi', 'ppa']:
@@ -741,7 +881,19 @@ def main():
             
     n_nodes = data.x.size(0)
     data = data.to(device)
-    if args.gnn_model == 'LINKX':
+    if args.gnn_model == 'LINKX_WL':
+        model = LINKX_WL(
+        num_nodes=n_nodes,
+        in_channels=input_channel,
+        hidden_channels=args.hidden_channels,
+        out_channels=args.hidden_channels,
+        num_layers=args.num_layers,
+        dropout=args.dropout,
+        wl_emb_dim = 16,
+        num_wl = len(unique_hashes),
+    ).to(device)
+        
+    elif args.gnn_model == 'LINKX':
         model = LINKX(
         num_nodes=n_nodes,
         in_channels=input_channel,
@@ -841,17 +993,18 @@ def main():
         step = 0
         
         for epoch in range(1, 1 + args.epochs):
+            print('epoch: ', epoch)
             if args.use_hard_negative:
                 loss = train_use_hard_negative(model, score_func, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.remove_edge_aggre, args.test_batch_size)
             else:
-                loss = train(model, score_func, split_edge, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
+                loss = train(model, score_func, split_edge, pos_train_edge, data, indices, emb, optimizer, args.batch_size, train_edge_weight, args.data_name, args.remove_edge_aggre)
                 wandb.log({'train_loss': loss}, step = epoch)
                 step += 1
             if epoch % args.eval_steps == 0:
                 if args.data_name == 'citation2':
-                    results_rank, score_emb= test_citation2(model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size)
+                    results_rank, score_emb= test_citation2(model, score_func, data, indices, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size)
                 else:
-                    results_rank, score_emb= test(args, model, score_func, data, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
+                    results_rank, score_emb= test(args, model, score_func, data, indices, evaluation_edges, emb, evaluator_hit, evaluator_mrr, args.batch_size, args.use_valedges_as_input)
                 for key, result in results_rank.items():
                     loggers[key].add_result(run, result)
                     wandb.log({f"Metrics/{key}": result[-1]}, step=step)

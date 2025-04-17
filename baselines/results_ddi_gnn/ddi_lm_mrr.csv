@@ -1,0 +1,4 @@
+Metric,Hits@20,Hits@50,Hits@100,MRR
+ddi_gnn_LINKX_mlp_score_catTrue_wlnorm,65.22 ± nan,98.24 ± nan,99.97 ± nan,11.76 ± nan
+ddi_gnn_LINKX_mlp_score_catTrue_wlunique,69.94 ± nan,98.80 ± nan,99.97 ± nan,12.91 ± nan
+ddi_gnn_LINKX_mlp_score_catTrue_wlunique,66.95 ± nan,98.91 ± nan,99.98 ± nan,13.91 ± nan

@@ -20,6 +20,7 @@ from typing import Dict
 
 dir_path  = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
+DATASET_PATH = '/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines/dataset'
 
     
 def read_data(data_name, neg_mode):
@@ -258,6 +259,8 @@ def main():
     parser.add_argument('--runs', type=int, default=2)
     parser.add_argument('--epochs', type=int, default=9999)
     
+    parser.add_argument('--cat_wl_feat', default=False, action='store_true')
+    
     args = parser.parse_args()
     if args.debug == True:
         print('debug mode with runs 2 and epochs 3')
@@ -291,6 +294,18 @@ def main():
         print('cat n2v embedding!!')
         n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
         x = torch.cat((x, n2v_emb), dim=-1)
+    if args.cat_wl_feat:
+        print('cat wl embedding!!')
+        wl_emb = torch.load(
+                os.path.join(
+                    DATASET_PATH, 
+                    'wl_label/'+ 
+                    args.data_name+
+                    '_wl_labels.pt'))
+        normalized_wl = (wl_emb.float() - wl_emb.float().min()) / (wl_emb.float().max() - wl_emb.float().min())
+        normalized_wl = normalized_wl.unsqueeze(-1)
+        x = torch.cat([x, normalized_wl], dim=1)
+        
     x = x.to(device)
     train_pos = data['train_pos'].to(x.device)
     input_channel = x.size(1)

@@ -1,9 +1,10 @@
-# adopted from benchmarking/exist_setting_ddi: Run models on on ogbl-ddi under the existing setting.
+import os
 import sys
-sys.path.append("..") 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import torch
 import numpy as np
+import torch.nn as nn
 import argparse
 import scipy.sparse as ssp
 from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, evaluate_hits, evaluate_mrr, evaluate_auc, Logger, init_seed, save_emb
@@ -17,7 +18,12 @@ from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from torch_geometric.utils import negative_sampling
 import os
 from graphgps.utility.utils import mvari_str2csv, random_sampling_ogb
-from ddi_linkx import save_edge_predictions 
+from ogb_linkx import LINKX, LINKX_WL
+import torch
+import pandas as pd
+
+DATASET_PATH = '/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines/dataset'
+
 dir_path  = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
 
@@ -34,7 +40,7 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     return result
         
 
-def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_size, pos_train_weight, data_name):
+def train(args, model, score_func, split_edge, train_pos, data, emb, indices, optimizer, batch_size, pos_train_weight, data_name):
     model.train()
     score_func.train()
     # train_pos = train_pos.transpose(1, 0)
@@ -60,7 +66,13 @@ def train(model, score_func, split_edge, train_pos, data, emb, optimizer, batch_
         adj = SparseTensor.from_edge_index(train_edge_mask, edge_weight_mask, [num_nodes, num_nodes]).to(train_pos.device)
         ###################
         # print(adj)
-        h = model(x, adj)
+        if args.wl_process == 'norm':
+            x = torch.cat([emb.weight, data.x], dim=-1)
+            h = model(x, data.adj_t, data.edge_weight)
+        elif args.wl_process == 'unique':
+            h = model(indices, x, adj)
+        else:
+            h = model(x, data.adj_t, data.edge_weight)
         edge = train_pos[perm].t()
         pos_out = score_func(h[edge[0]], h[edge[1]])
         pos_loss = -torch.log(pos_out + 1e-15).mean()
@@ -106,16 +118,18 @@ def test_edge(score_func, input_data, h, batch_size, negative_data=None):
 
 
 @torch.no_grad()
-def test(model, 
+def test(args, 
+         model, 
          score_func, 
          data, 
          evaluation_edges, 
          emb, 
+         indices, 
          evaluator_hit, 
          evaluator_mrr, 
          batch_size, 
          data_name, 
-         use_valedges_as_input,
+         use_valedges_as_input, 
          save):
     model.eval()
     score_func.eval()
@@ -123,7 +137,19 @@ def test(model,
     train_val_edge, pos_valid_edge, neg_valid_edge, pos_test_edge,  neg_test_edge = evaluation_edges
     if emb == None: x = data.x
     else: x = emb.weight
-    h = model(x, data.adj_t.to(x.device))
+    if args.wl_process == 'norm':
+        x = torch.cat([emb.weight, data.x], dim=-1)
+    else:
+        pass
+
+    if args.wl_process == 'norm':
+        x = torch.cat([emb.weight, data.x], dim=-1)
+        h = model(x, data.adj_t, data.edge_weight).to(x.device)
+    elif args.wl_process == 'unique':
+        h = model(indices, x, data.adj_t).to(x.device)
+    else:
+        h = model(x, data.adj_t, data.edge_weight).to(x.device)
+            
     # print(h[0][:10])
     train_val_edge = train_val_edge.to(x.device)
     pos_valid_edge = pos_valid_edge.to(x.device) 
@@ -140,10 +166,10 @@ def test(model,
     neg_test_pred = neg_test_pred.squeeze(-1)
     
     if save is True:
-        save_edge_predictions(pos_valid_edge, pos_valid_pred, 1, "gnn_pos_valid_preds.csv")
-        save_edge_predictions(neg_valid_edge.view(-1, 2), neg_valid_pred.flatten(), 0, "gnn_neg_valid_preds.csv")
-        save_edge_predictions(pos_test_edge, pos_test_pred, 1, "gnn_pos_test_preds.csv")
-        save_edge_predictions(neg_valid_edge.view(-1, 2), neg_test_pred.flatten(), 0, "gnn_neg_test_preds.csv")
+        save_edge_predictions(pos_valid_edge, pos_valid_pred, 1, "pos_valid_preds.csv")
+        save_edge_predictions(neg_valid_edge.view(-1, 2), neg_valid_pred.flatten(), 0, "neg_valid_preds.csv")
+        save_edge_predictions(pos_test_edge, pos_test_pred, 1, "pos_test_preds.csv")
+        save_edge_predictions(neg_valid_edge.view(-1, 2), neg_test_pred.flatten(), 0, "neg_test_preds.csv")
     else:
         print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
         result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
@@ -151,13 +177,30 @@ def test(model,
         return result, score_emb
 
 
+def save_edge_predictions(edge_index, preds, label, filename):
+    """
+    Save edge predictions to a CSV file.
+
+    Args:
+        edge_index (Tensor): Shape [2, num_edges] — source and target nodes.
+        preds (Tensor): Shape [num_edges] — predicted scores.
+        label (int): 1 for positive, 0 for negative.
+        filename (str): Path to save the CSV.
+    """
+    src = edge_index[:, 0].cpu().numpy()
+    dst = edge_index[:, 1].cpu().numpy()
+    preds = preds.detach().cpu().numpy()
+    labels = torch.tensor([label] * len(preds))
+
+    df = pd.DataFrame({'src': src, 'dst': dst, 'pred': preds, 'label': labels})
+    df.to_csv(filename, index=False)
 
 # def main(count, lr, l2, dropout):
 def main():
     parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default='ogbl-ddi')
+    parser.add_argument('--data_name', type=str, default='ddi')
     parser.add_argument('--neg_mode', type=str, default='equal')
-    parser.add_argument('--gnn_model', type=str, default='GCN')
+    parser.add_argument('--gnn_model', type=str, default='LINKX')
     parser.add_argument('--score_model', type=str, default='mlp_score')
     ##gnn setting
     parser.add_argument('--num_layers', type=int, default=3)
@@ -167,9 +210,9 @@ def main():
     ### train setting
     parser.add_argument('--batch_size', type=int, default=65536)
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--epochs', type=int, default=9999)
+    parser.add_argument('--epochs', type=int, default=2)
     parser.add_argument('--eval_steps', type=int, default=1)
-    parser.add_argument('--runs', type=int, default=10)
+    parser.add_argument('--runs', type=int, default=1)
     parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=30,    type=int,       help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
     parser.add_argument('--input_dir', type=str, default=os.path.join(get_root_dir(), "dataset"))
@@ -190,6 +233,9 @@ def main():
     parser.add_argument('--cat_node_feat_mf', default=False, action='store_true')
     parser.add_argument('--eval_mrr_data_name', type=str, default='ogbl-citation2')
     parser.add_argument('--test_batch_size', type=int, default=4096)
+    parser.add_argument('--cat_wl_feat', default=False, action='store_true')
+    parser.add_argument('--wl_process', type=str)
+    
     ######debug 
     # parser.add_argument('--runs', type=int, default=2)
     # parser.add_argument('--epochs', type=int, default=7)
@@ -201,19 +247,50 @@ def main():
     print('use_val_edge:', args.use_valedges_as_input)
     print(args)
     init_seed(args.seed)
-    args.name_tag = f"{args.data_name}_gnn_{args.gnn_model}_{args.score_model}_run{args.runs}"
+    args.name_tag = f"{args.data_name}_gnn_{args.gnn_model}_{args.score_model}_cat{args.cat_wl_feat}_wl{args.wl_process}"
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     # dataset = Planetoid('.', 'cora')
     dataset = PygLinkPropPredDataset(name='ogbl-'+args.data_name)
+    
     data = dataset[0]
     edge_index = data.edge_index
     emb = None
     node_num = data.num_nodes
     split_edge = dataset.get_edge_split()
+    
+    # Load WL_test
     emb = torch.nn.Embedding(node_num, args.hidden_channels).to(device)
     input_channel = args.hidden_channels
+            
+    if args.cat_wl_feat:
+        print('cat wl embedding!!')
+        wl_emb = torch.load(
+                os.path.join(
+                    DATASET_PATH, 
+                    'wl_label/'+ 
+                    'ogbl-' + args.data_name+
+                    '_wl_labels.pt'))
+
+        if args.wl_process == 'norm':
+            normalized_wl = (wl_emb.float() - wl_emb.float().min()) / (wl_emb.float().max() - wl_emb.float().min())
+            normalized_wl = normalized_wl.unsqueeze(-1)
+            if data.x is None:
+                data.x = normalized_wl
+            indices = None
+            args.gnn_model = 'LINKX'
+        elif args.wl_process == 'unique': 
+            args.gnn_model = 'LINKX_WL'
+            # wl_emb = wl_emb.unsqueeze(-1)
+            unique_hashes, indices = torch.unique(wl_emb, return_inverse=True)
+            wl_emb = nn.Embedding(num_embeddings=len(unique_hashes), embedding_dim=16)
+            # rff_features = random_fourier_features(normalized_wl, D=16)
+            indices = indices.to(device)
+    else:
+        wl_emb = None
+        indices = None
+        unique_hashes = None                            
     if hasattr(data, 'edge_weight'):
         if data.edge_weight != None:
             edge_weight = data.edge_weight.to(torch.float)
@@ -222,16 +299,56 @@ def main():
             train_edge_weight = train_edge_weight.to(torch.float)
         else:
             train_edge_weight = None
-
     else:
         train_edge_weight = None
     data = T.ToSparseTensor()(data)
     data = data.to(device)
-    model = eval(args.gnn_model)(input_channel, args.hidden_channels,
-                    args.hidden_channels, args.num_layers, args.dropout, args.gin_mlp_layer, args.gat_head, node_num, args.cat_node_feat_mf).to(device)
+    n_nodes = data.num_nodes
+    data = data.to(device)
+    
+    if args.cat_wl_feat:
+        if args.wl_process == 'norm':
+            input_channel += 1
+        elif args.wl_process == 'unique':
+            pass
+        else:
+            raise NotImplementedError
+        
+    if args.gnn_model == 'LINKX_WL':
+        model = LINKX_WL(
+        num_nodes=n_nodes,
+        in_channels=input_channel,
+        hidden_channels=args.hidden_channels,
+        out_channels=args.hidden_channels,
+        num_layers=args.num_layers,
+        dropout=args.dropout,
+        wl_emb_dim = 16,
+        num_wl = len(unique_hashes),
+    ).to(device)
+    
+    elif args.gnn_model == 'LINKX':
+        model = LINKX(
+        num_nodes=n_nodes,
+        in_channels=input_channel,
+        hidden_channels=args.hidden_channels,
+        out_channels=args.hidden_channels,
+        num_layers=args.num_layers,
+        dropout=args.dropout
+    ).to(device)
+    else:
+        model = eval(args.gnn_model)(input_channel, 
+                args.hidden_channels,
+                args.hidden_channels, 
+                args.num_layers, 
+                args.dropout, 
+                args.gin_mlp_layer, 
+                args.gat_head, 
+                node_num, 
+                args.cat_node_feat_mf).to(device)
+    
     score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
                     1, args.num_layers_predictor, args.dropout).to(device)
-    # train_pos = data['train_pos'].to(x.device)
+    
     evaluator_hit = Evaluator(name='ogbl-collab')
     evaluator_mrr = Evaluator(name=args.eval_mrr_data_name)
     loggers = {
@@ -240,14 +357,9 @@ def main():
         'Hits@100': Logger(args.runs),
         'MRR': Logger(args.runs),
     }
-    if args.data_name =='ogbl-collab':
-        eval_metric = 'Hits@50'
-    elif args.data_name =='ddi':
+
+    if args.data_name =='ddi':
         eval_metric = 'Hits@20'
-    elif args.data_name =='ogbl-ppa':
-        eval_metric = 'Hits@100'
-    elif args.data_name =='ogbl-citation2':
-        eval_metric = 'MRR'
     pos_train_edge = split_edge['train']['edge']
     pos_valid_edge = split_edge['valid']['edge']
     pos_test_edge = split_edge['test']['edge']
@@ -271,7 +383,7 @@ def main():
         import wandb
         wandb.init(project=f"{args.data_name}_", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}")
         wandb.config.update(args)
-
+        
         if args.runs == 1:
             seed = args.seed
         else:
@@ -293,28 +405,28 @@ def main():
         kill_cnt = 0
         step = 0
         for epoch in range(1, 1 + args.epochs):
-            loss = train(model, score_func, split_edge, pos_train_edge, data, emb, optimizer, args.batch_size, train_edge_weight, args.data_name)
+            loss = train(args, model, score_func, split_edge, pos_train_edge, data, emb, indices, optimizer, args.batch_size, train_edge_weight, args.data_name)
             # print(model.convs[0].att_src[0][0][:10])
             if epoch % args.eval_steps == 0:
-                results_rank, score_emb = test(model, 
+                results_rank, score_emb = test(args, 
+                                               model, 
                                                score_func, 
                                                data, 
                                                evaluation_edges, 
                                                emb, 
+                                               indices, 
                                                evaluator_hit, 
                                                evaluator_mrr, 
                                                args.test_batch_size, 
                                                args.data_name, 
                                                args.use_valedges_as_input, 
                                                False)
+                
                 for key, result in results_rank.items():
                     wandb.log({'train_loss': loss}, step = step)
                     loggers[key].add_result(run, result)
                     wandb.log({f"Metrics/{key}": result[-1]}, step=step)
                     step += 1
-                    
-                for key, result in results_rank.items():
-                    loggers[key].add_result(run, result)
                 if epoch % args.log_steps == 0:
                     for key, result in results_rank.items():
                         print(key)
@@ -362,6 +474,7 @@ def main():
         data, 
         evaluation_edges, 
         emb, 
+        indices, 
         evaluator_hit, 
         evaluator_mrr, 
         args.test_batch_size, 
@@ -396,3 +509,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+    
+# adopted from benchmarking/exist_setting_ddi: Run models on on ogbl-ddi under the existing setting.

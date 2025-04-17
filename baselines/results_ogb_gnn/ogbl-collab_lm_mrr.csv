@@ -1,3 +1,0 @@
-Metric,Hits@20,Hits@50,Hits@100,AUC,AP
-ogbl-collab_GCN_mlp_score_epochs5_runs2,16.45 ± 2.51,25.68 ± 3.44,32.47 ± 2.67,96.05 ± 0.42,93.82 ± 0.54
-ogbl-collab_GCN_mlp_score_epochs800_runs2,43.20 ± 0.61,51.95 ± 0.81,57.74 ± 0.17,97.04 ± 0.04,95.44 ± 0.13

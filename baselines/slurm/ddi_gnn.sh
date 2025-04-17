@@ -39,11 +39,11 @@ echo ">>> Environment and modules set up successfully <<<"
 echo "Job started at: $(date)"
 
 # List of GNN models
-gnn_models=("GIN")
+gnn_models=("GCN")
 
 # Common parameters
-DATA_NAME="ogbl-ddi"
-EPOCHS=800
+DATA_NAME="ddi"
+EPOCHS=1000
 EVAL_STEPS=5
 KILL_CNT=100
 BATCH_SIZE=65536

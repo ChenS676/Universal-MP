@@ -49,9 +49,9 @@ def loaddataset(name: str, use_valedges_as_input: bool, load=None):
     data.adj_t = data.adj_t.to_symmetric().coalesce()
     data.max_x = -1
     if name == "ppa":
-        data.x = torch.argmax(data.x, dim=-1)
+        data.x = torch.argmax(data.x, dim=-1).unsqueeze(-1)
         data.max_x = torch.max(data.x).item()
-        
+        data.in_channel = 1 
     elif name == "ddi":
         data.x = torch.arange(data.num_nodes)
         data.max_x = data.num_nodes
