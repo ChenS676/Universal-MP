@@ -398,6 +398,7 @@ def main():
         num_layers=args.num_layers,
         dropout=args.dropout
     ).to(device)
+    # TODO 
     else:
         model = eval(args.gnn_model)(input_channel, args.hidden_channels,
                         args.hidden_channels, args.num_layers, args.dropout, 

@@ -10,6 +10,108 @@ import torch_sparse
 from torch_scatter import scatter_add
 from typing import Iterable, Final
 
+
+
+class FusedLinkPredictor(nn.Module):
+    cndeg: Final[int]
+
+    def __init__(self,
+                 in_channels,  # input dim of GCN or LINKX (assume equal)
+                 hidden_channels,
+                 out_channels,
+                 dropout,
+                 edrop=0.0,
+                 ln=False,
+                 cndeg=-1,
+                 use_cn=True,
+                 tailact=False,
+                 beta=1.0):
+        super().__init__()
+
+        self.register_parameter("beta", nn.Parameter(beta * torch.ones((1))))
+        self.dropadj = DropAdj(edrop) # drop for adjacency matrix
+        self.use_cn = use_cn
+        self.cndeg = cndeg
+
+        fusion_dim = 2 * in_channels  # GCN + LINKX concat
+
+        self.fusion_mlp = nn.Sequential(
+            nn.Linear(fusion_dim, hidden_channels),
+            nn.LayerNorm(hidden_channels) if ln else nn.Identity(),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout, inplace=True)
+        )
+
+        self.xijlin = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels),
+            nn.LayerNorm(hidden_channels) if ln else nn.Identity(),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout, inplace=True)
+        )
+
+        self.xcnlin = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels),
+            nn.LayerNorm(hidden_channels) if ln else nn.Identity(),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout, inplace=True),
+            nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity()
+        )
+
+        self.lin = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels),
+            nn.LayerNorm(hidden_channels) if ln else nn.Identity(),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout, inplace=True),
+            nn.Linear(hidden_channels, out_channels)
+        )
+        
+    def reset_parameters(self):
+        def reset_module(m):
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.LayerNorm):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+
+        for module in [self.fusion_mlp, self.xijlin, self.xcnlin, self.lin]:
+            for layer in module:
+                reset_module(layer)
+        nn.init.constant_(self.beta, 1.0)
+
+
+    def forward(self, x_gcn, x_linkx, adj, tar_ei, filled1=False):
+        """
+        x_gcn: [N, D] - node embeddings from GCN
+        x_linkx: [N, D] - node embeddings from LINKX
+        adj: sparse adjacency matrix
+        tar_ei: (2, E) edge index for target edges
+        filled1: if True, CN heuristic uses filled adjacency
+        """
+        adj = self.dropadj(adj)
+
+        # Fuse node embeddings
+        # x = torch.cat([x_gcn, x_linkx], dim=-1)  # [N, 2D]
+        x = torch.cat([x_gcn], dim=-1)  # [N, 2D]
+        x = self.fusion_mlp(x)  # [N, hidden_channels]
+
+        xi = x[tar_ei[0]]
+        xj = x[tar_ei[1]]
+        xij = self.xijlin(xi * xj)
+
+        if self.use_cn:
+            cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
+            xcn = spmm_add(cn, x)
+            xcn = self.xcnlin(xcn)
+            out = self.lin(xcn * self.beta + xij)
+        else:
+            out = self.lin(xij)
+
+        return out
+
+
+
 # a vanilla message passing layer 
 class PureConv(nn.Module):
     aggr: Final[str]
@@ -521,6 +623,7 @@ class IncompleteSCN1Predictor(SCNLinkPredictor):
                                        depth)
 
 
+        
 # NCN predictor
 class CNLinkPredictor(nn.Module):
     cndeg: Final[int]
@@ -578,10 +681,8 @@ class CNLinkPredictor(nn.Module):
         adj = self.dropadj(adj)
         xi = x[tar_ei[0]]
         xj = x[tar_ei[1]]
-        # optimized node features 
         x = x + self.xlin(x)
         cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
-        import IPython; IPython.embed()
         xcns = [spmm_add(cn, x)]
         xij = self.xijlin(xi * xj)
         
@@ -641,6 +742,21 @@ class CN0LinkPredictor(nn.Module):
                                  nn.Linear(hidden_channels, out_channels))
         self.cndeg = cndeg
 
+    def reset_parameters(self):
+        def reset_sequential(module):
+            for m in module:
+                if isinstance(m, nn.Linear):
+                    nn.init.xavier_uniform_(m.weight)
+                    if m.bias is not None:
+                        nn.init.zeros_(m.bias)
+
+        reset_sequential(self.fusion_mlp)
+        reset_sequential(self.xijlin)
+        reset_sequential(self.xcnlin)
+        reset_sequential(self.lin)
+
+        nn.init.constant_(self.beta, 1.0)
+        
     def multidomainforward(self,
                            x,
                            adj,
@@ -971,6 +1087,7 @@ class CN2LinkPredictor(nn.Module):
 
 
 predictor_dict = {
+    "mlp_score": None, # todo expand baseline
     "cn0": CN0LinkPredictor,
     "catscn1": CatSCNLinkPredictor,
     "scn1": SCNLinkPredictor,
@@ -981,3 +1098,4 @@ predictor_dict = {
     "cn2": CN2LinkPredictor,
     "incn1cn1": IncompleteCN1Predictor
 }
+

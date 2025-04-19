@@ -30,3 +30,6 @@ __init__.py
 dataset_heart.tar.gz
 pos_encodings.tar.gz
 proposed/
+
+.github/
+.vscode 

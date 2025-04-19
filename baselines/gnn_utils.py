@@ -15,6 +15,15 @@ from torch_geometric.nn import GCNConv, SAGEConv, GINConv, GATConv
 import torch.nn.functional as F
 from torch_geometric.nn import MixHopConv, ChebConv  # Import ChebConv
 
+import torch.nn as nn
+from torch_sparse.matmul import spmm_add
+from utils import adjoverlap
+import os
+import torch
+import numpy as np
+import random
+import json, logging, sys
+import math
 
 
 class ChebGCN(torch.nn.Module):
@@ -683,11 +692,67 @@ class DecoupleSEAL(torch.nn.Module):
 
 
 
-import torch
-import torch.nn.functional as F
+class unified_score(torch.nn.Module):
+    def __init__(self, in_channels, 
+                 hidden_channels, 
+                 out_channels, 
+                 num_layers,
+                 dropout,
+                 use_cn,
+                 beta):
+        super().__init__()
+        self.register_parameter("beta", nn.Parameter(beta*torch.ones((1))))
+        self.lin = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels),
+            nn.LayerNorm(hidden_channels),
+            nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True),
+            nn.Identity(),  # twolayerlin = False
+            nn.Identity(),
+            nn.Identity(),
+            nn.Identity(),
+            nn.Linear(hidden_channels, out_channels)
+        )
 
-import torch.nn as nn
-# from torch_sparse.matmul import  spmm_add
+        self.xcnlin = nn.Sequential(
+            nn.Linear(in_channels+1, hidden_channels),
+            nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels),
+            nn.LayerNorm(hidden_channels),
+            nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels)
+        )
+        self.xijlin = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels),
+            nn.LayerNorm(hidden_channels),
+            nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True),
+            nn.Identity()
+        )
+        self.use_cn = use_cn
+        self.dropout = dropout
+        self.alpha = 0.1
+        
+
+    def forward(self, x_gcn, x_linkx, adj, tar_ei, filled1=False):
+        row, col = tar_ei
+        xi = x_gcn[row]
+        xj = x_gcn[col]
+        xij = xi * xj
+        xij = self.lin(xij)
+    
+        cn = adjoverlap(adj, adj, tar_ei, filled1)
+        cn_score = cn.sum(1).unsqueeze(1)
+        xcns = [spmm_add(cn, x_gcn)]
+        xcncns = torch.cat([xcns[0], cn_score], dim=-1)
+        xs = torch.cat(
+            [self.lin(self.xcnlin(xcncns) * self.beta + xij)],
+            dim=-1)
+        y = torch.sigmoid(xs) 
+        return y
+
 
 class mlp_score(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
@@ -728,15 +793,6 @@ class dot_product(torch.nn.Module):
     def forward(self, x_i, x_j):
         x = x_i * x_j
         return torch.sigmoid(x)
-    
-import joblib
-import os
-import torch
-import numpy as np
-import random
-import json, logging, sys
-import math
-import logging.config 
 
 
 def get_root_dir():

@@ -251,7 +251,7 @@ def main():
 
     for run in range(0, args.runs):
         name_tag = f"{args.dataset}_grand_{server}_{args.runs}"
-        wandb.init(project=f"{args.data_name}_", name=name_tag, config=vars(args))
+        wandb.init(project=f"{args.dataset}_", name=name_tag, config=vars(args))
         
         set_seed(run)
         if args.dataset in ["Cora", "Citeseer", "Pubmed"]:

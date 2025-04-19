@@ -202,36 +202,6 @@ class LINKX(torch.nn.Module):
 
 class LINKX_WL(torch.nn.Module):
     r"""The LINKX model from the `"Large Scale Learning on Non-Homophilous
-    Graphs: New Benchmarks and Strong Simple Methods"
-    <https://arxiv.org/abs/2110.14446>`_ paper.
-
-    .. math::
-        \mathbf{H}_{\mathbf{A}} &= \textrm{MLP}_{\mathbf{A}}(\mathbf{A})
-
-        \mathbf{H}_{\mathbf{X}} &= \textrm{MLP}_{\mathbf{X}}(\mathbf{X})
-
-        \mathbf{Y} &= \textrm{MLP}_{f} \left( \sigma \left( \mathbf{W}
-        [\mathbf{H}_{\mathbf{A}}, \mathbf{H}_{\mathbf{X}}] +
-        \mathbf{H}_{\mathbf{A}} + \mathbf{H}_{\mathbf{X}} \right) \right)
-
-    .. note::
-
-        For an example of using LINKX, see `examples/linkx.py <https://
-        github.com/pyg-team/pytorch_geometric/blob/master/examples/linkx.py>`_.
-
-    Args:
-        num_nodes (int): The number of nodes in the graph.
-        in_channels (int): Size of each input sample, or :obj:`-1` to derive
-            the size from the first input(s) to the forward method.
-        hidden_channels (int): Size of each hidden sample.
-        out_channels (int): Size of each output sample.
-        num_layers (int): Number of layers of :math:`\textrm{MLP}_{f}`.
-        num_edge_layers (int, optional): Number of layers of
-            :math:`\textrm{MLP}_{\mathbf{A}}`. (default: :obj:`1`)
-        num_node_layers (int, optional): Number of layers of
-            :math:`\textrm{MLP}_{\mathbf{X}}`. (default: :obj:`1`)
-        dropout (float, optional): Dropout probability of each hidden
-            embedding. (default: :obj:`0.0`)
     """
     def __init__(
         self,
@@ -261,11 +231,7 @@ class LINKX_WL(torch.nn.Module):
         else:
             self.edge_norm = None
             self.edge_mlp = None
-        # import pdb; pdb.set_trace()
-        # (Pdb) self.node_mlp
-        # MLP(1433, 512, 16)
-        # (Pdb) x.shape
-        # torch.Size([2708, 1449])
+
         channels = [in_channels+wl_emb_dim] + [hidden_channels] * num_node_layers 
         self.node_mlp = MLP(channels, dropout=0., act_first=True)
         self.wl_emb = nn.Embedding(num_wl, wl_emb_dim)

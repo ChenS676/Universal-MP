@@ -7,21 +7,39 @@ import torch
 import argparse
 import scipy.sparse as ssp
 from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, evaluate_hits, evaluate_mrr, evaluate_auc, Logger, init_seed, save_emb
-from baselines.gnn_utils import GCN, GAT, SAGE, GIN, MF, DGCNN, GCN_seal, SAGE_seal, DecoupleSEAL, mlp_score
+from baselines.gnn_utils import (GCN, GAT, 
+                                 SAGE, GIN, 
+                                 MF, DGCNN, 
+                                 GCN_seal, 
+                                 SAGE_seal, 
+                                 DecoupleSEAL,
+                                 mlp_score, 
+                                 unified_score)
 
 from torch.utils.data import DataLoader
 from torch_sparse import SparseTensor
-
+from ogb_linkx import LINKX, LINKX_WL
 from torch_geometric.datasets import Planetoid 
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ncnc.ogbdataset import loaddataset
 from graphgps.utility.utils import mvari_str2csv
-from typing import Dict 
+
+import torch.nn.functional as F
+import torch.nn as nn
+from torch_sparse.matmul import spmm_max, spmm_mean, spmm_add
+from torch_sparse import SparseTensor
+import torch_sparse
+from baselines.utils import adjoverlap
+from baselines.cn import DropAdj, predictor_dict, FusedLinkPredictor
+from typing import Iterable, Final, Dict 
+
 
 dir_path  = get_root_dir()
 log_print = get_logger('testrun', 'log', get_config_dir())
+DATASET_PATH = '/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines/dataset'
 
-    
+
+
 def read_data(data_name, neg_mode):
     data_name = data_name
     node_set = set()
@@ -116,24 +134,26 @@ def get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_val_pred,
     test_pred = torch.cat([pos_test_pred, neg_test_pred])
     test_true = torch.cat([torch.ones(pos_test_pred.size(0), dtype=int), 
                             torch.zeros(neg_test_pred.size(0), dtype=int)])
-    result_auc_train = evaluate_auc(train_pred, train_true)
-    result_auc_val = evaluate_auc(val_pred, val_true)
-    result_auc_test = evaluate_auc(test_pred, test_true)
+    result_auc_train = evaluate_auc(train_pred.cpu(), train_true)
+    result_auc_val = evaluate_auc(val_pred.cpu(), val_true)
+    result_auc_test = evaluate_auc(test_pred.cpu(), test_true)
     # result_auc = {}
     result['AUC'] = (result_auc_train['AUC'], result_auc_val['AUC'], result_auc_test['AUC'])
     result['AP'] = (result_auc_train['AP'], result_auc_val['AP'], result_auc_test['AP'])
     return result
-
-        
-
-def train(model, score_func, train_pos, x, optimizer, batch_size):
-    model.train()
+       
+    
+def train(gnn_model, linkx_model, score_func, train_pos, x, indices, optimizer, batch_size):
+    gnn_model.train()
     score_func.train()
 
+    if linkx_model:
+        linkx_model.train()
+    
     # train_pos = train_pos.transpose(1, 0)
     total_loss = total_examples = 0
-
-    for perm in DataLoader(range(train_pos.size(0)), batch_size,
+    for perm in DataLoader(range(train_pos.size(0)), 
+                           batch_size,
                            shuffle=True):
         optimizer.zero_grad()
         num_nodes = x.size(0)
@@ -141,25 +161,31 @@ def train(model, score_func, train_pos, x, optimizer, batch_size):
         mask = torch.ones(train_pos.size(0), dtype=torch.bool).to(train_pos.device)
         mask[perm] = 0
         train_edge_mask = train_pos[mask].transpose(1,0)
-
         train_edge_mask = torch.cat((train_edge_mask, train_edge_mask[[1,0]]),dim=1)
-
         edge_weight_mask = torch.ones(train_edge_mask.size(1)).to(torch.float).to(train_pos.device)
         adj = SparseTensor.from_edge_index(train_edge_mask, edge_weight_mask, [num_nodes, num_nodes]).to(train_pos.device)
         ###################
         # print(adj)
-        h = model(x, adj)
+        gh = gnn_model( x, adj)
+        if indices is not None:
+            lh = linkx_model(indices, x, adj)
+        else:
+            lh = linkx_model(x, adj)
+            
+        h = gh
         edge = train_pos[perm].t()
-        pos_out = score_func(h[edge[0]], h[edge[1]])
+        pos_out = score_func(h, None, adj, edge, filled1=False)
+        # pos_out = score_func(h[edge[0]], h[edge[1]])
         pos_loss = -torch.log(pos_out + 1e-15).mean()
-        # Just do some trivial random sampling.
         edge = torch.randint(0, num_nodes, edge.size(), dtype=torch.long,
                              device=h.device)
-        neg_out = score_func(h[edge[0]], h[edge[1]])
+        # neg_out = score_func(h[edge[0]], h[edge[1]])
+        neg_out = score_func(h, None, adj, edge, filled1=False)
         neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
         loss = pos_loss + neg_loss
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        torch.nn.utils.clip_grad_norm_(gnn_model.parameters(), 1.0)
+        # torch.nn.utils.clip_grad_norm_(linkx_model.parameters(), 1.0)
         torch.nn.utils.clip_grad_norm_(score_func.parameters(), 1.0)
         optimizer.step()
         num_examples = pos_out.size(0)
@@ -170,36 +196,48 @@ def train(model, score_func, train_pos, x, optimizer, batch_size):
 
 
 @torch.no_grad()
-def test_edge(score_func, input_data, h, batch_size):
+def test_edge(score_func, input_data, h, adj, batch_size):
     # input_data  = input_data.transpose(1, 0)
     # with torch.no_grad():
     preds = []
     for perm  in DataLoader(range(input_data.size(0)), batch_size):
         edge = input_data[perm].t()
-        preds += [score_func(h[edge[0]], h[edge[1]]).cpu()]
+        preds += [score_func(h, None, adj, edge, filled1=False)]
+        # preds += [score_func(h[edge[0]], h[edge[1]]).cpu()]
     pred_all = torch.cat(preds, dim=0)
     return pred_all
 
 
 @torch.no_grad()
-def test(model, score_func, data, x, evaluator_hit, evaluator_mrr, batch_size):
-    model.eval()
+def test(gnn_model, linkx_model, score_func,  data, x, indices, evaluator_hit, evaluator_mrr, batch_size):
+    gnn_model.eval()
     score_func.eval()
+    
+    if linkx_model:
+        linkx_model.eval()
+    
     # adj_t = adj_t.transpose(1,0)
-    h = model(x, data['adj'].to(x.device))
+    adj = data['adj'].to(x.device)
+    
+    if indices is not None:
+        lh = linkx_model(indices, x, adj)
+    else:
+        lh = linkx_model(x, adj)
+            
+    gh = gnn_model(x, adj)
     # print(h[0][:10])
-    x = h
-    pos_train_pred = test_edge(score_func, data['train_val'], h, batch_size)
-    neg_valid_pred = test_edge(score_func, data['valid_neg'], h, batch_size)
-    pos_valid_pred = test_edge(score_func, data['valid_pos'], h, batch_size)
-    pos_test_pred = test_edge(score_func, data['test_pos'], h, batch_size)
-    neg_test_pred = test_edge(score_func, data['test_neg'], h, batch_size)
+    h = gh
+    pos_train_pred = test_edge(score_func, data['train_val'], h, adj, batch_size)
+    neg_valid_pred = test_edge(score_func, data['valid_neg'], h, adj, batch_size)
+    pos_valid_pred = test_edge(score_func, data['valid_pos'], h, adj, batch_size)
+    pos_test_pred = test_edge(score_func, data['test_pos'], h, adj, batch_size)
+    neg_test_pred = test_edge(score_func, data['test_neg'], h, adj, batch_size)
     pos_train_pred = torch.flatten(pos_train_pred)
     neg_valid_pred, pos_valid_pred = torch.flatten(neg_valid_pred),  torch.flatten(pos_valid_pred)
     pos_test_pred, neg_test_pred = torch.flatten(pos_test_pred), torch.flatten(neg_test_pred)
     print('train valid_pos valid_neg test_pos test_neg', pos_train_pred.size(), pos_valid_pred.size(), neg_valid_pred.size(), pos_test_pred.size(), neg_test_pred.size())
-    result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
     score_emb = [pos_valid_pred.cpu(),neg_valid_pred.cpu(), pos_test_pred.cpu(), neg_test_pred.cpu(), x.cpu()]
+    result = get_metric_score(evaluator_hit, evaluator_mrr, pos_train_pred, pos_valid_pred, neg_valid_pred, pos_test_pred, neg_test_pred)
     return result, score_emb
 
 
@@ -223,26 +261,113 @@ def data2dict(data, splits, data_name) -> dict:
     return datadict
 
 
+def wl_one_hot(wl_emb):
+    unique_ids, mapped_ids = wl_emb.unique(return_inverse=True)
+    one_hot_features = F.one_hot(mapped_ids, num_classes=len(unique_ids)).float()
+    return one_hot_features
+
+
+def wl_Embedding(wl_emb):
+
+    num_roles = wl_emb.max().item() + 1  # or count unique values
+    embedding_dim = 64
+    wl_embedding = nn.Embedding(num_roles, embedding_dim)
+    node_features = wl_embedding(wl_emb)
+    return node_features
+
+
+def wl_unique_Embedding(wl_emb, emb_dim=16):
+    unique_hashes, indices = torch.unique(wl_emb, return_inverse=True)
+    embedding_layer = nn.Embedding(num_embeddings=len(unique_hashes), embedding_dim=emb_dim)
+    node_embeddings = embedding_layer(indices)
+    return node_embeddings, embedding_layer
+
+
+def wl_normalize(wl_emb):
+    return (wl_emb.float() - wl_emb.float().min()) / (wl_emb.float().max() - wl_emb.float().min())
+
+
+import math
+def random_fourier_features(x, D=16, sigma=1.0):
+    """
+    x: A torch tensor of normalized WL hash IDs.
+    D: The output dimension.
+    sigma: Bandwidth parameter for the Gaussian kernel.
+    """
+    # Random weights and biases
+    W = torch.randn(D) / sigma
+    b = 2 * math.pi * torch.rand(D)
+    
+    # Compute the random Fourier features
+    z = torch.cos(x.unsqueeze(1) * W + b)
+    z = (2.0 / D) ** 0.5 * z
+    return z
+
+
+
 
 def main():
     parser = argparse.ArgumentParser(description='homo')
     parser.add_argument('--data_name', type=str, default='Cora')
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
-    parser.add_argument('--score_model', type=str, default='mlp_score')
+    parser.add_argument('--linkx_model', type=str, 
+                                        choices=['LINKX', 'LINKX_WL'], 
+                                        default='LINKX')
+    parser.add_argument('--score_model', type=str, default='unified_score', 
+                        choices=['unified_score', 'FusedLinkPredictor'])
     parser.add_argument('--name_tag', type=str, default='None', required=False)
+    
+    
     ##gnn setting
-    parser.add_argument('--num_layers', type=int, default=1)
+    parser.add_argument('--gin_mlp_layer', type=int, default=2)
+    parser.add_argument('--gat_head', type=int, default=1)
+    
+    # unified mlp score
+    parser.add_argument('--num_layers', type=int, default=3)
     parser.add_argument('--num_layers_predictor', type=int, default=2)
-    parser.add_argument('--hidden_channels', type=int, default=64)
+    parser.add_argument('--hidden_channels', type=int, default=2**9)
     parser.add_argument('--dropout', type=float, default=0.0)
+    
+    # LINKX-specific parameters
+    parser.add_argument('--linkx_num_layers', type=int, default=3)
+    parser.add_argument('--linkx_hidden_channels', type=int, default=2**9)
+    parser.add_argument('--linkx_dropout', type=float, default=0.0)
+
+
+    # GNN encoder-specific parameters
+    parser.add_argument('--gnn_num_layers', type=int, default=1)
+    parser.add_argument('--gnn_hidden_channels', type=int, default=2**9)
+    parser.add_argument('--gnn_dropout', type=float, default=0.0)
+    parser.add_argument('--gnn_mlp_layer', type=int, default=2)
+    parser.add_argument('--gnn_head', type=int, default=1)
+    
+
+    # CNPredictor
+    parser.add_argument('--predfn_hiddim', type=int, default=32, help="hidden dimension")
+    parser.add_argument('--predfn_nnlayers', type=int, default=3, help="number of mlp layers")
+    parser.add_argument('--predfn_lnnn', action="store_true", help="whether to use layernorm in mlp")
+    parser.add_argument('--predfn_predp', type=float, default=0.3, help="dropout ratio of predictor")
+    parser.add_argument('--predfn_preedp', type=float, default=0.3, help="edge dropout ratio of predictor")
+
+        
     ### train setting
-    parser.add_argument('--batch_size', type=int, default=1024)
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--batch_size', type=int, default=1024)#1024)
+    # parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--gnnlr', type=float, default=0.001, help="learning rate of gnn")
+    parser.add_argument('--prelr', type=float, default=0.001, help="learning rate of predictor")
+    
     parser.add_argument('--eval_steps', type=int, default=5)
-    parser.add_argument('--kill_cnt',           dest='kill_cnt',      default=10,    type=int,       help='early stopping')
+    parser.add_argument('--kill_cnt',           
+                        dest='kill_cnt',      
+                        default=100,    
+                        type=int,       
+                        help='early stopping')
     parser.add_argument('--output_dir', type=str, default='output_test')
-    parser.add_argument('--l2',		type=float,             default=0.0,			help='L2 Regularization for Optimizer')
+    parser.add_argument('--l2',		
+                        type=float,             
+                        default=0.0,			
+                        help='L2 Regularization for Optimizer')
     parser.add_argument('--seed', type=int, default=999)
     
     parser.add_argument('--save', action='store_true', default=False)
@@ -250,20 +375,14 @@ def main():
     parser.add_argument('--metric', type=str, default='MRR')
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--log_steps', type=int, default=1)
-    ####### gin
-    parser.add_argument('--gin_mlp_layer', type=int, default=2)
-    ######gat
-    parser.add_argument('--gat_head', type=int, default=1)
-    ######mf
+
     parser.add_argument('--cat_node_feat_mf', default=False, action='store_true')
-    ###### n2v
     parser.add_argument('--cat_n2v_feat', default=False, action='store_true')
-    
-   
+    parser.add_argument('--cat_wl_feat', default=False, action='store_true')
     parser.add_argument('--debug', action='store_true', default=False)
-    parser.add_argument('--runs', type=int, default=10)
+    parser.add_argument('--runs', type=int, default=2)
     parser.add_argument('--epochs', type=int, default=9999)
-    
+    parser.add_argument('--wl_process', type=str)
     args = parser.parse_args()
     if args.debug == True:
         print('debug mode with runs 2 and epochs 3')
@@ -274,8 +393,9 @@ def main():
         
     print('cat_node_feat_mf: ', args.cat_node_feat_mf)
     print('cat_n2v_feat: ', args.cat_n2v_feat)
+    print('cat_wl_feat: ', args.cat_wl_feat)    
     print(args)
-
+    
     init_seed(args.seed)
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
@@ -285,26 +405,111 @@ def main():
 
     # data = dataset[0]# 
     # readdata = read_data(args.data_name, args.neg_mode)
-    args.name_tag = f"{args.data_name}_gnn_{args.gnn_model}_{args.score_model}_run{args.runs}"
+    args.name_tag = f"{args.data_name}_ \
+                        gnn_{args.gnn_model}_\
+                        {args.score_model}_run{args.runs}"
+
     load_data, splits = loaddataset(args.data_name, False, None) 
     data = data2dict(load_data, splits, args.data_name)
     del load_data, splits
+    emb = None
     node_num = data['x'].size(0) 
     x = data['x']
+    # TODO concat degree 
+
+    # deg = data['adj'].sum(0).unsqueeze(1)
+    # deg = deg/deg.max()
+    # x = torch.cat([x, deg], dim=1)
+    print(x)
     if args.cat_n2v_feat:
         print('cat n2v embedding!!')
-        n2v_emb = torch.load(os.path.join(get_root_dir(), 'dataset', args.data_name+'-n2v-embedding.pt'))
+        n2v_emb = torch.load(
+                    DATASET_PATH, 
+                    'dataset', 
+                    args.data_name+'-n2v-embedding.pt')
         x = torch.cat((x, n2v_emb), dim=-1)
+    if args.cat_wl_feat:
+        print('cat wl embedding!!')
+        wl_emb = torch.load(
+                os.path.join(
+                    DATASET_PATH, 
+                    'wl_label/'+ 
+                    args.data_name+
+                    '_wl_labels.pt'))
+        if args.wl_process == 'norm':
+            normalized_wl = (wl_emb.float() - wl_emb.float().min()) / (wl_emb.float().max() - wl_emb.float().min())
+            normalized_wl = normalized_wl.unsqueeze(-1)
+            x = torch.cat([x, normalized_wl], dim=1)
+            indices = None
+        elif args.wl_process == 'unique': 
+            args.gnn_model = 'LINKX_WL'
+            # wl_emb = wl_emb.unsqueeze(-1)
+            unique_hashes, indices = torch.unique(wl_emb, return_inverse=True)
+            wl_emb = nn.Embedding(num_embeddings=len(unique_hashes), embedding_dim=16)
+            # rff_features = random_fourier_features(normalized_wl, D=16)
+            indices = indices.to(device)
+    else:
+        wl_emb = None
+        indices = None
+        unique_hashes = None
+        
     x = x.to(device)
     train_pos = data['train_pos'].to(x.device)
     input_channel = x.size(1)
-    model = eval(args.gnn_model)(input_channel, args.hidden_channels,
-                    args.hidden_channels, args.num_layers, args.dropout, args.gin_mlp_layer, args.gat_head, node_num, args.cat_node_feat_mf).to(device)
-    score_func = eval(args.score_model)(args.hidden_channels, args.hidden_channels,
-                    1, args.num_layers_predictor, args.dropout).to(device)
+    n_nodes = x.size(0)
+    
+    # LINKX encoder
+    if args.linkx_model == 'LINKX_WL':
+        linkx_encoder = LINKX_WL(
+            num_nodes=n_nodes,
+            in_channels=input_channel,
+            hidden_channels=args.linkx_hidden_channels,
+            out_channels=args.linkx_hidden_channels,
+            num_layers=args.linkx_num_layers,
+            dropout=args.linkx_dropout,
+            wl_emb_dim=16,
+            num_wl=len(unique_hashes),
+        ).to(device)
+    elif args.linkx_model == 'LINKX':
+        linkx_encoder = LINKX(
+            num_nodes=n_nodes,
+            in_channels=input_channel,
+            hidden_channels=args.linkx_hidden_channels,
+            out_channels=args.linkx_hidden_channels,
+            num_layers=args.linkx_num_layers,
+            dropout=args.linkx_dropout
+        ).to(device)
+
+    # GNN encoder
+    gnn_encoder = eval(args.gnn_model)(
+        input_channel, 
+        args.gnn_hidden_channels,
+        args.gnn_hidden_channels,
+        args.gnn_num_layers,
+        args.gnn_dropout,
+        mlp_layer=args.gnn_mlp_layer,
+        head=args.gnn_head,
+        node_num=node_num,
+        cat_node_feat_mf=args.cat_node_feat_mf,
+        data_name=args.data_name
+    ).to(device)
+
+    if args.score_model == 'unified_score':
+        # args.hidden_channels = args.hidden_channels + 1 
+        score_func = eval(args.score_model)(args.hidden_channels, 
+                                            args.hidden_channels,
+                        1, args.num_layers_predictor, 
+                        args.dropout, 
+                        use_cn=True, 
+                        beta=1.0).to(device)
+        
+    elif args.score_model == 'FusedLinkPredictor':
+        score_func = FusedLinkPredictor(in_channels=args.predfn_hiddim, hidden_channels=args.predfn_hiddim, out_channels=1,
+                           edrop=args.predfn_preedp, dropout=args.predfn_predp, ln=args.predfn_lnnn, cndeg=10, use_cn=True).to(device)
     eval_metric = args.metric
     evaluator_hit = Evaluator(name='ogbl-collab')
     evaluator_mrr = Evaluator(name='ogbl-citation2')
+
     loggers = {
         'Hits@1': Logger(args.runs),
         'Hits@3': Logger(args.runs),
@@ -316,9 +521,29 @@ def main():
         'AUC': Logger(args.runs),
         'AP': Logger(args.runs)
     }
+
+    # import itertools
+    # hyperparams = {
+    #     'batch_size': [2**9],
+    #     'lr': [0.001], #0.01, 0.001, 0.0001
+    # }
+
+    # for batch_size, lr in itertools.product(hyperparams['batch_size'], hyperparams['lr']):
+    # args.batch_size = 2**9
+    # args.lr = 0.001
+    args.name_tag = (
+    f'model_{args.gnn_model}'
+    f'score_{args.score_model}'
+    f'{args.data_name}_'
+    # f'batch_size{args.batch_size}_'
+    # f'lr{args.lr}_'
+    f'cat_wl_{args.cat_wl_feat}_'
+    f'wl_{args.wl_process}_'
+    )
+
     for run in range(args.runs):
         import wandb
-        wandb.init(project="GRAND4LP", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}_{args.runs}")
+        wandb.init(project=f"{args.data_name}_", name=f"{args.data_name}_{args.gnn_model}_{args.score_model}_{args.name_tag}")
         wandb.config.update(args)
         print('#################################          ', run, '          #################################')
         if args.runs == 1:
@@ -327,25 +552,33 @@ def main():
             seed = run
         print('seed: ', seed)
         init_seed(seed)
-        save_path = args.output_dir+'/lr'+str(args.lr) + '_drop' + \
+        save_path = args.output_dir+'/lr'+str(args.gnnlr) + '_drop' + \
                     str(args.dropout) + '_l2'+ str(args.l2) + '_numlayer' \
                         + str(args.num_layers)+ '_numPredlay' + str(args.num_layers_predictor) \
                         + '_numGinMlplayer' + str(args.gin_mlp_layer)+'_dim'+ \
                         str(args.hidden_channels) + '_'+ 'best_run_'+str(seed)
-        model.reset_parameters()
-        score_func.reset_parameters()
-        optimizer = torch.optim.Adam(
-                list(model.parameters()) + list(score_func.parameters()),lr=args.lr, weight_decay=args.l2)
+
+        gnn_encoder.reset_parameters()
+        linkx_encoder.reset_parameters()
+        try:
+            optimizer = torch.optim.Adam( #+ list(linkx_encoder.parameters())
+                list(gnn_encoder.parameters())  + list(score_func.parameters()) + list(wl_emb.parameters()),lr=args.gnnlr, weight_decay=args.l2) # 
+        except:
+            optimizer = torch.optim.Adam([{'params': gnn_encoder.parameters(), "lr": args.gnnlr}, 
+                                            {'params': score_func.parameters(), 'lr': args.prelr}])
+        
         best_valid = 0
         kill_cnt = 0
         best_test = 0
         step = 0
+        
         for epoch in range(1, 1 + args.epochs):
-            loss = train(model, score_func, train_pos, x, optimizer, args.batch_size)
+            loss = train(gnn_encoder, linkx_encoder, score_func, train_pos, x, indices, optimizer, args.batch_size)
             # print(model.convs[0].att_src[0][0][:10])
-            if epoch % args.eval_steps == 0:
-                results_rank, score_emb = test(model, score_func, data, x, evaluator_hit, evaluator_mrr, args.batch_size)
-                
+            if epoch % args.eval_steps == 1:
+                results_rank, score_emb = test(gnn_encoder, linkx_encoder, score_func, data, x, indices, 
+                                               evaluator_hit, evaluator_mrr, args.batch_size)
+                                            
                 for key, result in results_rank.items():
                     wandb.log({'train_loss': loss}, step = step)
                     loggers[key].add_result(run, result)
@@ -358,11 +591,11 @@ def main():
                         train_hits, valid_hits, test_hits = result
                         log_print.info(
                             f'Run: {run + 1:02d}, '
-                              f'Epoch: {epoch:02d}, '
-                              f'Loss: {loss:.4f}, '
-                              f'Train: {100 * train_hits:.2f}%, '
-                              f'Valid: {100 * valid_hits:.2f}%, '
-                              f'Test: {100 * test_hits:.2f}%')
+                            f'Epoch: {epoch:02d}, '
+                            f'Loss: {loss:.4f}, '
+                            f'Train: {100 * train_hits:.2f}%, '
+                            f'Valid: {100 * valid_hits:.2f}%, '
+                            f'Test: {100 * test_hits:.2f}%')
                     print('---')
 
                 best_valid_current = torch.tensor(loggers[eval_metric].results[run])[:, 1].max()
@@ -375,11 +608,12 @@ def main():
                     kill_cnt += 1
                     if kill_cnt > args.kill_cnt: 
                         print("Early Stopping!!")
-                        break        
+                        break
+        wandb.finish()
         for key in loggers.keys():
             print(key)
             loggers[key].print_statistics(run)
-        wandb.finish()
+
     result_all_run = {}
     save_dict = {}
     for key in loggers.keys():

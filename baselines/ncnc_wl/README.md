@@ -36,11 +36,25 @@ We implement the following models.
 | NCN-diff | cn1res    |                    |
 | NoTLR    | cn1       | delete --maskinput |
 
+
+
+predictor_dict = {
+    "cn0": CN0LinkPredictor,
+    "catscn1": CatSCNLinkPredictor,
+    "scn1": SCNLinkPredictor,
+    "sincn1cn1": IncompleteSCN1Predictor,
+    "cn1": CNLinkPredictor,
+    "cn1.5": CNhalf2LinkPredictor,
+    "cn1res": CNResLinkPredictor,
+    "cn2": CN2LinkPredictor,
+    "incn1cn1": IncompleteCN1Predictor
+}
+
 To reproduce the results, please modify the following commands as shown in the table above.
 
 Cora
 ```
-python NeighborOverlap.py   --xdp 0.7 --tdp 0.3 --pt 0.75 --gnnedp 0.0 --preedp 0.4 --predp 0.05 --gnndp 0.05  --probscale 4.3 --proboffset 2.8 --alpha 1.0  --gnnlr 0.0043 --prelr 0.0024  --batch_size 1152  --ln --lnnn --predictor $model --dataset Cora  --epochs 100 --runs 10 --model puregcn --hiddim 256 --mplayers 1  --testbs 8192  --maskinput  --jk  --use_xlin  --tailact 
+python NeighborOverlap.py   --xdp 0.7 --tdp 0.3 --pt 0.75 --gnnedp 0.0 --preedp 0.4 --predp 0.05 --gnndp 0.05  --probscale 4.3 --proboffset 2.8 --alpha 1.0  --gnnlr 0.0043 --prelr 0.0024  --batch_size 1152  --ln --lnnn --predictor cn1 --dataset Cora  --epochs 100 --runs 10 --model puregcn --hiddim 256 --mplayers 1  --testbs 8192  --maskinput  --jk  --use_xlin  --tailact 
 ```
 
 Citeseer
@@ -79,4 +93,9 @@ ddi
 python NeighborOverlap.py  --xdp 0.05 --tdp 0.0 --gnnedp 0.0 --preedp 0.0 --predp 0.6 --gnndp 0.4 --gnnlr 0.0021 --prelr 0.0018  --batch_size 24576  --ln --lnnn --predictor cn1 --dataset ddi  --epochs 100 --runs 10 --model puresum --hiddim 224 --mplayers 1  --testbs 131072   --use_xlin  --twolayerlin  --res  --maskinput --savemod
 
 python NeighborOverlap.py --xdp 0.05 --tdp 0.0 --gnnedp 0.0 --preedp 0.0 --predp 0.6 --gnndp 0.4 --gnnlr 0.0000000 --prelr 0.0025 --batch_size 24576 --ln --lnnn --predictor incn1cn1 --dataset ddi --proboffset 3 --probscale 10 --pt 0.1 --alpha 0.5 --epochs 2 --runs 10 --model puresum --hiddim 224 --mplayers 1 --testbs 24576 --splitsize 262144 --use_xlin --twolayerlin --res --maskinput --loadmod
+```
+
+
+```
+python NeighborOverlap.py   --xdp 0.7 --tdp 0.3 --pt 0.75 --gnnedp 0.0 --preedp 0.4 --predp 0.05 --gnndp 0.05  --probscale 4.3 --proboffset 2.8 --alpha 1.0  --gnnlr 0.0043 --prelr 0.0024  --batch_size 1152  --ln --lnnn --predictor cn1   --epochs 100 --runs 10 --model puregcn --hiddim 256 --mplayers 1  --testbs 8192  --maskinput  --jk  --use_xlin  --tailact  --dataset Cora
 ```

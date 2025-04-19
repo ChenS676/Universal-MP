@@ -2,41 +2,16 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-   "version":"0.2.0",
-   "configurations": [
+    "version": "0.2.0",
+    "configurations": [
         {
-
-           "name":"Python Debugger: Current File",
-           "type":"debugpy",
-           "request":"launch",
-           "program":"${file}",
-           "console":"integratedTerminal",
-           "justMyCode": false, 
-           "args": [
-            // "--data_name", "Citeseer", "--gnn_model", "GCN", "--lr", "0.01", "--dropout", "0.3", "--l2", "1e-4", "--num_layers", "1", 
-            // "--num_layers_predictor", "3", "--hidden_channels", "128", "--epochs", "20", "--kill_cnt", "10",
-            // "--eval_steps", "5", "--batch_size", "1024"
-            //    "--data_name","ogbl-ppa","--gnn_model","GCN","--lr","0.01","--dropout","0.3","--l2","1e-4",
-            //    "--num_layers","1","--num_layers_predictor","3", "--hidden_channels","128","--epochs",
-            //        "9999","--kill_cnt","10","--eval_steps", "5","--batch_size","1024"
-            // "--data_name", "ppa",  "--epochs", "200",  "--batch_size", "128", "--device", "0" 
-            // "--data", "ppa",  "--epochs", "200",  "--batch_size", "128", "--device", "0" 
-
-            // "--dataset", "ogbl-citation2", "--device", "0", "--no_early", "--beltrami" 
-
-            // "--dataset", "ogbl-citation2", "--device", "0", "--no_early", "--beltrami" 
-            // "--data_name", "Cora", "--xdp", "0.25", "--tdp", "0.05", "--pt", "0.1",
-            // "--preedp", "0.0", "--predp", "0.3", 
-            // "--probscale", "2.5", "--proboffset", "6.0", 
-            // "--alpha", "1.05", "--prelr", "0.0037", "--batch_size", "65536",
-            // "--ln", "--lnnn", "--predictor", "cn1",
-            // "--epochs", "10", "--runs", "1",
-            // "--hidden_dim", "128", "--mplayers", "3",
-            // "--testbs", "131072",
-            // "--maskinput", "--use_valedges_as_input",
-            // "--res",  "--use_xlin",  "--tailact"    
-            // "--pr", "0.1", "--data_name", "RegularTilling.SQUARE_GRID"
-        ]
-        }
+            "name": "Debugpy Old: Current File",
+            "type": "debugpy-old",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true, 
+            // "args": ["--cat_wl_feat", "--wl_process", "unique", "--gnn_model", "LINKX_WL"]
+        },
     ]
 }
