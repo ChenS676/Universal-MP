@@ -14,7 +14,7 @@ from torch_geometric.nn import global_sort_pool
 from torch_geometric.nn import GCNConv, SAGEConv, GINConv, GATConv
 import torch.nn.functional as F
 from torch_geometric.nn import MixHopConv, ChebConv  # Import ChebConv
-
+from typing import Iterable, Final
 import torch.nn as nn
 from torch_sparse.matmul import spmm_add
 from utils import adjoverlap
@@ -24,7 +24,28 @@ import numpy as np
 import random
 import json, logging, sys
 import math
+import torch_sparse
 
+
+class DropAdj(nn.Module):
+    doscale: Final[bool] # whether to rescale edge weight
+    def __init__(self, dp: float = 0.0, doscale=True) -> None:
+        super().__init__()
+        self.dp = dp
+        self.register_buffer("ratio", torch.tensor(1/(1-dp)))
+        self.doscale = doscale
+
+    def forward(self, adj: SparseTensor)->SparseTensor:
+        if self.dp < 1e-6 or not self.training:
+            return adj
+        mask = torch.rand_like(adj.storage.col(), dtype=torch.float) > self.dp
+        adj = torch_sparse.masked_select_nnz(adj, mask, layout="coo")
+        if self.doscale:
+            if adj.storage.has_value():
+                adj.storage.set_value_(adj.storage.value()*self.ratio, layout="coo")
+            else:
+                adj.fill_value_(1/(1-self.dp), dtype=torch.float)
+        return adj
 
 class ChebGCN(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
@@ -691,6 +712,73 @@ class DecoupleSEAL(torch.nn.Module):
         return scores
 
 
+class CNLinkPredictor(nn.Module):
+    cndeg: Final[int]
+    def __init__(self,
+                 in_channels,
+                 hidden_channels,
+                 out_channels,
+                 num_layers,
+                 dropout,
+                 edrop=0.0,
+                 ln=False,
+                 cndeg=-1,
+                 use_xlin=False,
+                 tailact=False,
+                 twolayerlin=False,
+                 beta=1.0):
+        super().__init__()
+
+        self.register_parameter("beta", nn.Parameter(beta*torch.ones((1))))
+        self.dropadj = DropAdj(edrop)
+        lnfn = lambda dim, ln: nn.LayerNorm(dim) if ln else nn.Identity()
+
+        self.xlin = nn.Sequential(nn.Linear(hidden_channels, hidden_channels),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels),
+            lnfn(hidden_channels, ln), nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True)) if use_xlin else lambda x: 0
+
+        self.xcnlin = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels),
+            lnfn(hidden_channels, ln), nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True), nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity())
+        self.xijlin = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels), lnfn(hidden_channels, ln),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity())
+        self.lin = nn.Sequential(nn.Linear(hidden_channels, hidden_channels),
+                                 lnfn(hidden_channels, ln),
+                                 nn.Dropout(dropout, inplace=True),
+                                 nn.ReLU(inplace=True),
+                                 nn.Linear(hidden_channels, hidden_channels) if twolayerlin else nn.Identity(),
+                                 lnfn(hidden_channels, ln) if twolayerlin else nn.Identity(),
+                                 nn.Dropout(dropout, inplace=True) if twolayerlin else nn.Identity(),
+                                 nn.ReLU(inplace=True) if twolayerlin else nn.Identity(),
+                                 nn.Linear(hidden_channels, out_channels))
+        self.cndeg = cndeg
+
+    def forward(self,
+                x,
+                h,
+                adj,
+                tar_ei,
+                filled1: bool = False):
+        adj = self.dropadj(adj)
+        xi = x[tar_ei[0]]
+        xj = x[tar_ei[1]]
+        x = x + self.xlin(x)
+        cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
+        xcns = [spmm_add(cn, x)]
+        xij = self.xijlin(xi * xj)
+        
+        xs = torch.cat(
+            [self.lin(self.xcnlin(xcn) * self.beta + xij) for xcn in xcns],
+            dim=-1)
+        return torch.sigmoid(xs) 
+
+
 
 class unified_score(torch.nn.Module):
     def __init__(self, in_channels, 
@@ -702,7 +790,7 @@ class unified_score(torch.nn.Module):
                  beta):
         super().__init__()
         self.register_parameter("beta", nn.Parameter(beta*torch.ones((1))))
-        self.lin = nn.Sequential(
+        self.xijlin = nn.Sequential(
             nn.Linear(hidden_channels, hidden_channels),
             nn.LayerNorm(hidden_channels),
             nn.Dropout(dropout, inplace=True),
@@ -714,6 +802,18 @@ class unified_score(torch.nn.Module):
             nn.Linear(hidden_channels, out_channels)
         )
 
+        self.lin = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels),
+            nn.LayerNorm(hidden_channels),
+            nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True),
+            nn.Identity(),  # twolayerlin = False
+            nn.Identity(),
+            nn.Identity(),
+            nn.Identity(),
+            nn.Linear(hidden_channels, out_channels)
+        )
+        
         self.xcnlin = nn.Sequential(
             nn.Linear(in_channels+1, hidden_channels),
             nn.Dropout(dropout, inplace=True),
@@ -738,11 +838,12 @@ class unified_score(torch.nn.Module):
 
     def forward(self, x_gcn, x_linkx, adj, tar_ei, filled1=False):
         row, col = tar_ei
+        # x_gcn = x_gcn + self.xlin(x_gcn)
         xi = x_gcn[row]
         xj = x_gcn[col]
         xij = xi * xj
         xij = self.lin(xij)
-    
+
         cn = adjoverlap(adj, adj, tar_ei, filled1)
         cn_score = cn.sum(1).unsqueeze(1)
         xcns = [spmm_add(cn, x_gcn)]
@@ -750,8 +851,7 @@ class unified_score(torch.nn.Module):
         xs = torch.cat(
             [self.lin(self.xcnlin(xcncns) * self.beta + xij)],
             dim=-1)
-        y = torch.sigmoid(xs) 
-        return y
+        return torch.sigmoid(xs) 
 
 
 class mlp_score(torch.nn.Module):

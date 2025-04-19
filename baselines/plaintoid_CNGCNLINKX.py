@@ -14,7 +14,8 @@ from baselines.gnn_utils import (GCN, GAT,
                                  SAGE_seal, 
                                  DecoupleSEAL,
                                  mlp_score, 
-                                 unified_score)
+                                 unified_score,
+                                 CNLinkPredictor)
 
 from torch.utils.data import DataLoader
 from torch_sparse import SparseTensor
@@ -314,7 +315,7 @@ def main():
     parser.add_argument('--linkx_model', type=str, 
                                         choices=['LINKX', 'LINKX_WL'], 
                                         default='LINKX')
-    parser.add_argument('--score_model', type=str, default='unified_score', 
+    parser.add_argument('--score_model', type=str, default='CNLinkPredictor', 
                         choices=['unified_score', 'FusedLinkPredictor'])
     parser.add_argument('--name_tag', type=str, default='None', required=False)
     
@@ -325,9 +326,9 @@ def main():
     
     # unified mlp score
     parser.add_argument('--num_layers', type=int, default=3)
-    parser.add_argument('--num_layers_predictor', type=int, default=2)
-    parser.add_argument('--hidden_channels', type=int, default=2**9)
-    parser.add_argument('--dropout', type=float, default=0.0)
+    parser.add_argument('--num_layers_predictor', type=int, default=3)
+    parser.add_argument('--hidden_channels', type=int, default=32) #2**9
+    parser.add_argument('--dropout', type=float, default=0.3) 
     
     # LINKX-specific parameters
     parser.add_argument('--linkx_num_layers', type=int, default=3)
@@ -337,7 +338,7 @@ def main():
 
     # GNN encoder-specific parameters
     parser.add_argument('--gnn_num_layers', type=int, default=1)
-    parser.add_argument('--gnn_hidden_channels', type=int, default=2**9)
+    parser.add_argument('--gnn_hidden_channels', type=int, default=32)
     parser.add_argument('--gnn_dropout', type=float, default=0.0)
     parser.add_argument('--gnn_mlp_layer', type=int, default=2)
     parser.add_argument('--gnn_head', type=int, default=1)
@@ -354,8 +355,8 @@ def main():
     ### train setting
     parser.add_argument('--batch_size', type=int, default=1024)#1024)
     # parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--gnnlr', type=float, default=0.001, help="learning rate of gnn")
-    parser.add_argument('--prelr', type=float, default=0.001, help="learning rate of predictor")
+    parser.add_argument('--gnnlr', type=float, default=0.0003, help="learning rate of gnn")
+    parser.add_argument('--prelr', type=float, default=0.0003, help="learning rate of predictor")
     
     parser.add_argument('--eval_steps', type=int, default=5)
     parser.add_argument('--kill_cnt',           
@@ -502,6 +503,13 @@ def main():
                         args.dropout, 
                         use_cn=True, 
                         beta=1.0).to(device)
+        
+    elif args.score_model == 'CNLinkPredictor':
+        score_func = eval(args.score_model)(args.hidden_channels, 
+                                    args.hidden_channels,
+                1, args.num_layers_predictor, 
+                args.dropout, 
+                beta=1.0).to(device)
         
     elif args.score_model == 'FusedLinkPredictor':
         score_func = FusedLinkPredictor(in_channels=args.predfn_hiddim, hidden_channels=args.predfn_hiddim, out_channels=1,

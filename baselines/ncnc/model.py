@@ -581,7 +581,6 @@ class CNLinkPredictor(nn.Module):
         # optimized node features 
         x = x + self.xlin(x)
         cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
-        import IPython; IPython.embed()
         xcns = [spmm_add(cn, x)]
         xij = self.xijlin(xi * xj)
         
