@@ -26,7 +26,7 @@
             "--prelr", "0.0024",  
             "--batch_size", "1152",
             "--ln", "--lnnn",
-            "--predictor", "cn1.1",
+            "--predictor", "fuse1",
             "--dataset", "Cora",
             "--epochs", "1000",
             "--runs", "2",

@@ -706,7 +706,10 @@ class FuseLinkPredictor(nn.Module):
             nn.Linear(in_channels, hidden_channels), lnfn(hidden_channels, ln),
             nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
             nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity())
-        
+        self.hijlin = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels), lnfn(hidden_channels, ln),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity())        
         self.lin = nn.Sequential(nn.Linear(hidden_channels, hidden_channels),
                                  lnfn(hidden_channels, ln),
                                  nn.Dropout(dropout, inplace=True),
@@ -717,7 +720,7 @@ class FuseLinkPredictor(nn.Module):
                                  nn.ReLU(inplace=True) if twolayerlin else nn.Identity(),
                                  nn.Linear(hidden_channels, out_channels))
         self.cndeg = cndeg
-        self.final_lin = nn.Linear(4, 1) 
+        self.final_lin = nn.Linear(3, 1) 
 
     def multidomainforward(self,
                            x,
@@ -729,7 +732,8 @@ class FuseLinkPredictor(nn.Module):
         adj = self.dropadj(adj)
         xi = x[tar_ei[0]]
         xj = x[tar_ei[1]]
-        hij = h[tar_ei[0]]*h[tar_ei[1]]
+        
+        hij = self.hijlin(h[tar_ei[0]]*h[tar_ei[1]])
         # optimized node features 
         x = x + self.xlin(x)
         cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
@@ -740,7 +744,7 @@ class FuseLinkPredictor(nn.Module):
         xij = self.xijlin(xi * xj)
         
         xs = self.lin(self.xcnlin(xcns) * self.beta + xij)
-        final_score = torch.cat([xs, xij_score, cn_score, hij], dim=-1)
+        final_score = torch.cat([xs, xij_score, cn_score], dim=-1)
         xs = self.final_lin(final_score)
         return xs
 

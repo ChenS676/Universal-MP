@@ -211,7 +211,7 @@ def parseargs():
 
     # linkx params
     parser.add_argument('--linkx_num_layers', type=int, default=3)
-    parser.add_argument('--linkx_hidden_channels', type=int, default=2**9)
+    parser.add_argument('--linkx_hidden_channels', type=int, default=256)
     parser.add_argument('--linkx_dropout', type=float, default=0.0)
     
     # detailed hyperparameters
