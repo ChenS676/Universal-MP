@@ -757,9 +757,27 @@ class CNLinkPredictor(nn.Module):
                                  nn.Dropout(dropout, inplace=True) if twolayerlin else nn.Identity(),
                                  nn.ReLU(inplace=True) if twolayerlin else nn.Identity(),
                                  nn.Linear(hidden_channels, out_channels))
+        
         self.cndeg = cndeg
+        self.final_lin = nn.Linear(3, 1) 
 
     def forward(self,
+                #   x,
+                # h,
+                # adj,
+                # tar_ei,
+                # filled1: bool = False):
+                #     adj = self.dropadj(adj)
+                #     xi = x[tar_ei[0]]
+                #     xj = x[tar_ei[1]]
+                #     x = x + self.xlin(x)
+                #     cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
+                #     xcns = [spmm_add(cn, x)]
+                #     xij = self.xijlin(xi * xj)
+                    
+                #     xs = torch.cat(
+                #         [self.lin(self.xcnlin(xcn) * self.beta + xij) for xcn in xcns],
+                #         dim=-1)
                 x,
                 h,
                 adj,
@@ -770,12 +788,17 @@ class CNLinkPredictor(nn.Module):
         xj = x[tar_ei[1]]
         x = x + self.xlin(x)
         cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
+        cn_score = cn.sum(1).unsqueeze(1)
+        xij_score = (xi * xj).sum(1).unsqueeze(1)
         xcns = [spmm_add(cn, x)]
         xij = self.xijlin(xi * xj)
         
         xs = torch.cat(
-            [self.lin(self.xcnlin(xcn) * self.beta + xij) for xcn in xcns],
+            [self.xcnlin(xcns[0]) * self.beta + xij],
             dim=-1)
+        xs = self.lin(xs)
+        final_score = torch.cat([xs, xij_score, cn_score], dim=-1)
+        xs = self.final_lin(final_score)
         return torch.sigmoid(xs) 
 
 
@@ -824,6 +847,7 @@ class unified_score(torch.nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(hidden_channels, hidden_channels)
         )
+        
         self.xijlin = nn.Sequential(
             nn.Linear(hidden_channels, hidden_channels),
             nn.LayerNorm(hidden_channels),
@@ -1239,7 +1263,6 @@ def eval_mrr(y_pred_pos, y_pred_neg):
     hits10_list = (ranking_list <= 10).to(torch.float)
     hits100_list = (ranking_list <= 100).to(torch.float)
     mrr_list = 1./ranking_list.to(torch.float)
-
     return { 'hits@1_list': hits1_list,
                 'hits@3_list': hits3_list,
                 'hits@20_list': hits20_list,

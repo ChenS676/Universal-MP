@@ -6,10 +6,20 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import torch
 import argparse
 import scipy.sparse as ssp
-from baselines.gnn_utils import get_root_dir, get_logger, get_config_dir, evaluate_hits, evaluate_mrr, evaluate_auc, Logger, init_seed, save_emb
+from baselines.gnn_utils import (get_root_dir, 
+                                 get_logger, 
+                                 get_config_dir, 
+                                 evaluate_hits, 
+                                 evaluate_mrr, 
+                                 evaluate_auc, 
+                                 Logger, 
+                                 init_seed, 
+                                 save_emb)
 from baselines.gnn_utils import (GCN, GAT, 
                                  SAGE, GIN, 
                                  MF, DGCNN, 
+                                 MixHopGCN,
+                                 ChebGCN,
                                  GCN_seal, 
                                  SAGE_seal, 
                                  DecoupleSEAL,
@@ -311,11 +321,11 @@ def main():
     parser = argparse.ArgumentParser(description='homo')
     parser.add_argument('--data_name', type=str, default='Cora')
     parser.add_argument('--neg_mode', type=str, default='equal')
-    parser.add_argument('--gnn_model', type=str, default='GCN')
+    parser.add_argument('--gnn_model', type=str, default='GIN')
     parser.add_argument('--linkx_model', type=str, 
                                         choices=['LINKX', 'LINKX_WL'], 
                                         default='LINKX')
-    parser.add_argument('--score_model', type=str, default='CNLinkPredictor', 
+    parser.add_argument('--score_model', type=str, default='unified_score', 
                         choices=['unified_score', 'FusedLinkPredictor'])
     parser.add_argument('--name_tag', type=str, default='None', required=False)
     

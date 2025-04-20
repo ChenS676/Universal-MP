@@ -1,3 +1,4 @@
+import os
 import argparse
 import numpy as np
 import torch
@@ -5,7 +6,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 from torch_sparse import SparseTensor
 import torch_geometric.transforms as T
-from model import predictor_dict, convdict, GCN, DropEdge
+from model import predictor_dict, convdict, GCN, DropEdge, LINKX, LINKX_WL
 from functools import partial
 from sklearn.metrics import roc_auc_score, average_precision_score
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
@@ -16,15 +17,39 @@ import time
 from ogbdataset import loaddataset
 from typing import Iterable
 import wandb
+
+# python NeighborOverlap_eval.py   --xdp 0.7 --tdp 0.3 --pt 0.75 --gnnedp 0.0 --preedp 0.4 --predp 0.05 --gnndp 0.05  --probscale 4.3 --proboffset 2.8 --alpha 1.0  --gnnlr 0.0043 --prelr 0.0024  --batch_size 1152  --ln --lnnn --dataset Cora --model puregcn --hiddim 256 --mplayers 1  --testbs 8192  --maskinput  --jk  --use_xlin  --tailact --epochs 9999 --runs 2 --name_tag Cora_GCNCN1 --cat_wl_feat --wl_process norm --predictor fuse1
 server = 'Horeka'
+DATASET_PATH = '/hkfs/work/workspace/scratch/cc7738-rebuttal/Universal-MP/baselines/dataset'
 
 def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
 
+def eval_mrr(y_pred_pos, y_pred_neg):
+    '''
+        compute mrr
+        y_pred_neg is an array with shape (batch size, num_entities_neg).
+        y_pred_pos is an array with shape (batch size, )
+    '''
+    # calculate ranks
+    y_pred_pos = y_pred_pos.view(-1, 1)
+    # optimistic rank: "how many negatives have at least the positive score?"
+    # ~> the positive is ranked first among those with equal score
+    optimistic_rank = (y_pred_neg >= y_pred_pos).sum(dim=1)
+    # pessimistic rank: "how many negatives have a larger score than the positive?"
+    # ~> the positive is ranked last among those with equal score
+    pessimistic_rank = (y_pred_neg > y_pred_pos).sum(dim=1)
+    ranking_list = 0.5 * (optimistic_rank + pessimistic_rank) + 1
+
+    mrr_list = 1./ranking_list.to(torch.float)
+
+    return mrr_list
+
 
 def train(model,
+          linkx_encoder,
           predictor,
           data,
           split_edge,
@@ -61,16 +86,19 @@ def train(model,
             adj = adj.to_symmetric()
         else:
             adj = data.adj_t
+        
         h = model(data.x, adj)
+        hl = linkx_encoder(data.x, adj)
         edge = pos_train_edge[:, perm]
         pos_outs = predictor.multidomainforward(h,
+                                                hl,
                                                 adj,
                                                 edge,
                                                 cndropprobs=cnprobs)
 
         pos_losss = -F.logsigmoid(pos_outs).mean()
         edge = negedge[:, perm]
-        neg_outs = predictor.multidomainforward(h, adj, edge, cndropprobs=cnprobs)
+        neg_outs = predictor.multidomainforward(h, hl, adj, edge, cndropprobs=cnprobs)
         neg_losss = -F.logsigmoid(-neg_outs).mean()
         loss = neg_losss + pos_losss
         loss.backward()
@@ -83,7 +111,7 @@ def train(model,
 
 
 @torch.no_grad()
-def test(model, predictor, data, split_edge, evaluator, batch_size,
+def test(model, linkx_encoder, predictor, data, split_edge, evaluator, batch_size,
          use_valedges_as_input):
     model.eval()
     predictor.eval()
@@ -96,21 +124,21 @@ def test(model, predictor, data, split_edge, evaluator, batch_size,
 
     adj = data.adj_t
     h = model(data.x, adj)
-
+    hl = linkx_encoder(data.x, adj)
+    
     pos_train_pred = torch.cat([
-        predictor(h, adj, pos_train_edge[perm].t()).squeeze().cpu()
+        predictor(h, hl, adj, pos_train_edge[perm].t()).squeeze().cpu()
         for perm in PermIterator(pos_train_edge.device,
                                  pos_train_edge.shape[0], batch_size, False)
     ], dim=0)
 
-
     pos_valid_pred = torch.cat([
-        predictor(h, adj, pos_valid_edge[perm].t()).squeeze().cpu()
+        predictor(h, hl, adj, pos_valid_edge[perm].t()).squeeze().cpu()
         for perm in PermIterator(pos_valid_edge.device,
                                  pos_valid_edge.shape[0], batch_size, False)
     ],  dim=0)
     neg_valid_pred = torch.cat([
-        predictor(h, adj, neg_valid_edge[perm].t()).squeeze().cpu()
+        predictor(h, hl, adj, neg_valid_edge[perm].t()).squeeze().cpu()
         for perm in PermIterator(neg_valid_edge.device,
                                  neg_valid_edge.shape[0], batch_size, False)
     ],  dim=0)
@@ -119,19 +147,19 @@ def test(model, predictor, data, split_edge, evaluator, batch_size,
         h = model(data.x, adj)
 
     pos_test_pred = torch.cat([
-        predictor(h, adj, pos_test_edge[perm].t()).squeeze().cpu()
+        predictor(h, hl, adj, pos_test_edge[perm].t()).squeeze().cpu()
         for perm in PermIterator(pos_test_edge.device, pos_test_edge.shape[0],
                                  batch_size, False)
     ],  dim=0)
 
     neg_test_pred = torch.cat([
-        predictor(h, adj, neg_test_edge[perm].t()).squeeze().cpu()
+        predictor(h, hl, adj, neg_test_edge[perm].t()).squeeze().cpu()
         for perm in PermIterator(neg_test_edge.device, neg_test_edge.shape[0],
                                  batch_size, False)
     ],  dim=0)
 
     results = {}
-    for K in [20, 50, 100]:
+    for K in [1, 3, 10, 20, 50, 100]:
         evaluator.K = K
 
         train_hits = evaluator.eval({
@@ -149,13 +177,15 @@ def test(model, predictor, data, split_edge, evaluator, batch_size,
         })[f'hits@{K}']
 
         results[f'Hits@{K}'] = (train_hits, valid_hits, test_hits)
+    results['MRR'] =  (0, 0, eval_mrr(pos_test_pred, neg_test_pred).mean().item())
     return results, h.cpu()
 
 
 def parseargs():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--use_valedges_as_input', action='store_true', help="whether to add validation edges to the input adjacency matrix of gnn")
-    parser.add_argument('--epochs', type=int, default=9999, help="number of epochs")
+    parser.add_argument('--use_valedges_as_input', action='store_true', 
+                        help="whether to add validation edges to the input adjacency matrix of gnn")
+    parser.add_argument('--epochs', type=int, default=1000, help="number of epochs")
     parser.add_argument('--runs', type=int, default=3, help="number of repeated runs")
     parser.add_argument('--dataset', type=str, default="collab")
     
@@ -178,6 +208,12 @@ def parseargs():
     parser.add_argument('--preedp', type=float, default=0.3, help="edge dropout ratio of predictor")
     parser.add_argument('--gnnlr', type=float, default=0.0003, help="learning rate of gnn")
     parser.add_argument('--prelr', type=float, default=0.0003, help="learning rate of predictor")
+
+    # linkx params
+    parser.add_argument('--linkx_num_layers', type=int, default=3)
+    parser.add_argument('--linkx_hidden_channels', type=int, default=2**9)
+    parser.add_argument('--linkx_dropout', type=float, default=0.0)
+    
     # detailed hyperparameters
     parser.add_argument('--beta', type=float, default=1)
     parser.add_argument('--alpha', type=float, default=1)
@@ -213,9 +249,13 @@ def parseargs():
     
     parser.add_argument("--savex", action="store_true", help="whether to save trained node embeddings")
     parser.add_argument("--loadx", action="store_true", help="whether to load trained node embeddings")
-
+    parser.add_argument("--name_tag", type=str, help="model-keyword to save.")
+    parser.add_argument("--linkx_model", type=str, default='LINKX', help="linkx model")
+    # weisfer lehnman encodiing
+    parser.add_argument('--wl_process', type=str)
     
     # not used in experiments
+    parser.add_argument('--cat_wl_feat', default=False, action='store_true')
     parser.add_argument('--cnprob', type=float, default=0)
     args = parser.parse_args()
     return args
@@ -231,7 +271,7 @@ def main():
     writer.add_text("hyperparams", hpstr)
 
     if args.dataset in ["Cora", "Citeseer", "Pubmed"]:
-        evaluator = Evaluator(name=f'ogbl-ppa')
+        evaluator = Evaluator(name=f'ogbl-collab')
     else:
         evaluator = Evaluator(name=f'ogbl-{args.dataset}')
 
@@ -258,11 +298,65 @@ def main():
             data, split_edge = loaddataset(args.dataset, args.use_valedges_as_input, args.load) # get a new split of dataset
             data = data.to(device)
         bestscore = None
+        x = data.x
+        # node feature process
+        if args.cat_wl_feat:
+            print('cat wl embedding!!')
+            wl_emb = torch.load(
+                    os.path.join(
+                        DATASET_PATH, 
+                        'wl_label/'+ 
+                        args.dataset+
+                        '_wl_labels.pt'))
+            if args.wl_process == 'norm':
+                normalized_wl = (wl_emb.float() - wl_emb.float().min()) / (wl_emb.float().max() - wl_emb.float().min())
+                normalized_wl = normalized_wl.unsqueeze(-1)
+                x = torch.cat([x.to('cpu'), normalized_wl], dim=1)
+                indices = None
+                args.linkx_model = 'LINKX'
+            elif args.wl_process == 'unique': 
+                args.gnn_model = 'LINKX_WL'
+                # wl_emb = wl_emb.unsqueeze(-1)
+                unique_hashes, indices = torch.unique(wl_emb, return_inverse=True)
+                wl_emb = nn.Embedding(num_embeddings=len(unique_hashes), embedding_dim=16)
+                # rff_features = random_fourier_features(normalized_wl, D=16)
+                indices = indices.to(device)
+                args.linkx_model = 'LINKX_WL'
+        else:
+            wl_emb = None
+            indices = None
+            unique_hashes = None
+        
+        
+        # LINKX encoder
+        if args.linkx_model == 'LINKX_WL':
+            n_nodes = x.size(0)
+            linkx_encoder = LINKX_WL(
+                num_nodes=n_nodes,
+                in_channels=data.num_features,
+                hidden_channels=args.linkx_hidden_channels,
+                out_channels=args.linkx_hidden_channels,
+                num_layers=args.linkx_num_layers,
+                dropout=args.linkx_dropout,
+                wl_emb_dim=16,
+                num_wl=len(unique_hashes),
+            ).to(device)
+        elif args.linkx_model == 'LINKX':
+            n_nodes = x.size(0)
+            linkx_encoder = LINKX(
+                num_nodes=n_nodes,
+                in_channels=data.num_features,
+                hidden_channels=args.linkx_hidden_channels,
+                out_channels=args.linkx_hidden_channels,
+                num_layers=args.linkx_num_layers,
+                dropout=args.linkx_dropout
+            ).to(device)
         
         # build model
         model = GCN(data.num_features, args.hiddim, args.hiddim, args.mplayers,
                     args.gnndp, args.ln, args.res, data.max_x,
-                    args.model, args.jk, args.gnnedp,  xdropout=args.xdp, taildropout=args.tdp, noinputlin=args.loadx).to(device)
+                    args.model, args.jk, args.gnnedp,  xdropout=args.xdp, 
+                    taildropout=args.tdp, noinputlin=args.loadx).to(device)
         
         if args.loadx:
             with torch.no_grad():
@@ -283,16 +377,31 @@ def main():
         for epoch in range(1, 1 + args.epochs):
             alpha = max(0, min((epoch-5)*0.1, 1)) if args.increasealpha else None
             t1 = time.time()
-            loss = train(model, predictor, data, split_edge, optimizer,
-                         args.batch_size, args.maskinput, [], alpha)
+            loss = train(model, 
+                         linkx_encoder, 
+                         predictor, 
+                         data, 
+                         split_edge, 
+                         optimizer,
+                         args.batch_size, 
+                         args.maskinput, 
+                         [], 
+                         alpha)
+            
             print(f"trn time {time.time()-t1:.2f} s", flush=True)
             wandb.log({'train_loss': loss}, step = epoch)
             
             if True:
                 t1 = time.time()
-                results, h = test(model, predictor, data, split_edge, evaluator,
+                results, h = test(model, 
+                                  linkx_encoder, 
+                                  predictor, 
+                                  data, 
+                                  split_edge, 
+                                  evaluator,
                                args.testbs, args.use_valedges_as_input)
                 print(f"test time {time.time()-t1:.2f} s")
+
                 if bestscore is None:
                     bestscore = {key: list(results[key]) for key in results}
                 for key, result in results.items():
@@ -346,10 +455,11 @@ def main():
 
     # Save to CSV
     csv_filename = "results.csv"
-    with open(csv_filename, mode="w", newline="") as file:
+    with open(csv_filename, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow(["Validation Mean", "Validation Std", "Test Mean", "Test Std"])
+        writer.writerow(["key", "Validation Mean", "Validation Std", "Test Mean", "Test Std"])
         writer.writerow([
+            args.name_tag,
             np.average(ret[:, 0]), np.std(ret[:, 0]),
             np.average(ret[:, 1]), np.std(ret[:, 1])
         ])

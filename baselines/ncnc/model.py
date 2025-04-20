@@ -558,6 +558,7 @@ class CNLinkPredictor(nn.Module):
             nn.Linear(in_channels, hidden_channels), lnfn(hidden_channels, ln),
             nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
             nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity())
+        
         self.lin = nn.Sequential(nn.Linear(hidden_channels, hidden_channels),
                                  lnfn(hidden_channels, ln),
                                  nn.Dropout(dropout, inplace=True),
@@ -592,6 +593,161 @@ class CNLinkPredictor(nn.Module):
     def forward(self, x, adj, tar_ei, filled1: bool = False):
         return self.multidomainforward(x, adj, tar_ei, filled1, [])
 
+
+class CN1LinkPredictor(nn.Module):
+    cndeg: Final[int]
+    def __init__(self,
+                 in_channels,
+                 hidden_channels,
+                 out_channels,
+                 num_layers,
+                 dropout,
+                 edrop=0.0,
+                 ln=False,
+                 cndeg=-1,
+                 use_xlin=False,
+                 tailact=False,
+                 twolayerlin=False,
+                 beta=1.0):
+        super().__init__()
+
+        self.register_parameter("beta", nn.Parameter(beta*torch.ones((1))))
+        self.dropadj = DropAdj(edrop)
+        lnfn = lambda dim, ln: nn.LayerNorm(dim) if ln else nn.Identity()
+
+        self.xlin = nn.Sequential(nn.Linear(hidden_channels, hidden_channels),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels),
+            lnfn(hidden_channels, ln), nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True)) if use_xlin else lambda x: 0
+
+        self.xcnlin = nn.Sequential(
+            nn.Linear(in_channels+1, hidden_channels),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels),
+            lnfn(hidden_channels, ln), nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True), nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity())
+        self.xijlin = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels), lnfn(hidden_channels, ln),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity())
+        
+        self.lin = nn.Sequential(nn.Linear(hidden_channels, hidden_channels),
+                                 lnfn(hidden_channels, ln),
+                                 nn.Dropout(dropout, inplace=True),
+                                 nn.ReLU(inplace=True),
+                                 nn.Linear(hidden_channels, hidden_channels) if twolayerlin else nn.Identity(),
+                                 lnfn(hidden_channels, ln) if twolayerlin else nn.Identity(),
+                                 nn.Dropout(dropout, inplace=True) if twolayerlin else nn.Identity(),
+                                 nn.ReLU(inplace=True) if twolayerlin else nn.Identity(),
+                                 nn.Linear(hidden_channels, out_channels))
+        self.cndeg = cndeg
+        self.final_lin = nn.Linear(3, 1) 
+
+    def multidomainforward(self,
+                           x,
+                           adj,
+                           tar_ei,
+                           filled1: bool = False,
+                           cndropprobs: Iterable[float] = []):
+        adj = self.dropadj(adj)
+        xi = x[tar_ei[0]]
+        xj = x[tar_ei[1]]
+        # optimized node features 
+        x = x + self.xlin(x)
+        cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
+        cn_score = cn.sum(1).unsqueeze(1)
+        xij_score = (xi * xj).sum(1).unsqueeze(1)
+        
+        xcns = torch.cat([spmm_add(cn, x), cn_score], dim=-1)
+        xij = self.xijlin(xi * xj)
+        
+        xs = self.lin(self.xcnlin(xcns) * self.beta + xij)
+        final_score = torch.cat([xs, xij_score, cn_score], dim=-1)
+        xs = self.final_lin(final_score)
+        return xs
+
+    def forward(self, x, adj, tar_ei, filled1: bool = False):
+        return self.multidomainforward(x, adj, tar_ei, filled1, [])
+    
+# fuse embedding from gcn and linkx
+class FuseLinkPredictor(nn.Module):
+    cndeg: Final[int]
+    def __init__(self,
+                 in_channels,
+                 hidden_channels,
+                 out_channels,
+                 num_layers,
+                 dropout,
+                 edrop=0.0,
+                 ln=False,
+                 cndeg=-1,
+                 use_xlin=False,
+                 tailact=False,
+                 twolayerlin=False,
+                 beta=1.0):
+        super().__init__()
+
+        self.register_parameter("beta", nn.Parameter(beta*torch.ones((1))))
+        self.dropadj = DropAdj(edrop)
+        lnfn = lambda dim, ln: nn.LayerNorm(dim) if ln else nn.Identity()
+
+        self.xlin = nn.Sequential(nn.Linear(hidden_channels, hidden_channels),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels),
+            lnfn(hidden_channels, ln), nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True)) if use_xlin else lambda x: 0
+
+        self.xcnlin = nn.Sequential(
+            nn.Linear(in_channels+1, hidden_channels),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels),
+            lnfn(hidden_channels, ln), nn.Dropout(dropout, inplace=True),
+            nn.ReLU(inplace=True), nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity())
+        self.xijlin = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels), lnfn(hidden_channels, ln),
+            nn.Dropout(dropout, inplace=True), nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, hidden_channels) if not tailact else nn.Identity())
+        
+        self.lin = nn.Sequential(nn.Linear(hidden_channels, hidden_channels),
+                                 lnfn(hidden_channels, ln),
+                                 nn.Dropout(dropout, inplace=True),
+                                 nn.ReLU(inplace=True),
+                                 nn.Linear(hidden_channels, hidden_channels) if twolayerlin else nn.Identity(),
+                                 lnfn(hidden_channels, ln) if twolayerlin else nn.Identity(),
+                                 nn.Dropout(dropout, inplace=True) if twolayerlin else nn.Identity(),
+                                 nn.ReLU(inplace=True) if twolayerlin else nn.Identity(),
+                                 nn.Linear(hidden_channels, out_channels))
+        self.cndeg = cndeg
+        self.final_lin = nn.Linear(4, 1) 
+
+    def multidomainforward(self,
+                           x,
+                           h,
+                           adj,
+                           tar_ei,
+                           filled1: bool = False,
+                           cndropprobs: Iterable[float] = []):
+        adj = self.dropadj(adj)
+        xi = x[tar_ei[0]]
+        xj = x[tar_ei[1]]
+        hij = h[tar_ei[0]]*h[tar_ei[1]]
+        # optimized node features 
+        x = x + self.xlin(x)
+        cn = adjoverlap(adj, adj, tar_ei, filled1, cnsampledeg=self.cndeg)
+        cn_score = cn.sum(1).unsqueeze(1)
+        xij_score = (xi * xj).sum(1).unsqueeze(1)
+        
+        xcns = torch.cat([spmm_add(cn, x), cn_score], dim=-1)
+        xij = self.xijlin(xi * xj)
+        
+        xs = self.lin(self.xcnlin(xcns) * self.beta + xij)
+        final_score = torch.cat([xs, xij_score, cn_score, hij], dim=-1)
+        xs = self.final_lin(final_score)
+        return xs
+
+    def forward(self, x, adj, tar_ei, filled1: bool = False):
+        return self.multidomainforward(x, adj, tar_ei, filled1, [])
+    
+    
 # GAE predictor for ablation study
 class CN0LinkPredictor(nn.Module):
     cndeg: Final[int]
@@ -975,8 +1131,222 @@ predictor_dict = {
     "scn1": SCNLinkPredictor,
     "sincn1cn1": IncompleteSCN1Predictor,
     "cn1": CNLinkPredictor,
+    "cn1.1": CN1LinkPredictor,
     "cn1.5": CNhalf2LinkPredictor,
     "cn1res": CNResLinkPredictor,
     "cn2": CN2LinkPredictor,
-    "incn1cn1": IncompleteCN1Predictor
+    "incn1cn1": IncompleteCN1Predictor,
+    "fuse1": FuseLinkPredictor,
 }
+
+
+from torch_geometric.nn.conv import MessagePassing
+from torch_geometric.nn.models import MLP
+from torch_geometric.typing import Adj, OptTensor
+from torch_geometric.utils import (
+    to_networkx,
+    train_test_split_edges,
+    to_undirected,
+    spmm
+)
+from torch.nn import BatchNorm1d, Parameter
+import math
+from torch_geometric.nn import inits
+
+class SparseLinear(MessagePassing):
+    def __init__(self, in_channels: int, out_channels: int, bias: bool = True):
+        super().__init__(aggr='add')
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+
+        self.weight = Parameter(torch.empty(in_channels, out_channels))
+        if bias:
+            self.bias = Parameter(torch.empty(out_channels))
+        else:
+            self.register_parameter('bias', None)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        inits.kaiming_uniform(self.weight, fan=self.in_channels,
+                              a=math.sqrt(5))
+        inits.uniform(self.in_channels, self.bias)
+
+    def forward(
+        self,
+        edge_index: Adj,
+        edge_weight: OptTensor = None,
+    ) -> Tensor:
+        # propagate_type: (weight: Tensor, edge_weight: OptTensor)
+        out = self.propagate(edge_index, weight=self.weight,
+                             edge_weight=edge_weight)
+        if self.bias is not None:
+            out = out + self.bias
+        return out
+
+    def message(self, weight_j: Tensor, edge_weight: OptTensor) -> Tensor:
+        if edge_weight is None:
+            return weight_j
+        else:
+            return edge_weight.view(-1, 1) * weight_j
+
+    def message_and_aggregate(self, adj_t: Adj, weight: Tensor) -> Tensor:
+        return spmm(adj_t, weight, reduce=self.aggr)
+
+
+
+class LINKX(torch.nn.Module):
+    def __init__(
+        self,
+        num_nodes: int,
+        in_channels: int,
+        hidden_channels: int,
+        out_channels: int,
+        num_layers: int,
+        num_edge_layers: int = 1,
+        num_node_layers: int = 1,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+
+        self.num_nodes = num_nodes
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.num_edge_layers = num_edge_layers
+        self.edge_lin = SparseLinear(num_nodes, hidden_channels)
+
+        if self.num_edge_layers > 1:
+            self.edge_norm = BatchNorm1d(hidden_channels)
+            channels = [hidden_channels] * num_edge_layers
+            self.edge_mlp = MLP(channels, dropout=0., act_first=True)
+        else:
+            self.edge_norm = None
+            self.edge_mlp = None
+
+        channels = [in_channels] + [hidden_channels] * num_node_layers
+        self.node_mlp = MLP(channels, dropout=0., act_first=True)
+
+        self.cat_lin1 = torch.nn.Linear(hidden_channels, hidden_channels)
+        self.cat_lin2 = torch.nn.Linear(hidden_channels, hidden_channels)
+
+        channels = [hidden_channels] * num_layers + [out_channels]
+        self.final_mlp = MLP(channels, dropout=dropout, act_first=True)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
+        self.edge_lin.reset_parameters()
+        if self.edge_norm is not None:
+            self.edge_norm.reset_parameters()
+        if self.edge_mlp is not None:
+            self.edge_mlp.reset_parameters()
+        self.node_mlp.reset_parameters()
+        self.cat_lin1.reset_parameters()
+        self.cat_lin2.reset_parameters()
+        self.final_mlp.reset_parameters()
+
+    def forward(
+        self,
+        x: OptTensor,
+        edge_index: Adj,
+        edge_weight: OptTensor = None,
+    ) -> Tensor:
+        """"""  # noqa: D419
+        out = self.edge_lin(edge_index, edge_weight)
+
+        if self.edge_norm is not None and self.edge_mlp is not None:
+            out = out.relu_()
+            out = self.edge_norm(out)
+            out = self.edge_mlp(out)
+        out = out + self.cat_lin1(out)
+        if x is not None:
+            x = self.node_mlp(x)
+            out = out + x
+            out = out + self.cat_lin2(x)
+        return self.final_mlp(out.relu_())
+
+
+
+class LINKX_WL(torch.nn.Module):
+    r"""The LINKX model from the `"Large Scale Learning on Non-Homophilous
+    """
+    def __init__(
+        self,
+        num_nodes: int,
+        in_channels: int,
+        hidden_channels: int,
+        out_channels: int,
+        num_layers: int,
+        num_edge_layers: int = 1,
+        num_node_layers: int = 1,
+        dropout: float = 0.0,
+        wl_emb_dim: int = 0,
+        num_wl: int = 0,
+    ):
+        super().__init__()
+
+        self.num_nodes = num_nodes
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.num_edge_layers = num_edge_layers
+        self.edge_lin = SparseLinear(num_nodes, hidden_channels)
+
+        if self.num_edge_layers > 1:
+            self.edge_norm = BatchNorm1d(hidden_channels)
+            channels = [hidden_channels] * num_edge_layers
+            self.edge_mlp = MLP(channels, dropout=0., act_first=True)
+        else:
+            self.edge_norm = None
+            self.edge_mlp = None
+
+        channels = [in_channels+wl_emb_dim] + [hidden_channels] * num_node_layers 
+        self.node_mlp = MLP(channels, dropout=0., act_first=True)
+        self.wl_emb = nn.Embedding(num_wl, wl_emb_dim)
+        self.cat_lin1 = torch.nn.Linear(hidden_channels, hidden_channels)
+        self.cat_lin2 = torch.nn.Linear(hidden_channels, hidden_channels)
+        channels = [hidden_channels] * num_layers + [out_channels]
+        self.final_mlp = MLP(channels, dropout=dropout, act_first=True)
+        
+
+    def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
+        self.edge_lin.reset_parameters()
+        if self.edge_norm is not None:
+            self.edge_norm.reset_parameters()
+        if self.edge_mlp is not None:
+            self.edge_mlp.reset_parameters()
+        self.node_mlp.reset_parameters()
+        self.cat_lin1.reset_parameters()
+        self.cat_lin2.reset_parameters()
+        self.final_mlp.reset_parameters()
+
+    def forward(
+        self,
+        wl_indices: Tensor,
+        x: OptTensor,
+        edge_index: Adj,
+        edge_weight: OptTensor = None,
+    ) -> Tensor:
+        """"""  # noqa: D419
+        out = self.edge_lin(edge_index, edge_weight)
+        if self.edge_norm is not None and self.edge_mlp is not None:
+            out = out.relu_()
+            out = self.edge_norm(out)
+            out = self.edge_mlp(out)
+
+        out = out + self.cat_lin1(out)
+        if x is not None and wl_indices is not None:
+            wl_embedding = self.wl_emb(wl_indices)
+            x = torch.cat((x, wl_embedding), dim=1)
+            x = self.node_mlp(x)
+            out = out + x
+            out = out + self.cat_lin2(x) 
+        
+        return self.final_mlp(out.relu_())
+
+    def __repr__(self) -> str:
+        return (f'{self.__class__.__name__}(num_nodes={self.num_nodes}, '
+                f'in_channels={self.in_channels}, '
+                f'out_channels={self.out_channels})')
+
