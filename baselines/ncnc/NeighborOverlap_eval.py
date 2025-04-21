@@ -52,6 +52,7 @@ def train(model,
           linkx_encoder,
           predictor,
           data,
+          indices,
           split_edge,
           optimizer,
           batch_size,
@@ -88,7 +89,7 @@ def train(model,
             adj = data.adj_t
         
         h = model(data.x, adj)
-        hl = linkx_encoder(data.x, adj)
+        hl = linkx_encoder(indices, data.x, adj)
         edge = pos_train_edge[:, perm]
         pos_outs = predictor.multidomainforward(h,
                                                 hl,
@@ -111,7 +112,7 @@ def train(model,
 
 
 @torch.no_grad()
-def test(model, linkx_encoder, predictor, data, split_edge, evaluator, batch_size,
+def test(model, linkx_encoder, predictor, data, indices, split_edge, evaluator, batch_size,
          use_valedges_as_input):
     model.eval()
     predictor.eval()
@@ -124,7 +125,7 @@ def test(model, linkx_encoder, predictor, data, split_edge, evaluator, batch_siz
 
     adj = data.adj_t
     h = model(data.x, adj)
-    hl = linkx_encoder(data.x, adj)
+    hl = linkx_encoder(indices, data.x, adj)
     
     pos_train_pred = torch.cat([
         predictor(h, hl, adj, pos_train_edge[perm].t()).squeeze().cpu()
@@ -381,6 +382,7 @@ def main():
                          linkx_encoder, 
                          predictor, 
                          data, 
+                         indices,
                          split_edge, 
                          optimizer,
                          args.batch_size, 
@@ -397,6 +399,7 @@ def main():
                                   linkx_encoder, 
                                   predictor, 
                                   data, 
+                                  indices,
                                   split_edge, 
                                   evaluator,
                                args.testbs, args.use_valedges_as_input)
