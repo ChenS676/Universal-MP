@@ -306,7 +306,7 @@ def main():
             wl_emb = torch.load(
                     os.path.join(
                         DATASET_PATH, 
-                        'wl_label/'+ 
+                        'wl_label/ogbl-'+ 
                         args.dataset+
                         '_wl_labels.pt'))
             if args.wl_process == 'norm':
