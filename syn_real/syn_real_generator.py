@@ -119,7 +119,7 @@ def add_random_edges(graph_data, inter_ratio=0.5, intra_ratio=0.5, total_edges=1
         intra_edges_list.append((u, v))
     new_edges = torch.tensor(inter_edges_list + intra_edges_list, dtype=torch.long).T
     updated_edge_index = torch.cat([graph_data.edge_index, new_edges], dim=1)
-    return Data(edge_index=updated_edge_index, num_nodes=graph_data.num_nodes, x=graph_data.x)
+    return Data(edge_index=updated_edge_index, num_nodes=graph_data.num_nodes, x=graph_data.x), new_edges
 
 
 def plot_group_size_distribution(group_sizes, args, file_name):
@@ -230,15 +230,16 @@ def perturb_disjoint(graph_data, args, inter_ratio, intra_ratio, total_edges):
         total_edges (int): Total number of random edges to add.
     """
     # Add random edges to the graph
+    new_edges = 0
     if inter_ratio != 0 and intra_ratio != 0 and total_edges != 0:
-        updated_graph_data = add_random_edges(graph_data, inter_ratio=inter_ratio, intra_ratio=intra_ratio, total_edges=total_edges)
+        updated_graph_data, new_edges = add_random_edges(graph_data, inter_ratio=inter_ratio, intra_ratio=intra_ratio, total_edges=total_edges)
     else:
         updated_graph_data = graph_data
     # Convert to NetworkX graph for visualization
     G = to_networkx(updated_graph_data, to_undirected=True)
     num_nodes = updated_graph_data.num_nodes
+    # print degree distribution 
     node_groups, node_labels = run_wl_test_and_group_nodes(updated_graph_data.edge_index, num_nodes=num_nodes, num_iterations=30)
-    
     metrics_after, num_nodes, group_sizes = compute_automorphism_metrics(node_groups, num_nodes)
     metrics_after.update({'head': f'{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}'})
     csv_path = f'plots/{args.data_name}/_Node_Merging.csv'
@@ -251,12 +252,12 @@ def perturb_disjoint(graph_data, args, inter_ratio, intra_ratio, total_edges):
     # plot_histogram_group_size_log_scale(group_sizes, metrics_after, args, f'plots/{args.data_name}/hist_group_size_log_{args.data_name}_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
     # plot_graph_visualization(updated_graph_data, node_labels, args,  f'plots/{args.data_name}/wl_test_{args.data_name}_vis_inter{inter_ratio}_intra{intra_ratio}_edges{total_edges}.png')
     # print(f"Finished with inter_ratio={inter_ratio}, intra_ratio={intra_ratio}, total_edges={total_edges}")
-    return updated_graph_data, metrics_after
+    return updated_graph_data, metrics_after, node_groups, node_labels, new_edges
 
     
 def parse_args():
     parser = argparse.ArgumentParser(description='homo')
-    parser.add_argument('--data_name', type=str, default="ogbl-ddi")
+    parser.add_argument('--data_name', type=str, default="Cora")
     parser.add_argument('--neg_mode', type=str, default='equal')
     parser.add_argument('--gnn_model', type=str, default='GCN')
     parser.add_argument('--score_model', type=str, default='mlp_score')
@@ -416,21 +417,32 @@ def main():
     file_exists = os.path.isfile(csv_path)
     original_data = load_real_world_graph(args.data_name)
 
-    perturb_disjoint(original_data, args, 0, 0, 0)
+    _, _, node_group, node_label, _ = perturb_disjoint(original_data, args, 0, 0, 0)
     disjoint_graph = create_disjoint_graph(original_data)
-    
-    perturb_disjoint(disjoint_graph, args, 0, 0, 0)
+
+    _, _, node_group, node_label, _ = perturb_disjoint(disjoint_graph, args, 0, 0, 0)
     inter_ratios = [0.5]  # Try also: 0.1–0.9
     intra_ratios = [0.5]    
-    total_edges_list =  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] # [0.15, 1,  4.5, 8, 14, 40]  # Will be scaled × 10^3
-
+    total_edges_list =  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 40, 100] # [0.15, 1,  4.5, 8, 14, 40]  # Will be scaled × 10^3
+    
+    plt.figure(figsize=(6, 4))
+    # plt.plot(node_label, color='blue', marker='o', markersize=2)
+    plt.savefig(f'plots/{args.data_name}/wl_test_process.png')
     for inter in inter_ratios:
         for intra in intra_ratios:
             for edge_factor in total_edges_list:
                 total_edges = int(edge_factor * 1)
                 print(f"\n=== Running experiment: inter_ratio={inter}, intra_ratio={intra}, edge_factor={edge_factor} ===")
-                updated_graph_data, metrics_after = perturb_disjoint(disjoint_graph, args, inter, intra, total_edges)
-
+                updated_graph_data, metrics_after, _, new_node_label, new_edges = perturb_disjoint(disjoint_graph, args, inter, intra, total_edges)
+                changes = new_node_label-node_label
+                plt.plot(changes/changes.max())
+                new_edges = new_edges.numpy().flatten()
+                new_node_label = np.arange(len(node_label))  # adjust based on your actual label list
+                indicator = np.isin(new_node_label, new_edges).astype(int)
+                plt.plot(indicator)
+                # plot changed node id
+                plt.savefig(f'plots/{args.data_name}/wl_test_process{inter}_{intra}_{edge_factor}.png')
+                
 
 if __name__ == "__main__":
     main()

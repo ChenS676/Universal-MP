@@ -524,6 +524,7 @@ def get_graph_statistics(G, graph_name="Graph"):
 
 
 def run_training_pipeline(data, metrics, inter, intra, total_edges, args):
+    
     data = copy.deepcopy(data)
     G = to_networkx(data)
     stats = get_graph_statistics(G, graph_name=args.data_name)

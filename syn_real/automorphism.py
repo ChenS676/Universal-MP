@@ -491,7 +491,7 @@ def compute_automorphism_metrics(node_groups, num_nodes):
     A_r_norm_1 = 1 + np.log(A_r1) / np.log(num_nodes) # lower is less automorphism
     A_r_norm_2 = np.log(np.sum(group_sizes**2)) / (2 * np.log(num_nodes)) 
     A_r_log = (np.log(np.sum(group_sizes**2)) - np.log(num_nodes**2)) / np.log(num_nodes)
-    automorphism_score = 1 - (len(node_groups) / num_nodes)
+    automorphism_score = (len(node_groups) / num_nodes)
     return {
         "Automorphism Ratio (A_r1)": A_r1,
         "A_r_norm_2": A_r_norm_2,
